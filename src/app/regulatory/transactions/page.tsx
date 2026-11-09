@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type Phase = "Discovery" | "Preclinical" | "IND-ready" | "Phase 1" | "Phase 2";
 type TxStatus = "In negotiation" | "Active" | "Due diligence" | "Completed" | "Terminated";
@@ -126,6 +127,8 @@ export default function TransactionsPage() {
           Deal modeling, IP valuation, and partnership scenario analysis
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Active Valuations */}
       <div>

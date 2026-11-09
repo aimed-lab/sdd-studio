@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { MoleculeViewer } from "@/components/molecule-viewer";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type DrugOrigin = "de-novo" | "repositioned";
 type DrugModality = "small-molecule" | "antibody" | "peptide" | "oligonucleotide" | "cell-therapy" | "gene-therapy";
@@ -90,6 +91,8 @@ export default function DrugPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       <Tabs defaultValue="all-drugs">
         <TabsList>
           <TabsTrigger value="all-drugs">All Drugs</TabsTrigger>
@@ -116,7 +119,7 @@ export default function DrugPage() {
               </button>
             ))}
           </div>
-            <ExportCsvButton rows={filteredDrugs as unknown as Record<string, unknown>[]} filename="drugs" />
+            <ExportCsvButton demo rows={filteredDrugs as unknown as Record<string, unknown>[]} filename="drugs" />
           </div>
 
           <Card>

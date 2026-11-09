@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Experiment {
   id: string;
@@ -55,6 +56,8 @@ export default function ExperimentsPage() {
           Track and manage assays and experimental workflows
         </p>
       </div>
+
+      <DemoDataNotice />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <SummaryCard label="Planned" count={counts.planned} color="text-blue-600" />

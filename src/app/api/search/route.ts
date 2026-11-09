@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MAX_QUERY_LENGTH, type Provenance, UpstreamError, badRequest, fetchUpstream, sourceUnavailable } from "@/lib/upstream";
 
 const CHEMBL_API = "https://www.ebi.ac.uk/chembl/api/data";
+const SOURCE = { name: "ChEMBL", url: "https://www.ebi.ac.uk/chembl/" };
 
 interface ChemblMolecule {
   molecule_chembl_id: string;
@@ -27,28 +29,20 @@ const num = (v: string | number | null | undefined) => {
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
 
-  if (!q) {
-    return NextResponse.json({ results: [], error: "Query parameter 'q' is required" }, { status: 400 });
-  }
+  if (!q) return badRequest("Query parameter 'q' is required");
+  if (q.length > MAX_QUERY_LENGTH) return badRequest(`Query is too long (max ${MAX_QUERY_LENGTH} characters)`);
 
   const url = /^CHEMBL\d+$/i.test(q)
     ? `${CHEMBL_API}/molecule.json?molecule_chembl_id=${encodeURIComponent(q.toUpperCase())}&limit=1`
     : `${CHEMBL_API}/molecule/search.json?q=${encodeURIComponent(q)}&limit=25`;
 
   let data: { molecules?: ChemblMolecule[]; page_meta?: { total_count?: number } };
+  let provenance: Provenance;
   try {
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 3600 },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) throw new Error(`ChEMBL responded ${res.status}`);
-    data = await res.json();
-  } catch {
-    return NextResponse.json(
-      { results: [], error: "ChEMBL is unavailable right now. Please try again shortly." },
-      { status: 502 }
-    );
+    ({ data, provenance } = await fetchUpstream<typeof data>(SOURCE, url));
+  } catch (err) {
+    if (err instanceof UpstreamError) return sourceUnavailable(SOURCE.name);
+    throw err;
   }
 
   const results = (data.molecules ?? []).map((m) => ({
@@ -68,6 +62,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     results,
     total: data.page_meta?.total_count ?? results.length,
-    source: { name: "ChEMBL", url: "https://www.ebi.ac.uk/chembl/", retrieved: new Date().toISOString() },
+    source: provenance,
   });
 }

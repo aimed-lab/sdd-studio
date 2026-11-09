@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -398,6 +399,7 @@ export default function ModelsPage() {
           Select, connect, and manage AI models — API keys, usage tracking, cost caps, and safety settings
         </p>
       </div>
+      <DemoDataNotice variant="planned" />
 
       {/* Status summary tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

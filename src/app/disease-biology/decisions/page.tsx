@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface DecisionReport {
   id: string;
@@ -101,6 +102,8 @@ export default function DecisionsPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-4">
         <Card
@@ -170,7 +173,7 @@ export default function DecisionsPage() {
             </button>
           ))}
         </div>
-        <ExportCsvButton rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="disease-biology-decisions" />
+        <ExportCsvButton demo rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="disease-biology-decisions" />
       </div>
 
       {/* Decision Reports Table */}

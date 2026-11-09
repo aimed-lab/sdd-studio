@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type SimStatus = "Pass" | "Warn" | "Fail" | "Pending" | "none";
 
@@ -87,6 +88,8 @@ export default function SimulationsPage() {
           Multi-scale validation across the A1&#8211;A10 hierarchy
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* A1-A10 Pipeline Stepper */}
       <Card>

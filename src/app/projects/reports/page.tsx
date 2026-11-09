@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 const reports = [
   {
@@ -98,6 +99,8 @@ export default function ReportsPage() {
           + New Report
         </button>
       </div>
+
+      <DemoDataNotice />
 
       <div className="space-y-4">
         {reports.map((r) => {

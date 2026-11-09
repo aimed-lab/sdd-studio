@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { SourceLine } from "@/components/data-provenance";
 import { MoleculeViewer } from "@/components/molecule-viewer";
 import { cn } from "@/lib/utils";
 
@@ -151,7 +152,11 @@ function SearchContent() {
                 </CardDescription>
               </div>
               {results.length > 0 && (
-                <ExportCsvButton rows={results} filename={`chembl-${submitted}`} />
+                <ExportCsvButton
+                  rows={results}
+                  filename={`chembl-${submitted}`}
+                  source={source ? { name: source.name, retrieved: source.retrieved } : undefined}
+                />
               )}
             </div>
           </CardHeader>
@@ -210,13 +215,9 @@ function SearchContent() {
                 </table>
               </div>
               {source && (
-                <p className="mt-4 text-xs text-muted-foreground">
-                  Source:{" "}
-                  <a href={source.url} target="_blank" rel="noopener noreferrer" className="underline">
-                    {source.name}
-                  </a>{" "}
-                  (live query), retrieved {new Date(source.retrieved).toLocaleString()}
-                </p>
+                <div className="mt-4">
+                  <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />
+                </div>
               )}
             </CardContent>
           )}

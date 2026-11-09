@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { boardTargets as targets } from "@/data/target-board";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 const filterOptions = ["All", "Gene", "Protein", "RNA", "DNA", "Cell"] as const;
 
@@ -78,6 +79,8 @@ function TargetBoardContent() {
           Gene, protein, RNA, DNA, and cellular targets for disease programs
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Filter Pills */}
       <div className="flex flex-wrap gap-2">

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { MoleculeViewer } from "@/components/molecule-viewer";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Compound {
   id: string;
@@ -114,6 +115,8 @@ function CompoundsContent() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
@@ -151,7 +154,7 @@ function CompoundsContent() {
                 </option>
               ))}
             </select>
-            <ExportCsvButton rows={filtered} filename="compounds" />
+            <ExportCsvButton demo rows={filtered} filename="compounds" />
           </div>
         </CardHeader>
         <CardContent>

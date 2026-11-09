@@ -1,0 +1,51 @@
+name: Upstream data smoke test
+
+# Daily check that each live-data proxy still returns real rows from its upstream.
+# On failure, opens (or comments on) a single tracking issue.
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: https://target.smartdrugdiscovery.org
+    steps:
+      - name: ChEMBL via /api/search
+        id: chembl
+        continue-on-error: true
+        run: |
+          body=$(curl -sf --max-time 30 "$BASE_URL/api/search?q=imatinib")
+          echo "$body" | jq -e '.results | length > 0' > /dev/null
+          echo "$body" | jq -e '.source.name == "ChEMBL" and (.source.retrieved | length > 0)' > /dev/null
+
+      - name: ClinicalTrials.gov via /api/trials
+        id: ctgov
+        continue-on-error: true
+        run: |
+          body=$(curl -sf --max-time 30 "$BASE_URL/api/trials?term=EGFR&condition=cancer")
+          echo "$body" | jq -e '.results | length > 0' > /dev/null
+          echo "$body" | jq -e '.results[0].nctId | startswith("NCT")' > /dev/null
+
+      - name: Report failures
+        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHEMBL: ${{ steps.chembl.outcome }}
+          CTGOV: ${{ steps.ctgov.outcome }}
+        run: |
+          title="Upstream smoke test failing"
+          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number -q '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$msg"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label bug --body "$msg"
+          fi
+          exit 1

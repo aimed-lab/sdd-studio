@@ -4,11 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
+import { PathwayDiagram } from "@/components/pathway-diagram";
 
 interface MoAStudy {
   id: string;
   title: string;
   gene: string;
+  steps: string[];
   pathway: string;
   method: string;
   status: "Validated" | "Under review" | "Investigating";
@@ -27,42 +30,46 @@ const moaStudies: MoAStudy[] = [
   {
     id: "MOA-001",
     gene: "BRAF",
+    steps: ["BRAF V600E", "MEK", "ERK"],
     title: "BRAF V600E \u2192 MEK \u2192 ERK Cascade",
     pathway: "MAPK/ERK",
     method: "GeneTerrain + PETS",
     status: "Validated",
     confidence: 92,
-    evidence: "GTKM shows concentrated expression in melanoma tumor microenvironment",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
     id: "MOA-002",
     gene: "GSK3B",
+    steps: ["GSK-3\u03B2", "Tau"],
     title: "Tau Phosphorylation via GSK-3\u03B2",
     pathway: "Wnt/GSK3",
     method: "Network propagation",
     status: "Under review",
     confidence: 78,
-    evidence: "scRNA-seq from ADNI cohort shows GSK-3\u03B2 upregulation in neuronal subtypes",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
     id: "MOA-003",
     gene: "JAK2",
+    steps: ["JAK2", "STAT"],
     title: "JAK2-STAT Signaling in MPN",
     pathway: "JAK-STAT",
     method: "Perturb-seq analysis",
     status: "Validated",
     confidence: 88,
-    evidence: "CPA model predicts restoration of normal hematopoiesis upon JAK2 inhibition",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
     id: "MOA-004",
     gene: "EGFR",
+    steps: ["EGFR", "PI3K", "AKT"],
     title: "EGFR \u2192 PI3K \u2192 AKT Resistance",
     pathway: "PI3K/AKT/mTOR",
     method: "GeneTerrain + BioReason-Pro",
     status: "Investigating",
     confidence: 65,
-    evidence: "Resistance mechanism identified through multi-agent LLM analysis",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
 ];
 
@@ -103,6 +110,8 @@ export default function MechanismsPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       {/* Active MoA Studies */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Active MoA Studies</h2>
@@ -131,6 +140,8 @@ export default function MechanismsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                <PathwayDiagram steps={study.steps} gene={study.gene} />
+
                 {/* Confidence Bar */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
@@ -168,7 +179,8 @@ export default function MechanismsPage() {
                 </span>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <PathwayDiagram steps={selected.steps} gene={selected.gene} />
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
                   <dt className="text-muted-foreground">Pathway</dt>
@@ -195,7 +207,7 @@ export default function MechanismsPage() {
                   <dd className="italic">{selected.evidence}</dd>
                 </div>
               </dl>
-              <p className="mt-4 text-xs text-muted-foreground">Evidence references: not yet curated</p>
+              <p className="text-xs text-muted-foreground">Evidence references: not yet curated</p>
             </CardContent>
           </Card>
         )}

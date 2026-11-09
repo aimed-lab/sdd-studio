@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { can, ROLE_META } from "@/lib/roles";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1064,6 +1065,7 @@ export default function PluginsPage() {
           <h1 className="text-3xl font-bold">Tool Plugins</h1>
           <p className="text-muted-foreground mt-1">FAIR-compliant integrations for extending the AIDD platform</p>
         </div>
+        <DemoDataNotice variant="planned" />
         {/* Role banner */}
         <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 text-xs", roleMeta.color)}>
           <span className="font-semibold">{roleMeta.label}</span>

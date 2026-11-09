@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Simulation {
   id: string;
@@ -49,6 +50,8 @@ export default function PerturbationPage() {
           In silico perturbation modeling using virtual cell and network models
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Simulation Engine Selector */}
       <div>

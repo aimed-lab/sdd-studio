@@ -7,6 +7,7 @@ import { boardTargets } from "@/data/target-board";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface DiseaseGroup {
   id: string;
@@ -260,6 +261,8 @@ export default function DiseasePage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       <Tabs defaultValue="groups">
         <TabsList>
           <TabsTrigger value="groups">Disease Groups</TabsTrigger>
@@ -389,7 +392,7 @@ export default function DiseasePage() {
                 </button>
               ))}
             </div>
-            <ExportCsvButton rows={shownCohorts} filename="cohorts" />
+            <ExportCsvButton demo rows={shownCohorts} filename="cohorts" />
           </div>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">

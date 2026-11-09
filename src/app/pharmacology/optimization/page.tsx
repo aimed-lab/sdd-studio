@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface OptimizationCampaign {
   id: string;
@@ -109,6 +110,8 @@ export default function OptimizationPage() {
           ADMET profiling, multiparameter optimization, and lead refinement
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Optimization Campaigns */}
       <div>

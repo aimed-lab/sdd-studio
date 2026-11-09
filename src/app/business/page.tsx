@@ -15,6 +15,7 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Competitor {
   company: string;
@@ -115,6 +116,8 @@ export default function BusinessPage() {
           PharmNexus &mdash; competitive intelligence, patents, and market analysis
         </p>
       </div>
+
+      <DemoDataNotice />
 
       <Tabs defaultValue="competitive" className="space-y-4">
         <TabsList>

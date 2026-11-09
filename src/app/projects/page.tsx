@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type ProjectStatus = "active" | "paused" | "completed";
 type KanbanStatus = "todo" | "in-progress" | "completed";
@@ -341,6 +342,8 @@ export default function ProjectsPage() {
           Drug discovery programs and project management
         </p>
       </div>
+
+      <DemoDataNotice />
 
       <Tabs defaultValue="overview">
         <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">

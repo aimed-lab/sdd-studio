@@ -1,7 +1,11 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DemoDataNotice } from "@/components/data-provenance";
+import { TrialLandscape } from "@/components/trial-landscape";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ExportCsvButton } from "@/components/export-csv-button";
@@ -98,22 +102,50 @@ function linkCompoundIds(text: string) {
 }
 
 export default function TrialsPage() {
-  const [selectedTrial, setSelectedTrial] = useState<string | null>(null);
+  return (
+    <Suspense>
+      <TrialsContent />
+    </Suspense>
+  );
+}
+
+function TrialsContent() {
+  const initialTerm = useSearchParams().get("term") ?? "EGFR";
 
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Trial Simulations</h1>
+        <h1 className="text-3xl font-bold">Trials</h1>
         <p className="text-muted-foreground mt-1">
-          Virtual trial design, synthetic arms, and outcome simulation
+          Registered trial landscape from ClinicalTrials.gov, plus illustrative internal trial designs
         </p>
       </div>
 
-      {/* Simulated Trials */}
+      <Tabs defaultValue="landscape">
+        <TabsList>
+          <TabsTrigger value="landscape">Trial Landscape (ClinicalTrials.gov)</TabsTrigger>
+          <TabsTrigger value="internal">Illustrative internal programs (demo)</TabsTrigger>
+        </TabsList>
+        <TabsContent value="landscape" className="mt-4">
+          <TrialLandscape initialTerm={initialTerm} />
+        </TabsContent>
+        <TabsContent value="internal" className="mt-4 space-y-4">
+          <DemoDataNotice />
+          <IllustrativePrograms />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function IllustrativePrograms() {
+  const [selectedTrial, setSelectedTrial] = useState<string | null>(null);
+
+  return (
       <div>
         <div className="flex items-center justify-between gap-2 mb-4">
-          <h2 className="text-xl font-semibold">Simulated Trials</h2>
-          <ExportCsvButton rows={trials as unknown as Record<string, unknown>[]} filename="trial-simulations" />
+          <h2 className="text-xl font-semibold">Internal trial designs</h2>
+          <ExportCsvButton rows={trials} filename="illustrative-trial-designs" demo />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {trials.map((trial) => (
@@ -195,6 +227,5 @@ export default function TrialsPage() {
           ))}
         </div>
       </div>
-    </div>
   );
 }

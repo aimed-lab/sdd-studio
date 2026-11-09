@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type Decision = "Go" | "Conditional Go" | "No-Go";
 
@@ -110,6 +111,8 @@ export default function DecisionsPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -161,7 +164,7 @@ export default function DecisionsPage() {
             </button>
           ))}
         </div>
-        <ExportCsvButton rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="regulatory-decisions" />
+        <ExportCsvButton demo rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="regulatory-decisions" />
       </div>
 
       {/* Decisions Table */}

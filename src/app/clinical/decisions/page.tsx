@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Decision {
   id: string;
@@ -89,6 +90,8 @@ export default function DecisionsPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           {decisionFilters.map((f) => (
@@ -106,7 +109,7 @@ export default function DecisionsPage() {
             </button>
           ))}
         </div>
-        <ExportCsvButton rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="clinical-decisions" />
+        <ExportCsvButton demo rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="clinical-decisions" />
       </div>
 
       {/* Decisions Table */}

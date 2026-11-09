@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type Compliance = "Compliant" | "Partial" | "Internal only" | "Restricted";
 
@@ -144,6 +145,8 @@ export default function LicensingPage() {
           Open science compliance, FAIR data governance, and licensing management
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

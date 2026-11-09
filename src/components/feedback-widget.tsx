@@ -388,7 +388,7 @@ export function FeedbackWidget({ user }: { user: { name: string; email: string; 
                       {msg.role === "assistant" && (
                         <div className="flex items-center gap-1 mb-1 opacity-60">
                           <Bot className="h-3 w-3" />
-                          <span className="text-[10px] font-medium">Assistant</span>
+                          <span className="text-[10px] font-medium">Assistant &middot; LLM-generated, unverified</span>
                         </div>
                       )}
                       <p className="whitespace-pre-wrap">{msg.content}</p>

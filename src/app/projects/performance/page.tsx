@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type Quarter = "Q1 2026" | "Q2 2026" | "Q3 2026" | "Q4 2026";
 type Subject = "person" | "agent" | "team";
@@ -106,6 +107,8 @@ export default function PerformancePage() {
         <h1 className="text-2xl font-bold">Performance Evaluations</h1>
         <p className="text-muted-foreground text-sm mt-1">Quarterly reviews for persons, AI agents, and teams — Q1 2026</p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-4">

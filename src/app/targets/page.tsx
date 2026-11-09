@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DemoDataNotice } from "@/components/data-provenance";
+import { EgfrResistancePanel } from "@/components/egfr-resistance-panel";
 import { cn } from "@/lib/utils";
 
 interface Target {
@@ -118,6 +120,8 @@ function TargetsContent() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       {q && (
         <div className="flex items-center gap-3 text-sm">
           <span className="text-muted-foreground">
@@ -208,7 +212,15 @@ function TargetsContent() {
               </dl>
               <div className="mt-4 pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-muted-foreground">{target.id}</span>
-                <span className="flex gap-3">
+                <span className="flex flex-wrap gap-3">
+                  {target.gene === "EGFR" && (
+                    <a href="#egfr-resistance" className="font-medium text-emerald-700 dark:text-emerald-400 hover:underline">
+                      Resistance (curated)
+                    </a>
+                  )}
+                  <Link href={`/clinical/trials?term=${encodeURIComponent(target.gene)}`} className={extLink}>
+                    Trials
+                  </Link>
                   <a
                     href={`https://platform.opentargets.org/search?q=${target.gene}`}
                     target="_blank"
@@ -244,6 +256,8 @@ function TargetsContent() {
           </Card>
         ))}
       </div>
+
+      {shown.some((t) => t.gene === "EGFR") && <EgfrResistancePanel />}
     </div>
   );
 }
