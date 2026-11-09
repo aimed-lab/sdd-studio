@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminToken } from "@/lib/admin-guard";
+import { requireAdmin } from "@/lib/admin-guard";
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 
@@ -21,7 +21,7 @@ interface FeedbackEntry {
 const PRIORITY_ORDER: Record<string, number> = { p0: 0, p1: 1, p2: 2, p3: 3 };
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminToken(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const token = process.env.GITHUB_TOKEN;

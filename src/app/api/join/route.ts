@@ -3,6 +3,10 @@ import {
   getInvitationByToken, redeemInvitation as dbRedeemInvitation,
 } from "@/lib/db";
 import { upsertUser } from "@/lib/db";
+import { ssoEnabled } from "@/lib/sso/config";
+import {
+  PENDING_COOKIE, SESSION_COOKIE, SESSION_TTL_SECONDS, clearCookie, setSealedCookie, unseal,
+} from "@/lib/sso/signed-cookie";
 
 /**
  * /api/join — Single server-side endpoint that handles the ENTIRE signup flow:
@@ -30,7 +34,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  const email = sanitize(body.email).toLowerCase();
+  // With SSO on, the email comes from the identity Keycloak verified, never from the body.
+  const pending = ssoEnabled()
+    ? unseal<{ email: string; name: string }>(req.cookies.get(PENDING_COOKIE)?.value)
+    : null;
+  if (ssoEnabled() && !pending) {
+    return NextResponse.json({ ok: false, error: "Please sign in with your SDD account first." }, { status: 401 });
+  }
+  const email = pending ? pending.email : sanitize(body.email).toLowerCase();
   const token = sanitize(body.token, 20).toUpperCase();
 
   if (!email || !email.includes("@")) {
@@ -40,8 +51,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invitation token required" }, { status: 400 });
   }
 
-  // Handle legacy seed token
-  if (token === "SPARC2026") {
+  // Handle legacy seed token (published in this repo, so never honoured once SSO is on)
+  if (token === "SPARC2026" && !ssoEnabled()) {
     const user = await upsertUser({
       email,
       role: "Developer",
@@ -88,6 +99,7 @@ export async function POST(req: NextRequest) {
     // 4. Create/update user in Postgres
     const user = await upsertUser({
       email,
+      ...(pending?.name ? { name: pending.name } : {}),
       role: redeemed.assigned_role,
       account_status: accountStatus,
       invited_by: redeemed.created_by,
@@ -98,11 +110,16 @@ export async function POST(req: NextRequest) {
       } : {}),
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       ok: true,
       user: mapUser(user),
       autoApproved: autoApprove,
     });
+    if (pending) {
+      clearCookie(res, PENDING_COOKIE);
+      setSealedCookie(res, SESSION_COOKIE, { email: user.email }, SESSION_TTL_SECONDS);
+    }
+    return res;
   } catch (err) {
     console.error("[/api/join] Error:", err);
     return NextResponse.json({ ok: false, error: "Server error. Please try again." }, { status: 500 });

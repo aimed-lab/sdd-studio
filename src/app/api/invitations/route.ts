@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ELEVATED_LOCK_MESSAGE, isElevatedRole } from "@/lib/elevated-roles";
+import { INVITE_QUOTAS } from "@/lib/invitations";
+import { type AppRole, hasRole } from "@/lib/roles";
+import { authorize, rankOf } from "@/lib/session";
+
+export const dynamic = "force-dynamic";
+
+const forbidden = (msg: string) => NextResponse.json({ ok: false, error: msg }, { status: 403 });
 import {
   getAllInvitations, getInvitationsByCreator, getInvitationByToken,
   createInvitation, redeemInvitation, revokeInvitation,
@@ -25,9 +32,14 @@ function sanitize(str: unknown, maxLen = 200): string {
 // ── GET — list invitations ──────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  const auth = await authorize(req);
+  if (!auth.ok) return auth.response;
+  const caller = auth.user;
+
   const { searchParams } = new URL(req.url);
-  const email = sanitize(searchParams.get("email"), 254).toLowerCase();
   const scope = searchParams.get("scope"); // "all" for admin view
+  if (caller && scope === "all" && !hasRole(caller.role, "Admin")) return forbidden("Admins only.");
+  const email = caller ? caller.email : sanitize(searchParams.get("email"), 254).toLowerCase();
 
   try {
     const invitations = scope === "all"
@@ -52,9 +64,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
+  const auth = await authorize(req);
+  if (!auth.ok) return auth.response;
+  const caller = auth.user;
+
   const id = sanitize(body.id, 30);
   const token = sanitize(body.token, 10).toUpperCase();
-  const createdBy = sanitize(body.createdBy, 254).toLowerCase();
+  const createdBy = caller ? caller.email : sanitize(body.createdBy, 254).toLowerCase();
   const assignedRole = sanitize(body.assignedRole, 20);
   const recipientHint = sanitize(body.recipientHint, 200) || null;
   const autoApprove = body.autoApprove === true;
@@ -66,7 +82,15 @@ export async function POST(req: NextRequest) {
   if (!VALID_ROLES.includes(assignedRole)) {
     return NextResponse.json({ ok: false, error: "Invalid role" }, { status: 400 });
   }
-  if (isElevatedRole(assignedRole)) {
+  if (caller) {
+    if (assignedRole === "Owner" || rankOf(assignedRole) < rankOf(caller.role)) {
+      return forbidden("You cannot invite someone to a role above your own.");
+    }
+    const quota = INVITE_QUOTAS[caller.role as AppRole] ?? 0;
+    if ((await countPendingInvitations(caller.email)) >= quota) {
+      return forbidden(`Invite limit reached (${quota} pending). Revoke one or wait for expiry.`);
+    }
+  } else if (isElevatedRole(assignedRole)) {
     return NextResponse.json({ ok: false, error: ELEVATED_LOCK_MESSAGE }, { status: 403 });
   }
 
@@ -123,8 +147,10 @@ export async function PUT(req: NextRequest) {
     }
   }
 
-  // Action: "redeem" — accept a token
+  // Action: "redeem" — accept a token (with SSO on, joining goes through /api/join only)
   if (action === "redeem") {
+    const auth = await authorize(req, "Owner");
+    if (!auth.ok) return auth.response;
     const token = sanitize(body.token, 10).toUpperCase();
     const acceptedBy = sanitize(body.acceptedBy, 254).toLowerCase();
     if (!token || !acceptedBy) {
@@ -159,7 +185,15 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invitation id required" }, { status: 400 });
   }
 
+  const auth = await authorize(req);
+  if (!auth.ok) return auth.response;
+  const caller = auth.user;
+
   try {
+    if (caller && !hasRole(caller.role, "Admin")) {
+      const mine = await getInvitationsByCreator(caller.email);
+      if (!mine.some((inv) => inv.id === id)) return forbidden("You can only revoke your own invitations.");
+    }
     const ok = await revokeInvitation(id);
     return NextResponse.json({ ok });
   } catch (err) {

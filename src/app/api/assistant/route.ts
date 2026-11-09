@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/session";
 
 // ── System prompt ────────────────────────────────────────────────────────────
 
@@ -187,6 +188,8 @@ function providerErrorMessage(provider: Provider, status: number, body: string):
 // ── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const auth = await authorize(req);
+  if (!auth.ok) return auth.response;
   try {
     const {
       question,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminToken } from "@/lib/admin-guard";
+import { requireAdmin } from "@/lib/admin-guard";
 import Anthropic from "@anthropic-ai/sdk";
 
 export const maxDuration = 60;
@@ -31,7 +31,7 @@ async function fetchFileFromGitHub(filePath: string): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = requireAdminToken(req);
+  const denied = await requireAdmin(req);
   if (denied) return denied;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

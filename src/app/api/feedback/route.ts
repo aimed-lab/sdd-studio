@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { authorize } from "@/lib/session";
+import { ssoEnabled } from "@/lib/sso/config";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -147,6 +149,8 @@ async function createGitHubIssue(entry: FeedbackEntry): Promise<{ url: string; n
 // ── POST /api/feedback — submit a new ticket ──────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const auth = await authorize(req);
+  if (!auth.ok) return auth.response;
   try {
     const body = await req.json() as {
       type?: string; priority?: string; title?: string; description?: string;
@@ -202,6 +206,10 @@ export async function POST(req: NextRequest) {
 // ── GET /api/feedback — list tickets ──────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  if (ssoEnabled() && !(process.env.FEEDBACK_READ_KEY && req.nextUrl.searchParams.get("key") === process.env.FEEDBACK_READ_KEY)) {
+    const auth = await authorize(req, "TechSupport");
+    if (!auth.ok) return auth.response;
+  }
   const key     = req.nextUrl.searchParams.get("key");
   const readKey = process.env.FEEDBACK_READ_KEY;
   if (readKey && key !== readKey) {
@@ -230,6 +238,10 @@ export async function GET(req: NextRequest) {
 // ── PATCH /api/feedback — update ticket status ────────────────────────────
 
 export async function PATCH(req: NextRequest) {
+  if (ssoEnabled() && !(process.env.FEEDBACK_READ_KEY && req.nextUrl.searchParams.get("key") === process.env.FEEDBACK_READ_KEY)) {
+    const auth = await authorize(req, "TechSupport");
+    if (!auth.ok) return auth.response;
+  }
   try {
     const body = await req.json() as {
       id: string;
@@ -264,6 +276,10 @@ export async function PATCH(req: NextRequest) {
 // ── DELETE /api/feedback — hard-delete a ticket (Admin+) ─────────────────
 
 export async function DELETE(req: NextRequest) {
+  if (ssoEnabled() && !(process.env.FEEDBACK_READ_KEY && req.nextUrl.searchParams.get("key") === process.env.FEEDBACK_READ_KEY)) {
+    const auth = await authorize(req, "TechSupport");
+    if (!auth.ok) return auth.response;
+  }
   const key     = req.nextUrl.searchParams.get("key");
   const readKey = process.env.FEEDBACK_READ_KEY;
   if (readKey && key !== readKey) {
