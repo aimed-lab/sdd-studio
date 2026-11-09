@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ExportCsvButton } from "@/components/export-csv-button";
 
 type Decision = "Go" | "Conditional Go" | "No-Go";
 
@@ -89,7 +90,10 @@ function confidenceColor(confidence: number): string {
 }
 
 export default function DecisionsPage() {
-  const [_filter] = useState("All");
+  const [decisionFilter, setDecisionFilter] = useState<string>("All");
+  const filteredDecisions =
+    decisionFilter === "All" ? decisions : decisions.filter((d) => d.decision === decisionFilter);
+  const toggleFilter = (value: string) => setDecisionFilter(decisionFilter === value ? "All" : value);
 
   const totalGo = decisions.filter((d) => d.decision === "Go").length;
   const totalConditional = decisions.filter((d) => d.decision === "Conditional Go").length;
@@ -114,13 +118,19 @@ export default function DecisionsPage() {
             <div className="text-sm text-muted-foreground mt-1">Total Decisions</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-shadow hover:shadow-md", decisionFilter === "Go" && "ring-2 ring-primary")}
+          onClick={() => toggleFilter("Go")}
+        >
           <CardContent className="pt-6">
             <div className="text-3xl font-bold text-green-600 dark:text-green-400">{totalGo}</div>
             <div className="text-sm text-muted-foreground mt-1">Go Decisions</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-shadow hover:shadow-md", decisionFilter === "Conditional Go" && "ring-2 ring-primary")}
+          onClick={() => toggleFilter("Conditional Go")}
+        >
           <CardContent className="pt-6">
             <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{totalConditional}</div>
             <div className="text-sm text-muted-foreground mt-1">Conditional</div>
@@ -132,6 +142,26 @@ export default function DecisionsPage() {
             <div className="text-sm text-muted-foreground mt-1">Avg Confidence</div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {(["All", "Go", "Conditional Go", "No-Go"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setDecisionFilter(f)}
+              className={cn(
+                "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium transition-colors",
+                decisionFilter === f
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <ExportCsvButton rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="regulatory-decisions" />
       </div>
 
       {/* Decisions Table */}
@@ -156,7 +186,7 @@ export default function DecisionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {decisions.map((d) => (
+                {filteredDecisions.map((d) => (
                   <tr key={d.id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-3 font-mono text-xs">{d.id}</td>
                     <td className="px-4 py-3 font-medium">{d.program}</td>

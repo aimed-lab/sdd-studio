@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ExportCsvButton } from "@/components/export-csv-button";
+import { boardTargets } from "@/data/target-board";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -10,7 +13,7 @@ interface DiseaseGroup {
   name: string;
   description: string;
   subtypeCount: number;
-  targetCount: number;
+  boardKey: string;
   activePrograms: number;
   icdCode: string;
 }
@@ -41,7 +44,7 @@ const diseaseGroups: DiseaseGroup[] = [
     name: "Melanoma",
     description: "Malignant tumors arising from melanocytes",
     subtypeCount: 4,
-    targetCount: 6,
+    boardKey: "Melanoma",
     activePrograms: 2,
     icdCode: "C43",
   },
@@ -50,7 +53,7 @@ const diseaseGroups: DiseaseGroup[] = [
     name: "Alzheimer's Disease",
     description: "Progressive neurodegenerative disorder",
     subtypeCount: 3,
-    targetCount: 8,
+    boardKey: "Alzheimer's",
     activePrograms: 1,
     icdCode: "G30",
   },
@@ -59,7 +62,7 @@ const diseaseGroups: DiseaseGroup[] = [
     name: "Myeloproliferative Neoplasms",
     description: "Clonal hematopoietic stem cell disorders",
     subtypeCount: 3,
-    targetCount: 4,
+    boardKey: "MPN",
     activePrograms: 1,
     icdCode: "D47",
   },
@@ -68,7 +71,7 @@ const diseaseGroups: DiseaseGroup[] = [
     name: "Non-Small Cell Lung Cancer",
     description: "Most common type of lung cancer",
     subtypeCount: 5,
-    targetCount: 10,
+    boardKey: "NSCLC",
     activePrograms: 1,
     icdCode: "C34",
   },
@@ -77,7 +80,7 @@ const diseaseGroups: DiseaseGroup[] = [
     name: "Rheumatoid Arthritis",
     description: "Chronic inflammatory autoimmune disease",
     subtypeCount: 2,
-    targetCount: 5,
+    boardKey: "RA",
     activePrograms: 0,
     icdCode: "M06",
   },
@@ -220,8 +223,28 @@ const statusColors: Record<string, string> = {
   completed: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
 };
 
+type CohortSortKey = "name" | "disease" | "size" | "status";
+
+const programTargetCount = (key: string) =>
+  boardTargets.filter((t) => t.disease.toLowerCase() === key.toLowerCase()).length;
+
 export default function DiseasePage() {
   const [selectedGroup, setSelectedGroup] = useState("All");
+  const [cohortStatus, setCohortStatus] = useState<"all" | Cohort["status"]>("all");
+  const [cohortSort, setCohortSort] = useState<{ key: CohortSortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
+
+  const shownCohorts = useMemo(() => {
+    const rows = cohorts.filter((c) => cohortStatus === "all" || c.status === cohortStatus);
+    return [...rows].sort((a, b) => {
+      const av = a[cohortSort.key];
+      const bv = b[cohortSort.key];
+      const cmp = typeof av === "number" ? av - (bv as number) : String(av).localeCompare(String(bv));
+      return cmp * cohortSort.dir;
+    });
+  }, [cohortStatus, cohortSort]);
+
+  const toggleSort = (key: CohortSortKey) =>
+    setCohortSort((prev) => ({ key, dir: prev.key === key ? ((-prev.dir) as 1 | -1) : 1 }));
 
   const filteredSubtypes =
     selectedGroup === "All"
@@ -259,10 +282,13 @@ export default function DiseasePage() {
                       <div className="text-2xl font-bold">{group.subtypeCount}</div>
                       <div className="text-xs text-muted-foreground">Subtypes</div>
                     </div>
-                    <div>
-                      <div className="text-2xl font-bold">{group.targetCount}</div>
-                      <div className="text-xs text-muted-foreground">Targets</div>
-                    </div>
+                    <Link
+                      href={`/disease-biology/target-board?disease=${encodeURIComponent(group.boardKey)}`}
+                      className="rounded-md hover:bg-muted/60 transition-colors"
+                    >
+                      <div className="text-2xl font-bold text-primary">{programTargetCount(group.boardKey)}</div>
+                      <div className="text-xs text-muted-foreground underline-offset-2 hover:underline">Program Targets</div>
+                    </Link>
                     <div>
                       <div className="text-2xl font-bold">{group.activePrograms}</div>
                       <div className="text-xs text-muted-foreground">Active Programs</div>
@@ -346,20 +372,54 @@ export default function DiseasePage() {
 
         {/* Cohorts Tab */}
         <TabsContent value="cohorts">
-          <div className="mt-4 overflow-x-auto rounded-lg border">
+          <div className="mt-4 mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              {(["all", "recruiting", "active", "completed"] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setCohortStatus(st)}
+                  className={cn(
+                    "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium capitalize transition-colors",
+                    cohortStatus === st
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+            <ExportCsvButton rows={shownCohorts} filename="cohorts" />
+          </div>
+          <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="text-left px-4 py-3 font-medium">Name</th>
-                  <th className="text-left px-4 py-3 font-medium">Disease</th>
-                  <th className="text-left px-4 py-3 font-medium">Size</th>
-                  <th className="text-left px-4 py-3 font-medium">Source</th>
-                  <th className="text-left px-4 py-3 font-medium">Data Types</th>
-                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  {(
+                    [
+                      ["Name", "name"],
+                      ["Disease", "disease"],
+                      ["Size", "size"],
+                      ["Source", null],
+                      ["Data Types", null],
+                      ["Status", "status"],
+                    ] as [string, CohortSortKey | null][]
+                  ).map(([label, key]) => (
+                    <th key={label} className="text-left px-4 py-3 font-medium">
+                      {key ? (
+                        <button onClick={() => toggleSort(key)} className="inline-flex items-center gap-1 hover:text-primary">
+                          {label}
+                          {cohortSort.key === key && <span>{cohortSort.dir === 1 ? "\u2191" : "\u2193"}</span>}
+                        </button>
+                      ) : (
+                        label
+                      )}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {cohorts.map((cohort) => (
+                {shownCohorts.map((cohort) => (
                   <tr key={cohort.id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-3 font-medium">{cohort.name}</td>
                     <td className="px-4 py-3">{cohort.disease}</td>

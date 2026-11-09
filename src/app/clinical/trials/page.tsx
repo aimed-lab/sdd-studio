@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ExportCsvButton } from "@/components/export-csv-button";
 
 interface Trial {
   id: string;
@@ -83,6 +85,18 @@ const powerColor = (value: number) => {
   return "bg-red-500";
 };
 
+function linkCompoundIds(text: string) {
+  return text.split(/(SDD-\d{4})/).map((part, i) =>
+    /^SDD-\d{4}$/.test(part) ? (
+      <Link key={i} href="/drug" onClick={(e) => e.stopPropagation()} className="font-mono text-primary hover:underline">
+        {part}
+      </Link>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    )
+  );
+}
+
 export default function TrialsPage() {
   const [selectedTrial, setSelectedTrial] = useState<string | null>(null);
 
@@ -97,7 +111,10 @@ export default function TrialsPage() {
 
       {/* Simulated Trials */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Simulated Trials</h2>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <h2 className="text-xl font-semibold">Simulated Trials</h2>
+          <ExportCsvButton rows={trials as unknown as Record<string, unknown>[]} filename="trial-simulations" />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {trials.map((trial) => (
             <Card
@@ -130,7 +147,7 @@ export default function TrialsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs text-muted-foreground font-medium">Arms</span>
-                    <p className="text-sm font-medium mt-0.5">{trial.arms}</p>
+                    <p className="text-sm font-medium mt-0.5">{linkCompoundIds(trial.arms)}</p>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground font-medium">Sample Size</span>

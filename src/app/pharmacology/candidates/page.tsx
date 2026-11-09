@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ExportCsvButton } from "@/components/export-csv-button";
 
 type Stage = "Hit" | "Lead" | "Preclinical" | "Approved";
 
@@ -90,6 +91,7 @@ export default function CandidatesPage() {
       </div>
 
       {/* Filter Pills */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap gap-2">
         {filters.map((f) => (
           <button
@@ -105,6 +107,8 @@ export default function CandidatesPage() {
             {f}
           </button>
         ))}
+      </div>
+        <ExportCsvButton rows={filtered as unknown as Record<string, unknown>[]} filename="candidates" />
       </div>
 
       {/* Compounds Table */}

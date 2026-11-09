@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface MoAStudy {
   id: string;
   title: string;
+  gene: string;
   pathway: string;
   method: string;
   status: "Validated" | "Under review" | "Investigating";
@@ -24,6 +26,7 @@ interface EvidenceStream {
 const moaStudies: MoAStudy[] = [
   {
     id: "MOA-001",
+    gene: "BRAF",
     title: "BRAF V600E \u2192 MEK \u2192 ERK Cascade",
     pathway: "MAPK/ERK",
     method: "GeneTerrain + PETS",
@@ -33,6 +36,7 @@ const moaStudies: MoAStudy[] = [
   },
   {
     id: "MOA-002",
+    gene: "GSK3B",
     title: "Tau Phosphorylation via GSK-3\u03B2",
     pathway: "Wnt/GSK3",
     method: "Network propagation",
@@ -42,6 +46,7 @@ const moaStudies: MoAStudy[] = [
   },
   {
     id: "MOA-003",
+    gene: "JAK2",
     title: "JAK2-STAT Signaling in MPN",
     pathway: "JAK-STAT",
     method: "Perturb-seq analysis",
@@ -51,6 +56,7 @@ const moaStudies: MoAStudy[] = [
   },
   {
     id: "MOA-004",
+    gene: "EGFR",
     title: "EGFR \u2192 PI3K \u2192 AKT Resistance",
     pathway: "PI3K/AKT/mTOR",
     method: "GeneTerrain + BioReason-Pro",
@@ -86,6 +92,7 @@ const streamColors: Record<string, string> = {
 
 export default function MechanismsPage() {
   const [selectedStudy, setSelectedStudy] = useState<string | null>(null);
+  const selected = moaStudies.find((s) => s.id === selectedStudy) ?? null;
 
   return (
     <div className="p-8 space-y-6">
@@ -147,6 +154,51 @@ export default function MechanismsPage() {
             </Card>
           ))}
         </div>
+
+        {selected && (
+          <Card className="mt-6 border-primary/40">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-lg">{selected.title}</CardTitle>
+                  <CardDescription className="font-mono text-xs mt-1">{selected.id}</CardDescription>
+                </div>
+                <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap", statusColors[selected.status])}>
+                  {selected.status}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Pathway</dt>
+                  <dd className="font-medium">{selected.pathway}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Method</dt>
+                  <dd className="font-medium">{selected.method}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Confidence</dt>
+                  <dd className="font-medium">{selected.confidence}%</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Related target</dt>
+                  <dd>
+                    <Link href={`/targets?q=${selected.gene}`} className="font-medium text-primary hover:underline">
+                      {selected.gene}
+                    </Link>
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Evidence</dt>
+                  <dd className="italic">{selected.evidence}</dd>
+                </div>
+              </dl>
+              <p className="mt-4 text-xs text-muted-foreground">Evidence references: not yet curated</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Evidence Streams */}

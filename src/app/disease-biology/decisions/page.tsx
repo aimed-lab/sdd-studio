@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ExportCsvButton } from "@/components/export-csv-button";
 
 interface DecisionReport {
   id: string;
@@ -86,6 +87,10 @@ const noGoCount = decisions.filter((d) => d.decision === "No-Go").length;
 
 export default function DecisionsPage() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [decisionFilter, setDecisionFilter] = useState<string>("All");
+  const filteredDecisions =
+    decisionFilter === "All" ? decisions : decisions.filter((d) => d.decision === decisionFilter);
+  const toggleFilter = (value: string) => setDecisionFilter(decisionFilter === value ? "All" : value);
 
   return (
     <div className="p-8 space-y-6">
@@ -98,7 +103,10 @@ export default function DecisionsPage() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-shadow hover:shadow-md", decisionFilter === "Go" && "ring-2 ring-primary")}
+          onClick={() => toggleFilter("Go")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
@@ -111,7 +119,10 @@ export default function DecisionsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-shadow hover:shadow-md", decisionFilter === "Conditional Go" && "ring-2 ring-primary")}
+          onClick={() => toggleFilter("Conditional Go")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
@@ -124,7 +135,10 @@ export default function DecisionsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-shadow hover:shadow-md", decisionFilter === "No-Go" && "ring-2 ring-primary")}
+          onClick={() => toggleFilter("No-Go")}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
@@ -137,6 +151,26 @@ export default function DecisionsPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {(["All", "Go", "Conditional Go", "No-Go"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setDecisionFilter(f)}
+              className={cn(
+                "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium transition-colors",
+                decisionFilter === f
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <ExportCsvButton rows={filteredDecisions as unknown as Record<string, unknown>[]} filename="disease-biology-decisions" />
       </div>
 
       {/* Decision Reports Table */}
@@ -155,7 +189,7 @@ export default function DecisionsPage() {
             </tr>
           </thead>
           <tbody>
-            {decisions.map((dec) => (
+            {filteredDecisions.map((dec) => (
               <tr
                 key={dec.id}
                 className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
