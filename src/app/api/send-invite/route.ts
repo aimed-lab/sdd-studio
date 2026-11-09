@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInvitationByToken, type DBInvitation } from "@/lib/db";
+import { hasRole } from "@/lib/roles";
+import { authorize } from "@/lib/session";
 
 /**
  * /api/send-invite — Send an invitation email via Resend.
@@ -39,6 +41,8 @@ async function findInvitation(token: string): Promise<DBInvitation | null> {
 const fail = (error: string, status: number) => NextResponse.json({ ok: false, error }, { status });
 
 export async function POST(req: NextRequest) {
+  const auth = await authorize(req);
+  if (!auth.ok) return auth.response;
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -77,6 +81,9 @@ export async function POST(req: NextRequest) {
   if (!inv) return fail("No matching invitation was found for this link.", 404);
   if (inv.status !== "pending") return fail(`This invitation has already been ${inv.status}.`, 409);
   if (new Date(inv.expires_at) < new Date()) return fail("This invitation has expired.", 410);
+  if (auth.user && inv.created_by !== auth.user.email && !hasRole(auth.user.role, "Admin")) {
+    return fail("You can only send your own invitations.", 403);
+  }
   if (inv.recipient_hint?.includes("@") && inv.recipient_hint.toLowerCase() !== to) {
     return fail("This invitation was created for a different email address.", 403);
   }

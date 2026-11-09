@@ -64,6 +64,12 @@ interface AuthContextType {
   reactivateUser: (email: string) => void;
   /** Force refresh user from DB (e.g. after approval check) */
   refreshUser: () => void;
+  /** True when the server uses SDD single sign-on */
+  ssoMode: boolean;
+  /** Email of a signed-in SSO identity that still needs an invitation code */
+  pendingInvite: string | null;
+  /** Redeem an invitation code for the pending SSO identity */
+  joinWithInvite: (code: string) => Promise<string | null>;
 }
 
 // ── Persistent user database ─────────────────────────────────────────────────
@@ -185,7 +191,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading]                 = useState(true);
   const [user, setUser]                       = useState<User | null>(null);
 
+  const [ssoMode, setSsoMode]                 = useState(false);
+  const [pendingInvite, setPendingInvite]     = useState<string | null>(null);
+
+  const applyServerSession = (me: { authenticated?: boolean; user?: Partial<User> & { email: string }; pendingInvite?: { email: string } | null }) => {
+    setPendingInvite(me.pendingInvite?.email ?? null);
+    if (me.authenticated && me.user) {
+      const u = buildUserFromServer(me.user.email, me.user, getUserDB()[me.user.email]);
+      saveUserToDB(u);
+      setUser(u);
+      setIsAuthenticated(true);
+    } else {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
+
   useEffect(() => {
+    let cancelled = false;
+    // The server decides who is signed in when SSO is on; the browser's stored email is ignored.
+    fetch("/api/me")
+      .then((r) => r.json())
+      .catch(() => null)
+      .then((me) => {
+        if (cancelled) return;
+        if (me?.ssoEnabled) {
+          setSsoMode(true);
+          applyServerSession(me);
+          setLoading(false);
+          return;
+        }
+        legacyInit();
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const legacyInit = () => {
     const storedEmail = localStorage.getItem(AUTH_KEY);
     if (storedEmail) {
       const u = lookupOrCreateUser(storedEmail);
@@ -213,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
     setLoading(false);
-  }, []);
+  };
 
   // ── Server-side user registry sync (with retry) ──────────────────────────
   const syncUserToServer = (u: User, method: "POST" | "PUT" = "POST") => {
@@ -237,6 +279,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, inviteCode: string): Promise<string | null> => {
+    if (ssoMode) {
+      const next = window.location.pathname === "/login" ? "/" : window.location.pathname;
+      window.location.href = `/auth/login?next=${encodeURIComponent(next)}`;
+      return null;
+    }
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedCode  = inviteCode.trim();
 
@@ -467,7 +514,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch((err) => console.warn("[SDD] Failed to sync reactivation:", err));
   };
 
+  const joinWithInvite = async (code: string): Promise<string | null> => {
+    try {
+      const res = await fetch("/api/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: code.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) return data.error || "Invalid or expired invitation code.";
+      window.location.href = "/";
+      return null;
+    } catch {
+      return "Unable to reach the server. Please check your connection and try again.";
+    }
+  };
+
   const refreshUser = () => {
+    if (ssoMode) {
+      fetch("/api/me").then((r) => r.json()).then(applyServerSession).catch(() => {});
+      return;
+    }
     if (!user) return;
     // First update from localStorage (immediate)
     const db = getUserDB();
@@ -497,6 +564,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem(AUTH_KEY);
+    if (ssoMode) window.location.href = "/auth/logout";
   };
 
   return (
@@ -506,6 +574,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         initiateOwnerTransfer, cancelOwnerTransfer,
         getAllUsers, updateUserRole, approveUser, rejectUser,
         suspendUser, reactivateUser, refreshUser,
+        ssoMode, pendingInvite, joinWithInvite,
       }}
     >
       {children}
