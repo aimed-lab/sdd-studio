@@ -7,6 +7,7 @@
  */
 
 import { type AppRole, roleRank } from "./roles";
+import { ELEVATED_LOCK_MESSAGE, isElevatedRole } from "@/lib/elevated-roles";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,6 +109,8 @@ export function createInvitation(
   recipientHint?: string,
   autoApprove?: boolean,
 ): Invitation | { error: string } {
+  if (isElevatedRole(assignedRole)) return { error: ELEVATED_LOCK_MESSAGE };
+
   // Hierarchy check
   if (roleRank(assignedRole) < roleRank(inviterRole)) {
     return { error: "You cannot invite someone to a higher role than your own." };

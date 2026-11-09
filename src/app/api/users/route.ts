@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ELEVATED_LOCK_MESSAGE, isElevatedRole } from "@/lib/elevated-roles";
 import {
   getAllUsers, getUserByEmail, upsertUser, updateUserFields,
 } from "@/lib/db";
@@ -80,6 +81,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const existing = await getUserByEmail(email);
+    if (existing) {
+      // Role and status of an existing account change only through PUT's checks.
+      const user = await upsertUser({ email, name: sanitize(body.name, 100) || undefined });
+      return NextResponse.json({ ok: true, user });
+    }
+    if (isElevatedRole(role)) {
+      return NextResponse.json({ ok: false, error: ELEVATED_LOCK_MESSAGE }, { status: 403 });
+    }
     const user = await upsertUser({
       email,
       name: sanitize(body.name, 100) || email.split("@")[0],
@@ -127,6 +137,19 @@ export async function PUT(req: NextRequest) {
     // Check if user exists; if not, create them (handles edge case of
     // users who only exist in an admin's localStorage)
     const existing = await getUserByEmail(email);
+    if (!existing && isElevatedRole(role)) {
+      return NextResponse.json({ ok: false, error: ELEVATED_LOCK_MESSAGE }, { status: 403 });
+    }
+    if (existing) {
+      const roleChange = !!role && role !== existing.role;
+      const statusChange = !!accountStatus && accountStatus !== existing.account_status;
+      if (
+        (roleChange && (isElevatedRole(role) || isElevatedRole(existing.role))) ||
+        (statusChange && isElevatedRole(existing.role))
+      ) {
+        return NextResponse.json({ ok: false, error: ELEVATED_LOCK_MESSAGE }, { status: 403 });
+      }
+    }
     if (!existing) {
       const user = await upsertUser({
         email,
