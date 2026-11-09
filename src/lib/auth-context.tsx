@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { type AppRole, roleRank } from "@/lib/roles";
+import { ELEVATED_LOCK_MESSAGE, isElevatedRole } from "@/lib/elevated-roles";
 
 // ── User type ────────────────────────────────────────────────────────────────
 
@@ -378,6 +379,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Enforce hierarchy: can only assign roles at or below your own level
     if (user && roleRank(newRole) < roleRank(user.role)) return;
     const db = getUserDB();
+    if (isElevatedRole(newRole) || isElevatedRole(db[email.toLowerCase()]?.role ?? db[email]?.role)) {
+      window.alert(ELEVATED_LOCK_MESSAGE);
+      return;
+    }
     // Cannot change Owner role unless you are Owner
     if (db[email]?.role === "Owner" && user?.role !== "Owner") return;
     if (db[email]) {

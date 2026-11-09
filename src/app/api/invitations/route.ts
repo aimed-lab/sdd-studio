@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ELEVATED_LOCK_MESSAGE, isElevatedRole } from "@/lib/elevated-roles";
 import {
   getAllInvitations, getInvitationsByCreator, getInvitationByToken,
   createInvitation, redeemInvitation, revokeInvitation,
@@ -64,6 +65,9 @@ export async function POST(req: NextRequest) {
   }
   if (!VALID_ROLES.includes(assignedRole)) {
     return NextResponse.json({ ok: false, error: "Invalid role" }, { status: 400 });
+  }
+  if (isElevatedRole(assignedRole)) {
+    return NextResponse.json({ ok: false, error: ELEVATED_LOCK_MESSAGE }, { status: 403 });
   }
 
   try {
