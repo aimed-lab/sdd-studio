@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminToken } from "@/lib/admin-guard";
 
 interface Change {
   file: string;
@@ -88,6 +89,9 @@ async function closeGitHubIssue(
 }
 
 export async function POST(req: NextRequest) {
+  const denied = requireAdminToken(req);
+  if (denied) return denied;
+
   const token = process.env.GITHUB_TOKEN;
   const owner = process.env.GITHUB_OWNER;
   const repo = process.env.GITHUB_REPO;
