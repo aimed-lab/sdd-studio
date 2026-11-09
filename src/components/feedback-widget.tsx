@@ -42,12 +42,12 @@ const priorityConfig: Record<FeedbackPriority, { label: string; active: string }
 // No free-tier limit — users bring their own API key
 
 const QUICK_LINKS = [
-  { label: "Getting Started",      href: "https://github.com/aimed-lab/smartdrugdiscovery/blob/main/docs/getting-started.md" },
-  { label: "Roles & Permissions",  href: "https://github.com/aimed-lab/smartdrugdiscovery/blob/main/docs/roles-and-permissions.md" },
-  { label: "Ownership Transfer",   href: "https://github.com/aimed-lab/smartdrugdiscovery/blob/main/docs/ownership-transfer.md" },
-  { label: "Platform Architecture",href: "https://github.com/aimed-lab/smartdrugdiscovery/blob/main/docs/platform-architecture.md" },
-  { label: "API Reference",        href: "https://github.com/aimed-lab/smartdrugdiscovery/blob/main/docs/api-reference.md" },
-  { label: "RELEASES.md",          href: "https://github.com/aimed-lab/smartdrugdiscovery/blob/main/RELEASES.md" },
+  { label: "Getting Started",      href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/getting-started.md" },
+  { label: "Roles & Permissions",  href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/roles-and-permissions.md" },
+  { label: "Ownership Transfer",   href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/ownership-transfer.md" },
+  { label: "Platform Architecture",href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/platform-architecture.md" },
+  { label: "API Reference",        href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/api-reference.md" },
+  { label: "RELEASES.md",          href: "https://github.com/aimed-lab/sdd-studio/blob/main/RELEASES.md" },
 ];
 
 const STARTER_QUESTIONS = [
