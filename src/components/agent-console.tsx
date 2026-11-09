@@ -93,11 +93,20 @@ export function AgentConsole() {
   const [commitResults, setCommits]   = useState<CommitResult[]>([]);
   const [errorMsg, setError]          = useState("");
   const [expanded, setExpanded]       = useState<Set<number>>(new Set([0]));
+  const [adminToken, setAdminToken]   = useState("");
+  const [tokenDraft, setTokenDraft]   = useState("");
+  const [locked, setLocked]           = useState<"none" | "token" | "disabled">("none");
+
+  const adminFetch = (url: string, init: RequestInit = {}) =>
+    fetch(url, { ...init, headers: { ...(init.headers ?? {}), "x-admin-token": adminToken } });
 
   const fetchIssues = async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/api/admin/issues");
+      const res  = await adminFetch("/api/admin/issues");
+      if (res.status === 404) { setLocked("disabled"); setIssues([]); return; }
+      if (res.status === 401) { setLocked("token"); setIssues([]); return; }
+      setLocked("none");
       const data = await res.json();
       setIssues(data.items ?? []);
       setConfig({
@@ -109,7 +118,21 @@ export function AgentConsole() {
     finally  { setLoading(false); }
   };
 
-  useEffect(() => { fetchIssues(); }, []);
+  useEffect(() => {
+    try { setAdminToken(sessionStorage.getItem("sdd-admin-token") ?? ""); } catch { /* storage unavailable */ }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchIssues(); }, [adminToken]);
+
+  const unlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = tokenDraft.trim();
+    if (!t) return;
+    try { sessionStorage.setItem("sdd-admin-token", t); } catch { /* storage unavailable */ }
+    setTokenDraft("");
+    setAdminToken(t);
+  };
 
   const toggleFile = (p: string) =>
     setFiles((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
@@ -151,7 +174,7 @@ export function AgentConsole() {
     setError("");
 
     try {
-      const res = await fetch("/api/admin/analyze", {
+      const res = await adminFetch("/api/admin/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ issue: selected, filePaths: selectedFiles }),
@@ -176,7 +199,7 @@ export function AgentConsole() {
     setStatus("committing");
 
     try {
-      const res = await fetch("/api/admin/commit", {
+      const res = await adminFetch("/api/admin/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -186,10 +209,11 @@ export function AgentConsole() {
         }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Commit failed");
       setCommits(data.results ?? []);
       setStatus("committed");
-    } catch {
-      setError("Commit failed — check console.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Commit failed — check console.");
       setStatus("error");
     }
   };
@@ -202,6 +226,42 @@ export function AgentConsole() {
     });
 
   // ── Render ──────────────────────────────────────────────────────────────────
+
+  if (locked === "disabled") {
+    return (
+      <div className="rounded-lg border px-4 py-6 text-sm text-muted-foreground">
+        The admin agent is disabled on this deployment. Set <code className="font-mono">ADMIN_API_TOKEN</code> in the
+        server environment to enable it.
+      </div>
+    );
+  }
+
+  if (locked === "token") {
+    return (
+      <form onSubmit={unlock} className="max-w-md space-y-3 rounded-lg border px-4 py-5">
+        <p className="text-sm font-medium">Admin token required</p>
+        <p className="text-xs text-muted-foreground">
+          {adminToken ? "That token was not accepted. " : ""}Enter the admin API token configured on the server. It is kept
+          for this browser tab only.
+        </p>
+        <input
+          type="password"
+          value={tokenDraft}
+          onChange={(e) => setTokenDraft(e.target.value)}
+          aria-label="Admin API token"
+          autoComplete="off"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={!tokenDraft.trim()}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        >
+          Unlock
+        </button>
+      </form>
+    );
+  }
 
   return (
     <div className="space-y-4">

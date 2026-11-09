@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminToken } from "@/lib/admin-guard";
 import Anthropic from "@anthropic-ai/sdk";
 
 export const maxDuration = 60;
@@ -30,6 +31,9 @@ async function fetchFileFromGitHub(filePath: string): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = requireAdminToken(req);
+  if (denied) return denied;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 503 });

@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdminToken } from "@/lib/admin-guard";
 import { existsSync, readFileSync } from "fs";
 import path from "path";
+
+export const dynamic = "force-dynamic";
 
 interface FeedbackEntry {
   id: string;
@@ -17,7 +20,10 @@ interface FeedbackEntry {
 
 const PRIORITY_ORDER: Record<string, number> = { p0: 0, p1: 1, p2: 2, p3: 3 };
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = requireAdminToken(req);
+  if (denied) return denied;
+
   const token = process.env.GITHUB_TOKEN;
   const owner = process.env.GITHUB_OWNER;
   const repo = process.env.GITHUB_REPO;
