@@ -1,31 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { boardTargets as targets } from "@/data/target-board";
 import { cn } from "@/lib/utils";
-
-interface Target {
-  id: string;
-  name: string;
-  type: "Gene" | "Protein" | "RNA" | "DNA" | "Cell";
-  disease: string;
-  druggability: "High" | "Medium" | "Low";
-  validation: string;
-  evidence: string;
-  status: "Active" | "Paused" | "Completed" | "Discovery";
-}
-
-const targets: Target[] = [
-  { id: "TGT-001", name: "BRAF V600E", type: "Gene", disease: "Melanoma", druggability: "High", validation: "Clinical", evidence: "Terrain2Drug", status: "Active" },
-  { id: "TGT-002", name: "MAPT (Tau)", type: "Protein", disease: "Alzheimer's", druggability: "Medium", validation: "Preclinical", evidence: "Terrain2Drug", status: "Active" },
-  { id: "TGT-003", name: "JAK2 V617F", type: "Gene", disease: "MPN", druggability: "High", validation: "Clinical", evidence: "Terrain2Drug", status: "Paused" },
-  { id: "TGT-004", name: "EGFR T790M", type: "Protein", disease: "NSCLC", druggability: "High", validation: "Clinical", evidence: "Terrain2Drug", status: "Completed" },
-  { id: "TGT-005", name: "miR-21", type: "RNA", disease: "Melanoma", druggability: "Medium", validation: "In vitro", evidence: "Paper2Drug", status: "Active" },
-  { id: "TGT-006", name: "MALAT1 lncRNA", type: "RNA", disease: "NSCLC", druggability: "Low", validation: "In vitro", evidence: "Paper2Drug", status: "Discovery" },
-  { id: "TGT-007", name: "TERT promoter", type: "DNA", disease: "Melanoma", druggability: "Medium", validation: "Preclinical", evidence: "Terrain2Drug", status: "Active" },
-  { id: "TGT-008", name: "BRCA1 methylation", type: "DNA", disease: "Breast Cancer", druggability: "Medium", validation: "Clinical", evidence: "Market2Drug", status: "Active" },
-  { id: "TGT-009", name: "CD8+ T cells", type: "Cell", disease: "Melanoma", druggability: "High", validation: "Clinical", evidence: "Market2Drug", status: "Active" },
-  { id: "TGT-010", name: "Tumor-assoc. macrophages", type: "Cell", disease: "NSCLC", druggability: "Medium", validation: "Preclinical", evidence: "Terrain2Drug", status: "Discovery" },
-];
+import { DemoDataNotice } from "@/components/data-provenance";
 
 const filterOptions = ["All", "Gene", "Protein", "RNA", "DNA", "Cell"] as const;
 
@@ -70,12 +50,22 @@ const statusConfig: Record<string, { dot: string; text: string }> = {
 const subtypes = ["Gene", "Protein", "RNA", "DNA", "Cell"] as const;
 
 export default function TargetBoardPage() {
-  const [activeFilter, setActiveFilter] = useState<string>("All");
+  return (
+    <Suspense>
+      <TargetBoardContent />
+    </Suspense>
+  );
+}
 
-  const filteredTargets =
-    activeFilter === "All"
-      ? targets
-      : targets.filter((t) => t.type === activeFilter);
+function TargetBoardContent() {
+  const [activeFilter, setActiveFilter] = useState<string>("All");
+  const diseaseFilter = useSearchParams().get("disease");
+
+  const filteredTargets = targets.filter(
+    (t) =>
+      (activeFilter === "All" || t.type === activeFilter) &&
+      (!diseaseFilter || t.disease.toLowerCase() === diseaseFilter.toLowerCase())
+  );
 
   const counts = Object.fromEntries(
     subtypes.map((type) => [type, targets.filter((t) => t.type === type).length])
@@ -89,6 +79,8 @@ export default function TargetBoardPage() {
           Gene, protein, RNA, DNA, and cellular targets for disease programs
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Filter Pills */}
       <div className="flex flex-wrap gap-2">
@@ -108,6 +100,17 @@ export default function TargetBoardPage() {
         ))}
       </div>
 
+      {diseaseFilter && (
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-muted-foreground">
+            Disease: <span className="font-medium text-foreground">{diseaseFilter}</span> &mdash; {filteredTargets.length} target{filteredTargets.length === 1 ? "" : "s"}
+          </span>
+          <Link href="/disease-biology/target-board" className="text-primary hover:underline">
+            Clear disease filter
+          </Link>
+        </div>
+      )}
+
       {/* Targets Table */}
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm min-w-[640px]">
@@ -124,6 +127,13 @@ export default function TargetBoardPage() {
             </tr>
           </thead>
           <tbody>
+            {filteredTargets.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                  No program targets recorded for this filter yet.
+                </td>
+              </tr>
+            )}
             {filteredTargets.map((target) => (
               <tr key={target.id} className="border-b last:border-0 hover:bg-muted/30">
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{target.id}</td>
@@ -133,7 +143,14 @@ export default function TargetBoardPage() {
                     {target.type}
                   </span>
                 </td>
-                <td className="px-4 py-3">{target.disease}</td>
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/disease-biology/target-board?disease=${encodeURIComponent(target.disease)}`}
+                    className="text-primary hover:underline"
+                  >
+                    {target.disease}
+                  </Link>
+                </td>
                 <td className="px-4 py-3">
                   <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", druggabilityColors[target.druggability])}>
                     {target.druggability}

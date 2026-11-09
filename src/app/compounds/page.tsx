@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Suspense, useState, useMemo } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ExportCsvButton } from "@/components/export-csv-button";
+import { MoleculeViewer } from "@/components/molecule-viewer";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Compound {
   id: string;
@@ -38,8 +43,20 @@ const statusConfig: Record<Compound["status"], { label: string; className: strin
 type SortKey = keyof Compound;
 type SortDir = "asc" | "desc";
 
+const targetOptions = Array.from(new Set(compounds.map((c) => c.target))).sort();
+
 export default function CompoundsPage() {
+  return (
+    <Suspense>
+      <CompoundsContent />
+    </Suspense>
+  );
+}
+
+function CompoundsContent() {
+  const initialTarget = (useSearchParams().get("target") ?? "").toUpperCase();
   const [search, setSearch] = useState("");
+  const [targetFilter, setTargetFilter] = useState<string>(initialTarget || "all");
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -61,7 +78,8 @@ export default function CompoundsPage() {
         c.id.toLowerCase().includes(search.toLowerCase()) ||
         c.smiles.toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "all" || c.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchTarget = targetFilter === "all" || c.target.toUpperCase().includes(targetFilter.toUpperCase());
+      return matchSearch && matchStatus && matchTarget;
     });
 
     result.sort((a, b) => {
@@ -72,7 +90,7 @@ export default function CompoundsPage() {
     });
 
     return result;
-  }, [search, sortKey, sortDir, statusFilter]);
+  }, [search, sortKey, sortDir, statusFilter, targetFilter]);
 
   const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
     <th
@@ -97,6 +115,8 @@ export default function CompoundsPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
@@ -118,6 +138,23 @@ export default function CompoundsPage() {
               <option value="lead">Lead</option>
               <option value="preclinical">Preclinical</option>
             </select>
+            <select
+              value={targetFilter}
+              onChange={(e) => setTargetFilter(e.target.value)}
+              aria-label="Filter by target"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="all">All Targets</option>
+              {initialTarget && !targetOptions.includes(initialTarget) && (
+                <option value={initialTarget}>{initialTarget}</option>
+              )}
+              {targetOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <ExportCsvButton demo rows={filtered} filename="compounds" />
           </div>
         </CardHeader>
         <CardContent>
@@ -127,7 +164,7 @@ export default function CompoundsPage() {
                 <tr>
                   <SortHeader label="ID" field="id" />
                   <SortHeader label="Name" field="name" />
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">SMILES</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Structure</th>
                   <SortHeader label="MW" field="mw" />
                   <SortHeader label="LogP" field="logP" />
                   <SortHeader label="QED" field="qed" />
@@ -140,8 +177,8 @@ export default function CompoundsPage() {
                   <tr key={compound.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{compound.id}</td>
                     <td className="px-4 py-3 text-sm font-medium">{compound.name}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground max-w-[200px] truncate" title={compound.smiles}>
-                      {compound.smiles}
+                    <td className="px-4 py-2" title={compound.smiles}>
+                      <MoleculeViewer smiles={compound.smiles} width={130} height={85} />
                     </td>
                     <td className="px-4 py-3 text-sm tabular-nums">{compound.mw.toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm tabular-nums">{compound.logP.toFixed(1)}</td>
@@ -151,13 +188,25 @@ export default function CompoundsPage() {
                         {statusConfig[compound.status].label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm">{compound.target}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <Link href={`/targets?q=${encodeURIComponent(compound.target.split(/[ /]/)[0])}`} className="text-primary hover:underline">
+                        {compound.target}
+                      </Link>
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                      No compounds found matching your criteria.
+                      No compounds in the program library match your criteria.
+                      {targetFilter !== "all" && (
+                        <>
+                          {" "}
+                          <Link href={`/search?q=${encodeURIComponent(targetFilter)}`} className="text-primary hover:underline">
+                            Search ChEMBL for &ldquo;{targetFilter}&rdquo;
+                          </Link>
+                        </>
+                      )}
                     </td>
                   </tr>
                 )}

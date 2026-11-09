@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface AIAgent {
   id: string;
@@ -311,6 +312,7 @@ export default function ServicesPage() {
       <p className="text-muted-foreground mt-1">
         Deploy AI agents or consult human experts on your projects and assets
       </p>
+      <DemoDataNotice variant="planned" />
 
       <Tabs defaultValue="agents">
         <TabsList>

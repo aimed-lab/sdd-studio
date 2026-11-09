@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type ProtocolStatus = "Active" | "Pending" | "Approved" | "Expired";
 
@@ -101,6 +102,8 @@ export default function IrbProtocolsPage() {
           Institutional Review Board submissions, approvals, and amendments
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

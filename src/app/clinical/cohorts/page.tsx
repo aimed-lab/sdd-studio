@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Cohort {
   id: string;
@@ -111,6 +112,8 @@ export default function CohortsPage() {
           Patient cohorts, digital twins, and clinical populations
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Active Cohorts */}
       <div>

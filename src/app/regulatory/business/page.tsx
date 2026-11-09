@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type ThreatLevel = "High" | "Medium" | "Low";
 type OurPosition = "Discovery" | "Preclinical" | "Paused" | "Completed";
@@ -114,6 +115,8 @@ export default function BusinessOptimizationPage() {
           PharmNexus competitive intelligence, market analysis, and strategic positioning
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Market Landscape */}
       <div>

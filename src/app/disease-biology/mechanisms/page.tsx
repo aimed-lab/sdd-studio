@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
+import { PathwayDiagram } from "@/components/pathway-diagram";
 
 interface MoAStudy {
   id: string;
   title: string;
+  gene: string;
+  steps: string[];
   pathway: string;
   method: string;
   status: "Validated" | "Under review" | "Investigating";
@@ -24,39 +29,47 @@ interface EvidenceStream {
 const moaStudies: MoAStudy[] = [
   {
     id: "MOA-001",
+    gene: "BRAF",
+    steps: ["BRAF V600E", "MEK", "ERK"],
     title: "BRAF V600E \u2192 MEK \u2192 ERK Cascade",
     pathway: "MAPK/ERK",
     method: "GeneTerrain + PETS",
     status: "Validated",
     confidence: 92,
-    evidence: "GTKM shows concentrated expression in melanoma tumor microenvironment",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
     id: "MOA-002",
+    gene: "GSK3B",
+    steps: ["GSK-3\u03B2", "Tau"],
     title: "Tau Phosphorylation via GSK-3\u03B2",
     pathway: "Wnt/GSK3",
     method: "Network propagation",
     status: "Under review",
     confidence: 78,
-    evidence: "scRNA-seq from ADNI cohort shows GSK-3\u03B2 upregulation in neuronal subtypes",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
     id: "MOA-003",
+    gene: "JAK2",
+    steps: ["JAK2", "STAT"],
     title: "JAK2-STAT Signaling in MPN",
     pathway: "JAK-STAT",
     method: "Perturb-seq analysis",
     status: "Validated",
     confidence: 88,
-    evidence: "CPA model predicts restoration of normal hematopoiesis upon JAK2 inhibition",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
     id: "MOA-004",
+    gene: "EGFR",
+    steps: ["EGFR", "PI3K", "AKT"],
     title: "EGFR \u2192 PI3K \u2192 AKT Resistance",
     pathway: "PI3K/AKT/mTOR",
     method: "GeneTerrain + BioReason-Pro",
     status: "Investigating",
     confidence: 65,
-    evidence: "Resistance mechanism identified through multi-agent LLM analysis",
+    evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
 ];
 
@@ -86,6 +99,7 @@ const streamColors: Record<string, string> = {
 
 export default function MechanismsPage() {
   const [selectedStudy, setSelectedStudy] = useState<string | null>(null);
+  const selected = moaStudies.find((s) => s.id === selectedStudy) ?? null;
 
   return (
     <div className="p-8 space-y-6">
@@ -95,6 +109,8 @@ export default function MechanismsPage() {
           Pathway analysis, network pharmacology, and MoA validation
         </p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Active MoA Studies */}
       <div>
@@ -124,6 +140,8 @@ export default function MechanismsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                <PathwayDiagram steps={study.steps} gene={study.gene} />
+
                 {/* Confidence Bar */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
@@ -147,6 +165,52 @@ export default function MechanismsPage() {
             </Card>
           ))}
         </div>
+
+        {selected && (
+          <Card className="mt-6 border-primary/40">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-lg">{selected.title}</CardTitle>
+                  <CardDescription className="font-mono text-xs mt-1">{selected.id}</CardDescription>
+                </div>
+                <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap", statusColors[selected.status])}>
+                  {selected.status}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PathwayDiagram steps={selected.steps} gene={selected.gene} />
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Pathway</dt>
+                  <dd className="font-medium">{selected.pathway}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Method</dt>
+                  <dd className="font-medium">{selected.method}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Confidence</dt>
+                  <dd className="font-medium">{selected.confidence}%</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Related target</dt>
+                  <dd>
+                    <Link href={`/targets?q=${selected.gene}`} className="font-medium text-primary hover:underline">
+                      {selected.gene}
+                    </Link>
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Evidence</dt>
+                  <dd className="italic">{selected.evidence}</dd>
+                </div>
+              </dl>
+              <p className="text-xs text-muted-foreground">Evidence references: not yet curated</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Evidence Streams */}

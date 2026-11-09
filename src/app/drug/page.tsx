@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { ExportCsvButton } from "@/components/export-csv-button";
+import { MoleculeViewer } from "@/components/molecule-viewer";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type DrugOrigin = "de-novo" | "repositioned";
 type DrugModality = "small-molecule" | "antibody" | "peptide" | "oligonucleotide" | "cell-therapy" | "gene-therapy";
@@ -28,10 +32,10 @@ const drugs: Drug[] = [
   { id: "SDD-0056", name: "JAK2-Sel-7", origin: "de-novo", modality: "small-molecule", target: "JAK2", indication: "Myelofibrosis", stage: "preclinical", moa: "Selective JAK2 inhibitor", mw: "442.8" },
   { id: "SDD-0078", name: "Osimertinib-R", origin: "repositioned", modality: "small-molecule", target: "EGFR T790M", indication: "NSCLC (C797S)", stage: "phase-1", moa: "Covalent EGFR inhibitor", mw: "499.6", originalIndication: "NSCLC (T790M)" },
   { id: "SDD-0091", name: "Anti-PD-L1-BRAF", origin: "de-novo", modality: "antibody", target: "PD-L1 + BRAF", indication: "Melanoma", stage: "discovery", moa: "Bispecific antibody" },
-  { id: "SDD-0103", name: "Metformin", origin: "repositioned", modality: "small-molecule", target: "AMPK", indication: "Pancreatic cancer", stage: "phase-2", moa: "AMPK activator", mw: "129.2", originalIndication: "Type 2 Diabetes" },
+  { id: "SDD-0103", name: "Metformin", origin: "repositioned", modality: "small-molecule", target: "AMPK", indication: "Pancreatic cancer", stage: "phase-2", moa: "AMPK activator", smiles: "CN(C)C(=N)N=C(N)N", mw: "129.2", originalIndication: "Type 2 Diabetes" },
   { id: "SDD-0115", name: "TAU-ASO-1", origin: "de-novo", modality: "oligonucleotide", target: "MAPT mRNA", indication: "Alzheimer\u2019s", stage: "discovery", moa: "Antisense oligonucleotide" },
   { id: "SDD-0127", name: "NK-BRAF-CAR", origin: "de-novo", modality: "cell-therapy", target: "BRAF V600E+ cells", indication: "Melanoma", stage: "discovery", moa: "CAR-NK cell therapy" },
-  { id: "SDD-0139", name: "Thalidomide", origin: "repositioned", modality: "small-molecule", target: "Cereblon", indication: "Multiple Myeloma", stage: "approved", moa: "IMiD, cereblon modulator", mw: "258.2", originalIndication: "Morning sickness (withdrawn)" },
+  { id: "SDD-0139", name: "Thalidomide", origin: "repositioned", modality: "small-molecule", target: "Cereblon", indication: "Multiple Myeloma", stage: "approved", moa: "IMiD, cereblon modulator", smiles: "O=C1CCC(N2C(=O)c3ccccc3C2=O)C(=O)N1", mw: "258.2", originalIndication: "Morning sickness (withdrawn)" },
   { id: "SDD-0151", name: "RAS-pep-1", origin: "de-novo", modality: "peptide", target: "KRAS G12C", indication: "NSCLC", stage: "discovery", moa: "Stapled peptide inhibitor", mw: "1850" },
 ];
 
@@ -63,6 +67,8 @@ const stageFilters: { value: Drug["stage"] | "all"; label: string }[] = [
   { value: "approved", label: "Approved" },
 ];
 
+const geneOf = (target: string) => target.split(/[\s+]+/)[0];
+
 export default function DrugPage() {
   const [stageFilter, setStageFilter] = useState<Drug["stage"] | "all">("all");
 
@@ -85,6 +91,8 @@ export default function DrugPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       <Tabs defaultValue="all-drugs">
         <TabsList>
           <TabsTrigger value="all-drugs">All Drugs</TabsTrigger>
@@ -94,6 +102,7 @@ export default function DrugPage() {
 
         {/* Tab 1: All Drugs */}
         <TabsContent value="all-drugs" className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
             {stageFilters.map((f) => (
               <button
@@ -109,6 +118,8 @@ export default function DrugPage() {
                 {f.label}
               </button>
             ))}
+          </div>
+            <ExportCsvButton demo rows={filteredDrugs as unknown as Record<string, unknown>[]} filename="drugs" />
           </div>
 
           <Card>
@@ -154,8 +165,16 @@ export default function DrugPage() {
                             {modalityConfig[drug.modality].label}
                           </span>
                         </td>
-                        <td className="px-4 py-3">{drug.target}</td>
-                        <td className="px-4 py-3">{drug.indication}</td>
+                        <td className="px-4 py-3">
+                          <Link href={`/targets?q=${encodeURIComponent(geneOf(drug.target))}`} className="text-primary hover:underline">
+                            {drug.target}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link href="/disease" className="hover:underline">
+                            {drug.indication}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3">
                           <span
                             className={cn(
@@ -178,9 +197,9 @@ export default function DrugPage() {
 
         {/* Tab 2: By Class/Modality */}
         <TabsContent value="by-class" className="space-y-6">
-          {(Object.keys(modalityConfig) as DrugModality[])
-            .filter((modality) => drugsByModality[modality]?.length > 0)
-            .map((modality) => (
+          {(Object.keys(modalityConfig) as DrugModality[]).map((modality) => {
+            const modalityDrugs = drugsByModality[modality] ?? [];
+            return (
               <div key={modality} className="space-y-3">
                 <div className="flex items-center gap-3">
                   <span
@@ -192,17 +211,25 @@ export default function DrugPage() {
                     {modalityConfig[modality].label}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {drugsByModality[modality].length} drug{drugsByModality[modality].length > 1 ? "s" : ""}
+                    {modalityDrugs.length} drug{modalityDrugs.length === 1 ? "" : "s"}
                   </span>
                 </div>
+                {modalityDrugs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">No candidates yet</p>
+                ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {drugsByModality[modality].map((drug) => (
+                  {modalityDrugs.map((drug) => (
                     <Card key={drug.id}>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base">{drug.name}</CardTitle>
                         <CardDescription className="font-mono text-xs">{drug.id}</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-1 text-sm">
+                        {drug.smiles && (
+                          <div className="pb-2">
+                            <MoleculeViewer smiles={drug.smiles} width={120} height={80} />
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Target</span>
                           <span className="font-medium">{drug.target}</span>
@@ -226,8 +253,10 @@ export default function DrugPage() {
                     </Card>
                   ))}
                 </div>
+                )}
               </div>
-            ))}
+            );
+          })}
         </TabsContent>
 
         {/* Tab 3: Repositioning */}

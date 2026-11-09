@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 interface Message {
   id: string;
@@ -238,6 +239,9 @@ export default function AnalysisPage() {
 
       {/* Right Panel */}
       <div className="flex-1 flex flex-col">
+        <div className="border-b p-3">
+          <DemoDataNotice />
+        </div>
         {/* Top bar */}
         <div className="border-b p-3 flex items-center gap-3 flex-wrap relative">
           <select

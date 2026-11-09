@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ExportCsvButton } from "@/components/export-csv-button";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type Stage = "Hit" | "Lead" | "Preclinical" | "Approved";
 
@@ -77,6 +79,8 @@ export default function CandidatesPage() {
         </p>
       </div>
 
+      <DemoDataNotice />
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {summaryCards.map((s) => (
@@ -90,6 +94,7 @@ export default function CandidatesPage() {
       </div>
 
       {/* Filter Pills */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap gap-2">
         {filters.map((f) => (
           <button
@@ -105,6 +110,8 @@ export default function CandidatesPage() {
             {f}
           </button>
         ))}
+      </div>
+        <ExportCsvButton demo rows={filtered as unknown as Record<string, unknown>[]} filename="candidates" />
       </div>
 
       {/* Compounds Table */}

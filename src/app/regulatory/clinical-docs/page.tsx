@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 type DocCategory =
   | "Protocol"
@@ -124,6 +125,8 @@ export default function ClinicalDocsPage() {
           Upload Document
         </button>
       </div>
+
+      <DemoDataNotice />
 
       {/* Tab Filter */}
       <div className="flex flex-wrap gap-2 border-b pb-2">

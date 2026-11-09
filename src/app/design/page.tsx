@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -306,6 +307,7 @@ export default function DesignPage() {
           Design-Make-Build-Test cycle powered by AI foundation models
         </p>
       </div>
+      <DemoDataNotice variant="planned" />
 
       {/* Main content — Tabs */}
       <Tabs defaultValue="dmbt" className="flex-1 flex flex-col">
