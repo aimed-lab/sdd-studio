@@ -43,7 +43,7 @@ const TOOLS = [
   },
   {
     name: "search_trials",
-    description: `Search ClinicalTrials.gov (25 per page; follow nextPageToken). Gene symbols that collide with other terms (e.g. EGFR vs eGFR) are disambiguated by default; set disambiguate=false to search unmodified, or withExcludedCount=true to learn how many trials the disambiguation hid. Rows carry symbolMatch. Not medical advice: recruiting status is as of each trial's last update. ${PROVENANCE_NOTE}`,
+    description: `Search ClinicalTrials.gov (25 per page; follow nextPageToken). Gene symbols that collide with other terms (e.g. EGFR vs eGFR) are disambiguated by default; set disambiguate=false to search unmodified, or withExcludedCount=true to learn how many trials the disambiguation hid. Opt-in mode=drug-aware (single gene-symbol term) also ORs in up to 10 approved drugs whose ChEMBL mechanism targets the gene; the drugs, the exact query sent and ChEMBL provenance are returned in drugAware, and rows found only by a drug carry viaDrug. Rows carry symbolMatch. Not medical advice: recruiting status is as of each trial's last update. ${PROVENANCE_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -63,6 +63,7 @@ const TOOLS = [
         disambiguate: { type: "boolean" },
         fieldsGeneOnly: { type: "boolean" },
         withExcludedCount: { type: "boolean" },
+        mode: { type: "string", enum: ["default", "drug-aware"] },
       },
       additionalProperties: false,
     },
