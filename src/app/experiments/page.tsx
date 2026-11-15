@@ -16,14 +16,14 @@ interface Experiment {
 }
 
 const experiments: Experiment[] = [
-  { id: "EXP-001", name: "ADMET Screening Panel", type: "ADMET", status: "completed", project: "BRAF Inhibitor Program", startDate: "2025-12-15", compounds: 24 },
-  { id: "EXP-002", name: "BRAF Kinase Binding Assay", type: "Binding Assay", status: "completed", project: "BRAF Inhibitor Program", startDate: "2026-01-08", compounds: 12 },
-  { id: "EXP-003", name: "Cell Viability (A375)", type: "Cell Viability", status: "running", project: "BRAF Inhibitor Program", startDate: "2026-03-01", compounds: 8 },
-  { id: "EXP-004", name: "Tau Aggregation ThT Assay", type: "Aggregation Assay", status: "running", project: "Alzheimer's Tau Program", startDate: "2026-02-20", compounds: 16 },
-  { id: "EXP-005", name: "BACE1 FRET IC50", type: "Enzyme Assay", status: "planned", project: "Alzheimer's Tau Program", startDate: "2026-04-01", compounds: 20 },
-  { id: "EXP-006", name: "CYP450 Inhibition Panel", type: "ADMET", status: "failed", project: "JAK2 Inhibitor Optimization", startDate: "2026-01-22", compounds: 10 },
-  { id: "EXP-007", name: "hERG Channel Safety", type: "Safety", status: "completed", project: "EGFR-T790M Resistance Program", startDate: "2025-11-10", compounds: 6 },
-  { id: "EXP-008", name: "JAK2 Selectivity Panel", type: "Selectivity Assay", status: "planned", project: "JAK2 Inhibitor Optimization", startDate: "2026-04-15", compounds: 14 },
+  { id: "EXP-001", name: "ADMET Screening Panel", type: "ADMET", status: "completed", project: "BRAF Inhibitor Program", startDate: "—", compounds: 24 },
+  { id: "EXP-002", name: "BRAF Kinase Binding Assay", type: "Binding Assay", status: "completed", project: "BRAF Inhibitor Program", startDate: "—", compounds: 12 },
+  { id: "EXP-003", name: "Cell Viability (A375)", type: "Cell Viability", status: "running", project: "BRAF Inhibitor Program", startDate: "—", compounds: 8 },
+  { id: "EXP-004", name: "Tau Aggregation ThT Assay", type: "Aggregation Assay", status: "running", project: "Alzheimer's Tau Program", startDate: "—", compounds: 16 },
+  { id: "EXP-005", name: "BACE1 FRET IC50", type: "Enzyme Assay", status: "planned", project: "Alzheimer's Tau Program", startDate: "—", compounds: 20 },
+  { id: "EXP-006", name: "CYP450 Inhibition Panel", type: "ADMET", status: "failed", project: "JAK2 Inhibitor Optimization", startDate: "—", compounds: 10 },
+  { id: "EXP-007", name: "hERG Channel Safety", type: "Safety", status: "completed", project: "EGFR-T790M Resistance Program", startDate: "—", compounds: 6 },
+  { id: "EXP-008", name: "JAK2 Selectivity Panel", type: "Selectivity Assay", status: "planned", project: "JAK2 Inhibitor Optimization", startDate: "—", compounds: 14 },
 ];
 
 const statusConfig: Record<Experiment["status"], { label: string; className: string }> = {

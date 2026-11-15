@@ -20,48 +20,55 @@ interface IrbProtocol {
   principalInvestigator: string;
   submissionDate: string;
   expiryDate: string | null;
+  /** Illustrative days until expiry (no calendar dates in demo data). */
+  expiresInDays: number | null;
 }
 
 const protocols: IrbProtocol[] = [
   {
-    protocolId: "IRB-2026-001",
+    protocolId: "IRB-001",
     studyTitle: "Phase I BRAF V600E Inhibitor Safety Study",
     status: "Active",
-    principalInvestigator: "Dr. Jake Chen",
-    submissionDate: "2026-01-15",
-    expiryDate: "2027-01-14",
+    principalInvestigator: "Scientist 10",
+    submissionDate: "Q? 20??",
+    expiryDate: "Q? 20??",
+    expiresInDays: 292,
   },
   {
-    protocolId: "IRB-2026-002",
+    protocolId: "IRB-002",
     studyTitle: "Tau-Targeted Therapy Biomarker Study",
     status: "Pending",
-    principalInvestigator: "Dr. Sarah Chen",
-    submissionDate: "2026-03-01",
+    principalInvestigator: "Scientist 1",
+    submissionDate: "Q? 20??",
     expiryDate: null,
+    expiresInDays: null,
   },
   {
-    protocolId: "IRB-2025-008",
+    protocolId: "IRB-008",
     studyTitle: "KRAS G12C Cohort Expansion",
     status: "Approved",
-    principalInvestigator: "Dr. Raj Patel",
-    submissionDate: "2025-06-10",
-    expiryDate: "2026-06-09",
+    principalInvestigator: "Scientist 2",
+    submissionDate: "Q? 20??",
+    expiryDate: "Q? 20??",
+    expiresInDays: 73,
   },
   {
-    protocolId: "IRB-2025-003",
+    protocolId: "IRB-003",
     studyTitle: "Digital Twin Validation Study",
     status: "Approved",
-    principalInvestigator: "Dr. Elena Vasquez",
-    submissionDate: "2025-02-20",
-    expiryDate: "2026-02-19",
+    principalInvestigator: "Scientist 5",
+    submissionDate: "Q? 20??",
+    expiryDate: "Q? 20??",
+    expiresInDays: -37,
   },
   {
-    protocolId: "IRB-2024-011",
+    protocolId: "IRB-011",
     studyTitle: "Pan-Cancer Genomic Profiling",
     status: "Expired",
-    principalInvestigator: "Dr. Marcus Kim",
-    submissionDate: "2024-01-05",
-    expiryDate: "2025-01-04",
+    principalInvestigator: "Scientist 11",
+    submissionDate: "Q? 20??",
+    expiryDate: "Q? 20??",
+    expiresInDays: -448,
   },
 ];
 
@@ -72,19 +79,12 @@ const statusColors: Record<ProtocolStatus, string> = {
   Expired: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
 };
 
-const TODAY = new Date("2026-03-28");
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-
-function daysUntil(dateStr: string): number {
-  return Math.ceil((new Date(dateStr).getTime() - TODAY.getTime()) / (24 * 60 * 60 * 1000));
-}
-
 const upcomingRenewals = protocols.filter(
   (p) =>
-    p.expiryDate !== null &&
+    p.expiresInDays !== null &&
     p.status !== "Expired" &&
-    daysUntil(p.expiryDate) >= 0 &&
-    daysUntil(p.expiryDate) <= 90
+    p.expiresInDays >= 0 &&
+    p.expiresInDays <= 90
 );
 
 export default function IrbProtocolsPage() {
@@ -203,7 +203,7 @@ export default function IrbProtocolsPage() {
           ) : (
             <div className="space-y-3">
               {upcomingRenewals.map((p, i) => {
-                const days = daysUntil(p.expiryDate!);
+                const days = p.expiresInDays!;
                 const urgency =
                   days <= 30
                     ? "text-red-600 dark:text-red-400"
@@ -225,8 +225,7 @@ export default function IrbProtocolsPage() {
                       <p className={cn("text-sm font-semibold", urgency)}>
                         {days === 0 ? "Expires today" : `${days} day${days !== 1 ? "s" : ""} left`}
                       </p>
-                      <p className="text-xs text-muted-foreground">Expires {p.expiryDate}</p>
-                    </div>
+                                          </div>
                   </div>
                 );
               })}
