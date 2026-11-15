@@ -9,6 +9,7 @@ const BUDGETS = {
   structure: { capacity: 10, refillPerSecond: 1 / 6 }, // /api/structure: slow ChEMBL similarity/substructure, 10 burst, 10/min
   evidence: { capacity: 20, refillPerSecond: 1 / 3 }, // /api/target-evidence: 2 Open Targets GraphQL calls, 20 burst, 20/min
   mcp: { capacity: 20, refillPerSecond: 1 / 3 }, // /api/mcp: each tools/call runs one of the routes above, 20 burst, 20/min
+  targetPage: { capacity: 30, refillPerSecond: 1 / 2 }, // /targets/[gene]: server-renders HGNC + ChEMBL lookups, 30 burst, 30/min
 } as const;
 
 type BucketName = keyof typeof BUDGETS;
@@ -31,7 +32,9 @@ function take(key: string, budget: { capacity: number; refillPerSecond: number }
 
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  const bucket: BucketName = path.startsWith("/api/mcp")
+  const bucket: BucketName = path.startsWith("/targets/")
+    ? "targetPage"
+    : path.startsWith("/api/mcp")
     ? "mcp"
     : path.startsWith("/api/compound")
       ? "compound"
@@ -45,6 +48,12 @@ export function middleware(req: NextRequest) {
 
   const retryAfter = take(`${bucket}:${ip}`, BUDGETS[bucket]);
   if (retryAfter > 0) {
+    if (bucket === "targetPage") {
+      return new NextResponse(`Too many requests. Try again in ${retryAfter} s.`, {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter), "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
     return NextResponse.json(
       { results: [], error: `Too many requests. Try again in ${retryAfter} s.` },
       { status: 429, headers: { "Retry-After": String(retryAfter) } }
@@ -54,5 +63,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/target-evidence", "/api/mcp"],
+  matcher: ["/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/target-evidence", "/api/mcp", "/targets/:path+"],
 };

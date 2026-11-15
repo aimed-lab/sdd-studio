@@ -10,86 +10,22 @@ import { TargetEvidencePanel } from "@/components/target-evidence-panel";
 import { referenceCompounds } from "@/data/curated/chembl-reference-compounds";
 import { pdbLigandLinks, rcsbSearchUrl } from "@/data/curated/pdb-ligands";
 import { trialsHrefFor } from "@/data/curated/target-default-conditions";
+import { registryTargets, targetHref } from "@/data/registry/targets";
 import { usePublicMode } from "@/lib/public-mode";
 import { cn } from "@/lib/utils";
 
-interface Target {
-  id: string;
-  name: string;
-  gene: string;
-  uniprotId: string;
-  organism: string;
-  diseaseArea: string;
-  diseaseKey: string;
-  /** UniProt keyword used as the class label */
-  targetClass: string;
-}
-
-// Gene, name, organism, class (UniProt keyword) and accession verified against UniProtKB on 2026-11-14.
-// Target IDs and program disease areas are illustrative.
-
-const targets: Target[] = [
-  {
-    id: "TGT-001",
-    name: "Epidermal growth factor receptor",
-    gene: "EGFR",
-    uniprotId: "P00533",
-    organism: "Homo sapiens",
-    diseaseArea: "Non-Small Cell Lung Cancer",
-    diseaseKey: "NSCLC",
-    targetClass: "Kinase",
-  },
-  {
-    id: "TGT-002",
-    name: "Serine/threonine-protein kinase B-raf",
-    gene: "BRAF",
-    uniprotId: "P15056",
-    organism: "Homo sapiens",
-    diseaseArea: "Melanoma",
-    diseaseKey: "Melanoma",
-    targetClass: "Kinase",
-  },
-  {
-    id: "TGT-003",
-    name: "ALK tyrosine kinase receptor",
-    gene: "ALK",
-    uniprotId: "Q9UM73",
-    organism: "Homo sapiens",
-    diseaseArea: "Non-Small Cell Lung Cancer",
-    diseaseKey: "NSCLC",
-    targetClass: "Kinase",
-  },
-  {
-    id: "TGT-004",
-    name: "Prostaglandin G/H synthase 2",
-    gene: "PTGS2",
-    uniprotId: "P35354",
-    organism: "Homo sapiens",
-    diseaseArea: "Inflammation / Pain",
-    diseaseKey: "Inflammation",
-    targetClass: "Oxidoreductase",
-  },
-  {
-    id: "TGT-005",
-    name: "Beta-secretase 1",
-    gene: "BACE1",
-    uniprotId: "P56817",
-    organism: "Homo sapiens",
-    diseaseArea: "Alzheimer's Disease",
-    diseaseKey: "Alzheimer's",
-    targetClass: "Protease",
-  },
-  {
-    id: "TGT-006",
-    name: "Tyrosine-protein kinase JAK2",
-    gene: "JAK2",
-    uniprotId: "O60674",
-    organism: "Homo sapiens",
-    diseaseArea: "Myeloproliferative Disorders",
-    diseaseKey: "MPN",
-    targetClass: "Kinase",
-  },
-];
+// Program targets come from the shared registry (#25). Identity fields are curated (UniProtKB, HGNC, ChEMBL, verified
+// on TARGET_REGISTRY_VERIFIED); program disease areas and board IDs are demo fields.
+const targets = registryTargets.map((t) => ({
+  gene: t.gene.value,
+  name: t.name.value,
+  uniprotId: t.uniprotId.value,
+  organism: t.organism.value,
+  targetClass: t.targetClass.value,
+  diseaseArea: t.programDiseaseArea.value,
+  diseaseKey: t.programDiseaseKey.value,
+  boardId: t.boardId.value,
+}));
 
 const classColors: Record<string, string> = {
   Kinase: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
@@ -131,6 +67,17 @@ function PublicTargets() {
           Search EGFR trials in non-small cell lung cancer
         </Link>
       </p>
+      <nav aria-label="Target pages" className="text-sm">
+        <span className="text-muted-foreground">Target pages (curated identity, live evidence, drugs and trials): </span>
+        {registryTargets.map((t, i) => (
+          <span key={t.gene.value}>
+            {i > 0 && " · "}
+            <Link href={targetHref(t.gene.value)} className={extLink}>
+              {t.gene.value}
+            </Link>
+          </span>
+        ))}
+      </nav>
       <div className="max-w-3xl rounded-lg border p-4">
         <p className="text-sm font-medium">EGFR (UniProt P00533)</p>
         <TargetEvidencePanel gene="EGFR" />
@@ -208,11 +155,15 @@ function MemberTargets() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {shown.map((target) => (
-          <Card key={target.id} className="hover:shadow-md transition-shadow">
+          <Card key={target.gene} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{target.gene}</CardTitle>
+                  <CardTitle className="text-lg">
+                    <Link href={targetHref(target.gene)} className="hover:underline">
+                      {target.gene}
+                    </Link>
+                  </CardTitle>
                   <CardDescription className="mt-1">{target.name}</CardDescription>
                 </div>
                 <span
@@ -275,13 +226,18 @@ function MemberTargets() {
               </dl>
               <TargetEvidencePanel gene={target.gene} />
               <div className="mt-4 pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-muted-foreground">{target.id}</span>
+                <span className="text-muted-foreground" title="Demo target-board row">
+                  {target.boardId ? `Board ${target.boardId} (demo)` : "Not on the demo board"}
+                </span>
                 <span className="flex flex-wrap gap-3">
                   {target.gene === "EGFR" && (
                     <a href="#egfr-resistance" className="font-medium text-emerald-700 dark:text-emerald-400 hover:underline">
                       Resistance (curated)
                     </a>
                   )}
+                  <Link href={targetHref(target.gene)} className={`${extLink} font-medium`}>
+                    Details
+                  </Link>
                   <Link href={trialsHrefFor(target.gene)} className={extLink}>
                     Trials
                   </Link>
