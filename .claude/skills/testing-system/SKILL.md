@@ -149,8 +149,30 @@ provenance time comes from the upstream `Date` header.
 10. A verification pass on one PR keeps finding small follow-ups (the eGFR annotation missed the spelled-out gene name,
     #81). Spell-check synonyms against HGNC: "HER1" is not an HGNC alias.
 
-### Open roadmap after 2026-11-14
-#32 SSO (unblocks the #71 funded assistant), #73 90-day MCP usage review (the PI decides on registry listing),
-#78 human review, #57 option (c) drug-aware trial mode after #61, #25 canonical entity registry, #27 Open Targets plus Stage 2 UniProt/PDB, #26 openFDA regulatory.
-**Next run should re-test T04, T05, T10, T13, T14, T19, T25 and T29 first** (newly addressed). It should also
-re-score U6, U7 and U9 once public access (#70) is live.
+11. **Never write "does not close #N" in a PR body.** GitHub reads "close #N" inside it as a closing keyword and
+    closes the issue on merge (#27 closed by #87). Write "Part of #N" instead.
+12. **Check compiled middleware matchers.** Next 14 compiled `"/targets/:gene"` to a regex that never matched a
+    gene path, so the page rate limit silently did nothing. Use `:path+`/`:path*`. Read
+    `.next/server/middleware-manifest.json` and confirm a 429 locally and on the preview before merging.
+13. **Server-rendered public pages that call upstreams need a rate limit too**, not just `/api/*` (#91: HGNC +
+    ChEMBL calls per new gene symbol).
+14. **Parallel PRs that share registry files** (`mcp/route.ts`, `openapi.json`, contract test): after merging one,
+    tell the agents still running to merge `origin/main` and re-run the contract test before pushing. #89 then merged with no conflicts.
+15. **Cap ordering is a scientific choice.** Drug-aware mode takes 10 approved drugs, oldest first. For EGFR this
+    pulls in colorectal antibodies and leaves out newer NSCLC drugs. State the ordering rule and the omitted names in the
+    output, and re-check whether the ranking suits the task.
+16. Fork agents leave temporary `.claude/launch.json` entries behind. Restore the file with
+    `git -c core.fileMode=false checkout -- .claude/launch.json` after each wave.
+
+### Waves 4–5 (2026-11-14, after the run)
+Merged: #87 Open Targets evidence + `get_target_evidence` MCP tool; #88 demo pages scrubbed + page-label CI
+(closes #28); #89 opt-in drug-aware trials (#57c; EGFR+NSCLC 1749 → 2195, no recall loss); #90 labels;
+#91 target registry + `/targets/[gene]` pages with a per-IP page limit; #92 planned pages scrubbed.
+
+### Open roadmap after waves 4–5
+#32 SSO (unblocks the #71 funded assistant); #73 90-day MCP usage review (the PI decides on registry listing);
+#27 Stage 2 UniProt/PDB on `/targets/[gene]`; #25 rest of Stage 1 (`src/data/demo/*` move, dossier guard);
+#26 openFDA regulatory; #24 Prisma removal (owner sign-off); #29 role views; drug-aware ranking (lesson 15);
+not-found pages return HTTP 200 because AuthGate is client-side.
+**Next run should re-test T04, T05, T10, T13, T14, T19, T21, T22, T25 and T29 first.** T21 and T22 are newly answerable
+via Open Targets. It should also re-score U6, U7 and U9 on the public pages, including `/targets/[gene]`.
