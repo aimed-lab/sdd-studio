@@ -66,6 +66,36 @@ const pricingBadge: Record<PluginPricing, { label: string; color: string }> = {
 
 const plugins: Plugin[] = [
   {
+    id: "sdd-studio-mcp",
+    name: "SDD Studio MCP (this site)",
+    description:
+      "Read-only MCP endpoint for this site's live data: ChEMBL compound search, mechanism/activity, structure search and ClinicalTrials.gov trial search, each result with provenance. Same handlers as the REST API; never returns demo data. Usage is reviewed 90 days after public listing (#73).",
+    type: "mcp", version: "v1.0.0", author: "UAB SysPAI",
+    license: "Apache 2.0", pricing: "free", requiresKey: false,
+    url: "https://studio.smartdrugdiscovery.org/api/mcp",
+    fair: { findable: true, accessible: true, interoperable: true, reusable: true },
+    installed: true, connected: true,
+    connectedTools: ["search_compounds", "get_compound", "search_trials", "structure_search"],
+    category: "Data", compatibleWith: ["A1", "A2", "A3", "A4"],
+    testSteps: [
+      { label: 'search_compounds({ q: "imatinib", limit: 5 })', result: "✓ CHEMBL941 IMATINIB first · source ChEMBL with retrieval time and release" },
+      { label: 'get_compound({ chemblId: "CHEMBL1336" })', result: "✓ 7 mechanisms via the parent (sorafenib) · 2,035 activities in total, 50 shown" },
+      { label: 'search_trials({ term: "EGFR", condition: "non-small cell lung cancer", withExcludedCount: true })', result: "✓ 1,749 trials · 5 hidden by the eGFR disambiguation, recoverable with disambiguate: false" },
+      { label: 'structure_search({ smiles: <imatinib>, mode: "similarity", threshold: 90 })', result: "✓ 3 hits · CHEMBL941 first · Tanimoto on Morgan fingerprints (FPSim2)" },
+    ],
+    installInstructions: [
+      {
+        title: "Add to Claude Code",
+        code: "claude mcp add --transport http sdd-studio https://studio.smartdrugdiscovery.org/api/mcp",
+        note: "Streamable HTTP, stateless, JSON responses. Read-only and unauthenticated; rate-limited per IP (20 requests/min).",
+      },
+      {
+        title: "Other MCP clients",
+        note: "Point any client that supports Streamable HTTP at https://studio.smartdrugdiscovery.org/api/mcp (POST). The same operations are documented as REST in /openapi.json.",
+      },
+    ],
+  },
+  {
     id: "chembl-mcp",
     name: "ChEMBL MCP Server",
     description: "Real-time access to 2.4M+ compounds, 15,000+ targets, and 20M+ bioactivity measurements via Model Context Protocol.",

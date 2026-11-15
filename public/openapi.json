@@ -4,10 +4,40 @@
     "title": "SmartDrugDiscovery Studio read-only data API",
     "version": "1.0.0",
     "summary": "Read-only JSON proxies for ChEMBL and ClinicalTrials.gov with provenance on every response.",
-    "description": "Unauthenticated and read-only. The API may change; the version field changes when it does. Every successful response carries a `source` block (upstream name, query URL, retrieval time, cache TTL, and data release when available). Demo data is never served by these endpoints. Requests are rate-limited per IP (HTTP 429 with Retry-After). Unknown query parameters are rejected with HTTP 400. Contract-tested in CI against this file (scripts/contract-test.mjs).",
+    "description": "Unauthenticated and read-only. The API may change; the version field changes when it does. Every successful response carries a `source` block (upstream name, query URL, retrieval time, cache TTL, and data release when available). Demo data is never served by these endpoints. Requests are rate-limited per IP (HTTP 429 with Retry-After). Unknown query parameters are rejected with HTTP 400. Contract-tested in CI against this file (scripts/contract-test.mjs). A read-only MCP endpoint (Streamable HTTP, stateless, JSON responses) exposes the same handlers as tools; see `x-mcp`.",
     "contact": { "url": "https://github.com/aimed-lab/sdd-studio" }
   },
   "servers": [{ "url": "https://studio.smartdrugdiscovery.org" }],
+  "x-mcp": {
+    "endpoint": "/api/mcp",
+    "transport": "Streamable HTTP, stateless, JSON responses only (POST; GET and DELETE return 405; no sessions, no SSE)",
+    "protocolVersion": "2025-06-18",
+    "server": {
+      "name": "sdd-studio",
+      "version": "1.0.0"
+    },
+    "rateLimit": "Per IP: 20 burst, 20 requests/min (HTTP 429 with Retry-After)",
+    "tools": [
+      {
+        "name": "search_compounds",
+        "sameAs": "GET /api/search"
+      },
+      {
+        "name": "get_compound",
+        "sameAs": "GET /api/compound/{chemblId}"
+      },
+      {
+        "name": "search_trials",
+        "sameAs": "GET /api/trials"
+      },
+      {
+        "name": "structure_search",
+        "sameAs": "GET /api/structure",
+        "limits": "Slow substructure queries can exceed the endpoint's 15 s budget; use GET /api/structure for those"
+      }
+    ],
+    "results": "Each tool returns the same JSON body as its REST route, as text content and structuredContent, with isError=true for 4xx/5xx. Every successful body carries the `source` provenance block. Demo data is never returned."
+  },
   "paths": {
     "/api/search": {
       "get": {

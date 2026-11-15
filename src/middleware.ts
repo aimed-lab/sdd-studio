@@ -7,6 +7,7 @@ const BUDGETS = {
   data: { capacity: 60, refillPerSecond: 1 }, // /api/search, /api/trials: 60 burst, 60/min sustained
   compound: { capacity: 15, refillPerSecond: 0.25 }, // /api/compound fans out to ~5 upstream calls: 15 burst, 15/min
   structure: { capacity: 10, refillPerSecond: 1 / 6 }, // /api/structure: slow ChEMBL similarity/substructure, 10 burst, 10/min
+  mcp: { capacity: 20, refillPerSecond: 1 / 3 }, // /api/mcp: each tools/call runs one of the routes above, 20 burst, 20/min
 } as const;
 
 type BucketName = keyof typeof BUDGETS;
@@ -29,7 +30,13 @@ function take(key: string, budget: { capacity: number; refillPerSecond: number }
 
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  const bucket: BucketName = path.startsWith("/api/compound") ? "compound" : path.startsWith("/api/structure") ? "structure" : "data";
+  const bucket: BucketName = path.startsWith("/api/mcp")
+    ? "mcp"
+    : path.startsWith("/api/compound")
+      ? "compound"
+      : path.startsWith("/api/structure")
+        ? "structure"
+        : "data";
   const ip = req.ip ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (buckets.size > MAX_TRACKED) buckets.clear();
 
@@ -44,5 +51,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/search", "/api/trials", "/api/compound/:path*", "/api/structure"],
+  matcher: ["/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/mcp"],
 };
