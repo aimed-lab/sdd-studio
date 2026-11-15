@@ -142,9 +142,15 @@ provenance time comes from the upstream `Date` header.
    later verifying agent caught it. Even green tooltip text needs a source check.
 7. **Merge wave PRs one at a time and re-check `mergeable`.** File ownership kept 3 parallel PRs conflict-free.
 8. Gate human-judgement text behind a flag and ship it as a separate PR labelled `human decision needed` (#78).
+9. **Verify agent access like an agent.** On the preview, run a JSON-RPC `initialize` → `tools/list` → `tools/call`
+   against `/api/mcp` with `fetch` in the signed-in Chrome tab. Also verify a preview through its *anonymous* app
+   view: the user's Chrome has never signed in to the app on a fresh preview domain, so public-access work can be
+   checked honestly without faking a session.
+10. A verification pass on one PR keeps finding small follow-ups (the eGFR annotation missed the spelled-out gene name,
+    #81). Spell-check synonyms against HGNC: "HER1" is not an HGNC alias.
 
 ### Open roadmap after 2026-11-14
-#32 SSO (unblocks the #71 funded assistant), #73 Stage 2 MCP route (after the rate limit and Stage-1 contract tests),
-#78 human review, #25 canonical entity registry, #27 Open Targets plus Stage 2 UniProt/PDB, #26 openFDA regulatory.
+#32 SSO (unblocks the #71 funded assistant), #73 90-day MCP usage review (the PI decides on registry listing),
+#78 human review, #57 option (c) drug-aware trial mode after #61, #25 canonical entity registry, #27 Open Targets plus Stage 2 UniProt/PDB, #26 openFDA regulatory.
 **Next run should re-test T04, T05, T10, T13, T14, T19, T25 and T29 first** (newly addressed). It should also
 re-score U6, U7 and U9 once public access (#70) is live.
