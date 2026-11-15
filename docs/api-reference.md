@@ -2,7 +2,9 @@
 
 This document specifies the internal Next.js API route handlers for SmartDrugDiscovery. All routes are located under `src/app/api/` and are served at `/api/...` relative to the application root.
 
-These are **internal** routes — they are not a public API and are subject to change between versions. They are used by the platform's own client pages and the Admin Agent Console.
+Most routes here are **internal**: they serve the platform's own pages and the Admin Agent Console, and they can change between versions.
+
+The exception is the three [read-only data routes](#read-only-json-api): `/api/search`, `/api/compound/{id}` and `/api/trials`. They are a **read-only JSON API, unauthenticated, and may change**. Treat them as a convenience for scripts and agents, not as a versioned, supported API.
 
 ---
 
@@ -15,6 +17,115 @@ There is no session-token authentication on these routes in the current version 
 - **Deployment-level access control** — all routes are only reachable through the Vercel deployment, which can be restricted by Vercel Access policies.
 
 Server-side secrets (GitHub token, Anthropic key) are never returned in any response body.
+
+---
+
+## Read-only JSON API
+
+`GET /api/search`, `GET /api/compound/{chemblId}` and `GET /api/trials` proxy public sources (ChEMBL and ClinicalTrials.gov). They need no sign-in, write nothing, and never return demo data. **Unauthenticated; may change.**
+
+### Common behaviour
+
+| Behaviour | Detail |
+|---|---|
+| Unknown query parameters | `400` with the list of allowed parameters, so a typo such as `limt=50` never silently returns default results |
+| Free-text length | `q`, `term` and `condition` are capped at 100 characters (`400` above that) |
+| Rate limit | Per client IP, per server instance: `/api/search` and `/api/trials` allow a burst of 60 then 1 request/s; `/api/compound` a burst of 15 then 1 request every 4 s. Over the limit: `429` with `Retry-After` (seconds) |
+| Caching | Successful responses carry `Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400`; upstream data is cached for up to 1 h (24 h for `/api/compound`) |
+| Upstream rejected the query | `400` — "<source> rejected the query (HTTP n). Check the query; this is not an outage." |
+| Upstream down or timed out | `502` — "Source unavailable … No cached or demo data is shown in its place." |
+| CORS | Not enabled; browser calls from other origins are blocked. Server-side and command-line clients are unaffected |
+
+### Provenance object (`source`)
+
+```json
+{
+  "name": "ChEMBL",
+  "url": "https://www.ebi.ac.uk/chembl/",
+  "queryUrl": "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=imatinib&limit=25&offset=0",
+  "retrieved": "2026-11-14T15:02:11.000Z",
+  "cacheTtlSeconds": 3600,
+  "release": { "version": "ChEMBL_37", "date": "2026-05-01" }
+}
+```
+
+`retrieved` is when the upstream answered (from its `Date` header), not when you called — a cached answer keeps its original time. `release` is omitted if the upstream's release endpoint could not be reached.
+
+### GET /api/search
+
+ChEMBL molecule search by name, synonym or ChEMBL ID, or a batch lookup by ID.
+
+| Parameter | Description |
+|---|---|
+| `q` | Name, synonym or ChEMBL ID. A SMILES string or InChIKey returns `400`: structure search is not supported |
+| `offset` | `0`–`10000`, default `0` |
+| `limit` | `1`–`100`, default `25` |
+| `ids` | Batch lookup: comma-separated ChEMBL molecule IDs, at most 50, duplicates removed. Cannot be combined with `q`, `offset` or `limit`. Rows come back in request order; IDs ChEMBL doesn't know are listed in `notFound` |
+
+```json
+{
+  "results": [
+    {
+      "chemblId": "CHEMBL1789941",
+      "parentChemblId": "CHEMBL1789941",
+      "isSalt": false,
+      "name": "RUXOLITINIB",
+      "smiles": "N#CC[C@H](C1CCCC1)n1cc(-c2ncnc3[nH]ccc23)cn1",
+      "inchiKey": "HFNKQEVNSGCOJV-OAHLLOKOSA-N",
+      "mw": 306.37, "logP": 3.47, "hba": 5, "hbd": 1, "psa": 83.18, "qed": 0.8,
+      "maxPhase": 4,
+      "moleculeType": "Small molecule"
+    }
+  ],
+  "total": 7, "offset": 0, "limit": 25,
+  "source": { "...": "provenance object" }
+}
+```
+
+`maxPhase` is ChEMBL's `max_phase`: 4 approved, 1–3 clinical phase, 0.5 early phase 1, 0 preclinical, `null` unknown. Properties are ChEMBL-calculated values for the parent structure. Results put an exact name match first, then parent molecules before salts.
+
+### GET /api/compound/{chemblId}
+
+Mechanism of action and bioactivity for one molecule, resolved through its **parent** (ChEMBL often stores mechanisms on a salt record). Mechanisms and activities succeed or fail independently: a failed section has `error` set and the other is still returned.
+
+```json
+{
+  "chemblId": "CHEMBL1200485",
+  "parentChemblId": "CHEMBL1336",
+  "mechanisms": {
+    "error": null,
+    "rows": [{ "recordChemblId": "CHEMBL1200485", "mechanism": "Serine/threonine-protein kinase RAF inhibitor",
+               "actionType": "INHIBITOR", "targetChemblId": "CHEMBL1906",
+               "targetName": "RAF proto-oncogene serine/threonine-protein kinase", "targetOrganism": "Homo sapiens",
+               "refs": [{ "type": "FDA", "id": "label/2011/021923s012lbl.pdf", "url": "http://www.accessdata.fda.gov/…" }] }]
+  },
+  "activities": {
+    "error": null, "total": 2035, "shown": 50, "flaggedExcluded": 0,
+    "selection": "Activities with a pChEMBL value and no ChEMBL data-validity flag, in ChEMBL record order (activity_id) — not ranked by potency and not a selectivity profile.",
+    "fullRecordUrl": "https://www.ebi.ac.uk/chembl/compound_report_card/CHEMBL1336/",
+    "rows": [{ "activityId": 799367, "targetChemblId": "CHEMBL1906", "targetName": "RAF proto-oncogene serine/threonine-protein kinase",
+               "targetOrganism": "Homo sapiens", "type": "IC50", "relation": "=", "value": "12.0", "units": "nM",
+               "pchembl": "7.92", "assayChemblId": "CHEMBL766739", "assayType": "B", "documentChemblId": "CHEMBL1147437" }]
+  },
+  "source": { "...": "provenance object" }
+}
+```
+
+`404` if the ID is not a ChEMBL molecule. Activity values come from different assays and are not directly comparable; `flaggedExcluded` counts pChEMBL activities ChEMBL flags as potentially invalid, which are left out.
+
+### GET /api/trials
+
+ClinicalTrials.gov API v2 search, 25 studies per page. Provide `term`, `condition`, or both.
+
+| Parameter | Description |
+|---|---|
+| `term` | Free-text search (e.g. a gene or drug). Gene symbols can collide with other terms — `EGFR` also matches kidney trials measuring eGFR, so pair gene searches with a condition |
+| `condition` | Condition search, e.g. `non-small cell lung cancer` |
+| `phase` | One of `EARLY_PHASE1`, `PHASE1`, `PHASE2`, `PHASE3`, `PHASE4`, `NA` (case-insensitive). ClinicalTrials.gov counts combined phases, so `PHASE3` includes Phase 2/3 trials |
+| `status` | One of `RECRUITING`, `NOT_YET_RECRUITING`, `ACTIVE_NOT_RECRUITING`, `ENROLLING_BY_INVITATION`, `COMPLETED`, `TERMINATED`, `WITHDRAWN`, `SUSPENDED` (case-insensitive) |
+| `pageToken` | The `nextPageToken` from the previous page |
+
+The response has `results` (NCT ID, title, phases, status, sponsor, conditions, interventions, start date, enrollment), `total`, `nextPageToken` and `source`. Parameters added by later releases are listed in the route itself (`src/app/api/trials/route.ts`) and returned in the `400` message for unknown parameters.
 
 ---
 
