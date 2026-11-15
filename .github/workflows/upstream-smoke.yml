@@ -23,7 +23,7 @@ jobs:
         run: |
           ctype=$(curl -sS -o /dev/null -w '%{content_type}' --max-time 30 "$BASE_URL/api/search?q=imatinib")
           case "$ctype" in application/json*) ;; *) echo "::error::Wrong host? $BASE_URL/api/search returned '$ctype', not JSON"; exit 1;; esac
-          body=$(curl -sS --fail-with-body --max-time 30 "$BASE_URL/api/search?q=imatinib") || { echo "$body"; exit 1; }
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$BASE_URL/api/search?q=imatinib") || { echo "$body"; exit 1; }
           echo "$body" | jq -e '.results | length > 0' > /dev/null
           echo "$body" | jq -e '.source.name == "ChEMBL" and (.source.retrieved | length > 0)' > /dev/null
 
@@ -31,7 +31,7 @@ jobs:
         id: ctgov
         continue-on-error: true
         run: |
-          body=$(curl -sS --fail-with-body --max-time 30 "$BASE_URL/api/trials?term=EGFR&condition=cancer") || { echo "$body"; exit 1; }
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$BASE_URL/api/trials?term=EGFR&condition=cancer") || { echo "$body"; exit 1; }
           echo "$body" | jq -e '.results | length > 0' > /dev/null
           echo "$body" | jq -e '.results[0].nctId | startswith("NCT")' > /dev/null
 
@@ -40,8 +40,8 @@ jobs:
         continue-on-error: true
         run: |
           q="$BASE_URL/api/trials?term=EGFR&condition=non-small%20cell%20lung%20cancer"
-          on=$(curl -sS --fail-with-body --max-time 30 "$q" | jq -e '.total')
-          off=$(curl -sS --fail-with-body --max-time 30 "$q&disambiguate=false" | jq -e '.total')
+          on=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$q" | jq -e '.total')
+          off=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$q&disambiguate=false" | jq -e '.total')
           echo "EGFR+NSCLC default=$on without disambiguation=$off"
           # Ratio, not absolute totals (they drift daily): the default may drop under 1% of trials.
           awk -v on="$on" -v off="$off" 'BEGIN { exit !(off > 0 && on / off >= 0.99) }'
@@ -51,14 +51,14 @@ jobs:
         continue-on-error: true
         run: |
           smi='Cc1ccc(NC(=O)c2ccc(CN3CCN(C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1'
-          body=$(curl -sS --fail-with-body --max-time 30 -G "$BASE_URL/api/structure" --data-urlencode "smiles=$smi" --data-urlencode "threshold=90") || { echo "$body"; exit 1; }
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 -G "$BASE_URL/api/structure" --data-urlencode "smiles=$smi" --data-urlencode "threshold=90") || { echo "$body"; exit 1; }
           echo "$body" | jq -e '.state == "ok" and .results[0].chemblId == "CHEMBL941"' > /dev/null
 
       - name: MCP endpoint via /api/mcp (#73)
         id: mcp
         continue-on-error: true
         run: |
-          mcp() { curl -sS --fail-with-body --max-time 30 -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -X POST "$BASE_URL/api/mcp" -d "$1"; }
+          mcp() { curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -X POST "$BASE_URL/api/mcp" -d "$1"; }
           list=$(mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list"}') || { echo "$list"; exit 1; }
           echo "$list" | jq -e '[.result.tools[].name] | index("search_compounds") != null and index("search_trials") != null' > /dev/null
           call=$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_compounds","arguments":{"q":"imatinib","limit":5}}}') || { echo "$call"; exit 1; }
