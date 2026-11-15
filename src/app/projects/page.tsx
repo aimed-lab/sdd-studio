@@ -64,17 +64,17 @@ const projects: Project[] = [
     status: "active",
     targetCount: 3,
     compoundCount: 45,
-    lead: "Dr. Sarah Chen",
-    team: ["Dr. Sarah Chen", "Dr. Raj Patel", "Dr. Wei Zhang"],
-    startDate: "2025-01-15",
-    endDate: "2026-06-30",
+    lead: "Scientist 1",
+    team: ["Scientist 1", "Scientist 2", "Scientist 3"],
+    startDate: "Month 22",
+    endDate: "Month 39",
     lastUpdated: "2 days ago",
     age: { activity: 88, goal: 75, execution: 91 },
     milestones: [
-      { name: "Hit ID", date: "2025-03-01", done: true },
-      { name: "Lead Optimization", date: "2025-08-15", done: true },
-      { name: "Candidate Selection", date: "2026-01-30", done: false },
-      { name: "IND Filing", date: "2026-06-30", done: false },
+      { name: "Hit ID", date: "Month 24", done: true },
+      { name: "Lead Optimization", date: "Month 29", done: true },
+      { name: "Candidate Selection", date: "Month 34", done: false },
+      { name: "IND Filing", date: "Month 39", done: false },
     ],
   },
   {
@@ -86,17 +86,17 @@ const projects: Project[] = [
     status: "active",
     targetCount: 4,
     compoundCount: 62,
-    lead: "Dr. James Wilson",
-    team: ["Dr. James Wilson", "Dr. Elena Vasquez", "Dr. Amanda Foster"],
-    startDate: "2024-09-01",
-    endDate: "2026-12-31",
+    lead: "Scientist 4",
+    team: ["Scientist 4", "Scientist 5", "Scientist 6"],
+    startDate: "Month 18",
+    endDate: "Month 45",
     lastUpdated: "1 day ago",
     age: { activity: 92, goal: 62, execution: 78 },
     milestones: [
-      { name: "Target Validation", date: "2025-01-15", done: true },
-      { name: "Hit-to-Lead", date: "2025-06-01", done: true },
-      { name: "Lead Optimization", date: "2026-03-01", done: false },
-      { name: "Preclinical", date: "2026-12-31", done: false },
+      { name: "Target Validation", date: "Month 22", done: true },
+      { name: "Hit-to-Lead", date: "Month 27", done: true },
+      { name: "Lead Optimization", date: "Month 36", done: false },
+      { name: "Preclinical", date: "Month 45", done: false },
     ],
   },
   {
@@ -108,16 +108,16 @@ const projects: Project[] = [
     status: "paused",
     targetCount: 2,
     compoundCount: 28,
-    lead: "Dr. Maria Rodriguez",
-    team: ["Dr. Maria Rodriguez", "Dr. Raj Patel"],
-    startDate: "2024-06-01",
-    endDate: "2025-12-31",
+    lead: "Scientist 7",
+    team: ["Scientist 7", "Scientist 2"],
+    startDate: "Month 15",
+    endDate: "Month 33",
     lastUpdated: "2 weeks ago",
     age: { activity: 28, goal: 67, execution: 54 },
     milestones: [
-      { name: "Selectivity Screen", date: "2024-09-01", done: true },
-      { name: "Lead Series", date: "2025-03-01", done: true },
-      { name: "ADMET Profiling", date: "2025-09-01", done: false },
+      { name: "Selectivity Screen", date: "Month 18", done: true },
+      { name: "Lead Series", date: "Month 24", done: true },
+      { name: "ADMET Profiling", date: "Month 30", done: false },
     ],
   },
   {
@@ -129,17 +129,17 @@ const projects: Project[] = [
     status: "completed",
     targetCount: 2,
     compoundCount: 38,
-    lead: "Dr. Robert Kim",
-    team: ["Dr. Robert Kim", "Dr. Sarah Chen", "Dr. Lucia Romano"],
-    startDate: "2023-03-01",
-    endDate: "2025-02-28",
+    lead: "Scientist 8",
+    team: ["Scientist 8", "Scientist 1", "Scientist 9"],
+    startDate: "Month 0",
+    endDate: "Month 23",
     lastUpdated: "1 month ago",
     age: { activity: 0, goal: 100, execution: 96 },
     milestones: [
-      { name: "HTS Campaign", date: "2023-06-01", done: true },
-      { name: "Lead Optimization", date: "2024-01-15", done: true },
-      { name: "Candidate Nomination", date: "2024-09-01", done: true },
-      { name: "IND Enabling", date: "2025-02-28", done: true },
+      { name: "HTS Campaign", date: "Month 3", done: true },
+      { name: "Lead Optimization", date: "Month 10", done: true },
+      { name: "Candidate Nomination", date: "Month 18", done: true },
+      { name: "IND Enabling", date: "Month 23", done: true },
     ],
   },
 ];
@@ -151,70 +151,70 @@ const projectNameToId: Record<string, string> = Object.fromEntries(
 
 const teamMembers: TeamMember[] = [
   {
-    name: "Dr. Sarah Chen",
+    name: "Scientist 1",
     role: "Principal Investigator",
     expertise: ["BRAF inhibitors", "Kinase selectivity", "Oncology"],
-    initials: "SC",
+    initials: "S1",
     projects: ["BRAF Inhibitor Program", "EGFR-T790M Resistance Program"],
   },
   {
-    name: "Dr. James Wilson",
+    name: "Scientist 4",
     role: "Project Lead",
     expertise: ["Tau biology", "Neurodegeneration", "Protein aggregation"],
-    initials: "JW",
+    initials: "S2",
     projects: ["Alzheimer's Tau Program"],
   },
   {
-    name: "Dr. Raj Patel",
+    name: "Scientist 2",
     role: "Computational Chemist",
     expertise: ["Molecular dynamics", "Virtual screening", "QSAR"],
-    initials: "RP",
+    initials: "S3",
     projects: ["BRAF Inhibitor Program", "JAK2 Inhibitor Optimization"],
   },
   {
-    name: "Dr. Maria Rodriguez",
+    name: "Scientist 7",
     role: "Medicinal Chemist",
     expertise: ["JAK inhibitors", "SAR optimization", "Synthetic chemistry"],
-    initials: "MR",
+    initials: "S4",
     projects: ["JAK2 Inhibitor Optimization"],
   },
   {
-    name: "Dr. Elena Vasquez",
+    name: "Scientist 5",
     role: "Medicinal Chemist",
     expertise: ["Fragment-based design", "Kinase inhibitors", "Lead optimization"],
-    initials: "EV",
+    initials: "S5",
     projects: ["Alzheimer's Tau Program"],
   },
   {
-    name: "Dr. Wei Zhang",
+    name: "Scientist 3",
     role: "Structural Biologist",
     expertise: ["X-ray crystallography", "Cryo-EM", "Protein structures"],
-    initials: "WZ",
+    initials: "S6",
     projects: ["BRAF Inhibitor Program"],
   },
 ];
 
 const kanbanTasks: KanbanTask[] = [
-  { id: "T-001", title: "Synthesize BRAF analog series 5", project: "BRAF Inhibitor Program", assignee: "Dr. Wei Zhang", priority: "high", status: "todo" },
-  { id: "T-002", title: "Review tau aggregation assay data", project: "Alzheimer's Tau Program", assignee: "Dr. James Wilson", priority: "medium", status: "todo" },
-  { id: "T-003", title: "Prepare IND toxicology package", project: "EGFR-T790M Resistance Program", assignee: "Dr. Lucia Romano", priority: "high", status: "todo" },
-  { id: "T-004", title: "Run CYP450 inhibition panel", project: "BRAF Inhibitor Program", assignee: "Dr. Sarah Chen", priority: "high", status: "in-progress" },
-  { id: "T-005", title: "Dock JAK2 selective candidates", project: "JAK2 Inhibitor Optimization", assignee: "Dr. Raj Patel", priority: "medium", status: "in-progress" },
-  { id: "T-006", title: "Optimize tau PET tracer binding", project: "Alzheimer's Tau Program", assignee: "Dr. Elena Vasquez", priority: "medium", status: "in-progress" },
-  { id: "T-007", title: "Complete selectivity profiling", project: "BRAF Inhibitor Program", assignee: "Dr. Raj Patel", priority: "high", status: "completed" },
-  { id: "T-008", title: "Submit patent application", project: "EGFR-T790M Resistance Program", assignee: "Dr. Robert Kim", priority: "medium", status: "completed" },
-  { id: "T-009", title: "Finalize lead compound report", project: "JAK2 Inhibitor Optimization", assignee: "Dr. Maria Rodriguez", priority: "low", status: "completed" },
+  { id: "T-001", title: "Synthesize BRAF analog series 5", project: "BRAF Inhibitor Program", assignee: "Scientist 3", priority: "high", status: "todo" },
+  { id: "T-002", title: "Review tau aggregation assay data", project: "Alzheimer's Tau Program", assignee: "Scientist 4", priority: "medium", status: "todo" },
+  { id: "T-003", title: "Prepare IND toxicology package", project: "EGFR-T790M Resistance Program", assignee: "Scientist 9", priority: "high", status: "todo" },
+  { id: "T-004", title: "Run CYP450 inhibition panel", project: "BRAF Inhibitor Program", assignee: "Scientist 1", priority: "high", status: "in-progress" },
+  { id: "T-005", title: "Dock JAK2 selective candidates", project: "JAK2 Inhibitor Optimization", assignee: "Scientist 2", priority: "medium", status: "in-progress" },
+  { id: "T-006", title: "Optimize tau PET tracer binding", project: "Alzheimer's Tau Program", assignee: "Scientist 5", priority: "medium", status: "in-progress" },
+  { id: "T-007", title: "Complete selectivity profiling", project: "BRAF Inhibitor Program", assignee: "Scientist 2", priority: "high", status: "completed" },
+  { id: "T-008", title: "Submit patent application", project: "EGFR-T790M Resistance Program", assignee: "Scientist 8", priority: "medium", status: "completed" },
+  { id: "T-009", title: "Finalize lead compound report", project: "JAK2 Inhibitor Optimization", assignee: "Scientist 7", priority: "low", status: "completed" },
 ];
 
 const assets: ProjectAsset[] = [
-  { name: "BRAF_SAR_Report_v3.pdf", type: "document", project: "BRAF Inhibitor Program", addedBy: "Dr. Sarah Chen", date: "Mar 15, 2026", size: "2.4 MB" },
-  { name: "Tau_Screening_Data.csv", type: "dataset", project: "Alzheimer's Tau Program", addedBy: "Dr. James Wilson", date: "Mar 10, 2026", size: "15.7 MB" },
-  { name: "BRAF_Compound_Library.sdf", type: "compound-library", project: "BRAF Inhibitor Program", addedBy: "Dr. Raj Patel", date: "Mar 8, 2026", size: "8.2 MB" },
-  { name: "JAK2_ADMET_Model.pkl", type: "model", project: "JAK2 Inhibitor Optimization", addedBy: "Dr. Maria Rodriguez", date: "Feb 28, 2026", size: "156 MB" },
-  { name: "EGFR_IND_Report.pdf", type: "report", project: "EGFR-T790M Resistance Program", addedBy: "Dr. Robert Kim", date: "Feb 15, 2026", size: "4.8 MB" },
-  { name: "Tau_Cryo-EM_Structures.pdb", type: "dataset", project: "Alzheimer's Tau Program", addedBy: "Dr. Wei Zhang", date: "Feb 10, 2026", size: "32 MB" },
-  { name: "BRAF_Docking_Results.csv", type: "dataset", project: "BRAF Inhibitor Program", addedBy: "Dr. Raj Patel", date: "Jan 30, 2026", size: "5.1 MB" },
-  { name: "Clinical_Feasibility_Analysis.docx", type: "document", project: "EGFR-T790M Resistance Program", addedBy: "Dr. Amanda Foster", date: "Jan 20, 2026", size: "1.2 MB" },
+  { name: "BRAF_SAR_Report_v3.pdf", type: "document", project: "BRAF Inhibitor Program", addedBy: "Scientist 1", date: "Q? 20??", size: "2.4 MB" },
+  { name: "Tau_Screening_Data.csv", type: "dataset", project: "Alzheimer's Tau Program", addedBy: "Scientist 4", date: "Q? 20??", size: "15.7 MB" },
+  { name: "BRAF_Compound_Library.sdf", type: "compound-library", project: "BRAF Inhibitor Program", addedBy: "Scientist 2", date: "Q? 20??", size: "8.2 MB" },
+  { name: "JAK2_ADMET_Model.pkl", type: "model", project: "JAK2 Inhibitor Optimization", addedBy: "Scientist 7", date: "Q? 20??", size: "156 MB" },
+  { name: "EGFR_IND_Report.pdf", type: "report", project: "EGFR-T790M Resistance Program", addedBy: "Scientist 8", date: "Q? 20??", size: "4.8 MB" },
+  { name: "Tau_Cryo-EM_Structures.pdb", type: "dataset", project: "Alzheimer's Tau Program", addedBy: "Scientist 3", date: "Q? 20??", size: "32 MB" },
+  { name: "BRAF_Docking_Results.csv", type: "dataset", project: "BRAF Inhibitor Program", addedBy: "Scientist 2", date: "Q? 20??", size: "5.1 MB" },
+  { name: "Clinical_Feasibility_Analysis.docx", type: "document", project: "EGFR-T790M Resistance Program", addedBy: "Scientist 6", date: "Q? 20??", size: "1.2 MB" },
 ];
 
 // A.G.E. = Activity · Goal-progress · Execution composite score (0–100 each)
@@ -274,10 +274,15 @@ function getInitialColor(initials: string) {
   return colors[Math.abs(hash) % colors.length];
 }
 
+// Illustrative timeline: positions are relative months ("Month N"), not calendar dates.
+function monthNum(label: string): number {
+  return parseInt(label.replace(/[^0-9-]/g, ""), 10) || 0;
+}
+
 function dateToPercent(date: string, minDate: string, maxDate: string) {
-  const d = new Date(date).getTime();
-  const min = new Date(minDate).getTime();
-  const max = new Date(maxDate).getTime();
+  const d = monthNum(date);
+  const min = monthNum(minDate);
+  const max = monthNum(maxDate);
   if (max === min) return 0;
   return Math.max(0, Math.min(100, ((d - min) / (max - min)) * 100));
 }
@@ -313,7 +318,7 @@ export default function ProjectsPage() {
       if (assetSort.key === "name") cmp = a.name.localeCompare(b.name);
       else if (assetSort.key === "type") cmp = a.type.localeCompare(b.type);
       else if (assetSort.key === "project") cmp = a.project.localeCompare(b.project);
-      else if (assetSort.key === "date") cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+      else if (assetSort.key === "date") cmp = a.date.localeCompare(b.date);
       else if (assetSort.key === "size") cmp = parseSizeMB(a.size) - parseSizeMB(b.size);
       return assetSort.dir === "asc" ? cmp : -cmp;
     });
@@ -331,8 +336,8 @@ export default function ProjectsPage() {
 
   // Timeline global range
   const allDates = projects.flatMap((p) => [p.startDate, p.endDate]);
-  const globalMin = allDates.reduce((a, b) => (a < b ? a : b));
-  const globalMax = allDates.reduce((a, b) => (a > b ? a : b));
+  const globalMin = allDates.reduce((a, b) => (monthNum(a) < monthNum(b) ? a : b));
+  const globalMax = allDates.reduce((a, b) => (monthNum(a) > monthNum(b) ? a : b));
 
   return (
     <div className="p-4 md:p-8 space-y-6">
