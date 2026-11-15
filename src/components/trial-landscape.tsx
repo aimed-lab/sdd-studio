@@ -47,6 +47,7 @@ interface DrugAware {
   targets: { chemblId: string; name: string }[];
   drugs: { name: string; chemblId: string; firstApproval: number | null }[];
   omitted: string[];
+  excluded?: { name: string; chemblId: string; primaryTarget: string; reason: string; sourceUrl: string }[];
   selection: string;
   source: Source & { release?: { version: string; date: string | null } };
 }
@@ -563,6 +564,15 @@ export function TrialLandscape({
               ))}
               .{" "}
               {drugAware.omitted.length > 0 && <>Not included (cap of 10): {drugAware.omitted.join(", ")}. </>}
+              {drugAware.excluded?.map((d) => (
+                <span key={d.chemblId}>
+                  Left out: {d.name}, whose primary target is {d.primaryTarget} (
+                  <a href={d.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                    {d.reason}
+                  </a>
+                  ).{" "}
+                </span>
+              ))}
               Trials found only through a drug are marked &ldquo;Added by drug name&rdquo;.{" "}
             </>
           ) : (

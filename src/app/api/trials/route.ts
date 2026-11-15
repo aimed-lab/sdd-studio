@@ -169,6 +169,7 @@ export async function GET(request: NextRequest) {
       targets: found?.targets ?? [],
       drugs,
       omitted: found?.omitted ?? [],
+      excluded: found?.excluded ?? [],
       selection: found?.selection ?? "",
       source: found?.source ?? { name: "ChEMBL", url: "https://www.ebi.ac.uk/chembl/", queryUrl: "", retrieved: new Date().toISOString(), cacheTtlSeconds: 0 },
     };

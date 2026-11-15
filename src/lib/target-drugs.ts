@@ -2,6 +2,7 @@
 // The list is derived from ChEMBL at request time and cached for 24 h; there is no hand-maintained drug list.
 
 import { type DataRelease, type Provenance, chemblRelease, fetchUpstream } from "@/lib/upstream";
+import { notPrimaryFor } from "@/data/curated/not-primary-target";
 
 const CHEMBL_API = "https://www.ebi.ac.uk/chembl/api/data";
 const SOURCE = { name: "ChEMBL", url: "https://www.ebi.ac.uk/chembl/" };
@@ -30,6 +31,8 @@ export interface TargetDrugs {
   drugs: TargetDrug[];
   /** Approved drugs found but left out by the MAX_TARGET_DRUGS cap. */
   omitted: string[];
+  /** Approved drugs left out because their FDA label indication is defined by another gene (curated, cited). */
+  excluded: { name: string; chemblId: string; primaryTarget: string; reason: string; sourceUrl: string }[];
   selection: string;
   source: Provenance & { release?: DataRelease };
 }
@@ -56,7 +59,7 @@ const isApproved = (phase: number | string | null | undefined) => Number(phase) 
  * Looks up a gene symbol in ChEMBL (human single-protein targets), collects mechanism-of-action
  * records with max_phase 4, and returns the parent molecules' preferred names. Ordered by first
  * approval year (newest first, so current standard-of-care drugs are kept; unknown years last), capped at
- * MAX_TARGET_DRUGS.
+ * MAX_TARGET_DRUGS. Drugs on the curated not-primary-target list for this gene are moved to `excluded`.
  * Throws UpstreamError when ChEMBL cannot be reached; callers fall back to the default search.
  */
 export async function approvedDrugsForTarget(symbol: string): Promise<TargetDrugs> {
@@ -80,6 +83,7 @@ export async function approvedDrugsForTarget(symbol: string): Promise<TargetDrug
     .map((x) => ({ chemblId: x.target_chembl_id as string, name: x.pref_name ?? "" }));
 
   let drugs: TargetDrug[] = [];
+  const excluded: TargetDrugs["excluded"] = [];
   let source: TargetDrugs["source"] | null = null;
   if (targets.length) {
     const mechParams = new URLSearchParams({
@@ -122,6 +126,12 @@ export async function approvedDrugsForTarget(symbol: string): Promise<TargetDrug
         }))
         .filter((x) => SAFE_NAME.test(x.name) && !seen.has(x.name) && seen.add(x.name))
         .sort((a, b) => (b.firstApproval ?? -1) - (a.firstApproval ?? -1) || a.name.localeCompare(b.name));
+      const notPrimary = new Map(notPrimaryFor(key).map((x) => [x.drugChemblId, x]));
+      drugs = drugs.filter((d) => {
+        const hit = notPrimary.get(d.chemblId);
+        if (hit) excluded.push({ name: d.name, chemblId: d.chemblId, primaryTarget: hit.primaryTarget, reason: hit.reason, sourceUrl: hit.sourceUrl });
+        return !hit;
+      });
     }
   }
 
@@ -131,9 +141,11 @@ export async function approvedDrugsForTarget(symbol: string): Promise<TargetDrug
     targets,
     drugs: drugs.slice(0, MAX_TARGET_DRUGS),
     omitted: drugs.slice(MAX_TARGET_DRUGS).map((d) => d.name),
+    excluded,
     selection:
       `ChEMBL mechanism-of-action records for human single-protein target(s) named ${key}, max_phase 4 (approved), ` +
-      `parent molecules, ordered by first approval year (newest first), at most ${MAX_TARGET_DRUGS}.`,
+      `parent molecules, ordered by first approval year (newest first), at most ${MAX_TARGET_DRUGS}. ` +
+      `Drugs whose FDA label indication is defined by another gene are left out (curated list).`,
     source: source
       ? { ...source, ...(release ? { release } : {}) }
       : {
