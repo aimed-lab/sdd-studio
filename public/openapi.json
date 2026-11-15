@@ -543,7 +543,7 @@
       "DrugAware": {
         "type": ["object", "null"],
         "description": "Null unless mode=drug-aware.",
-        "required": ["applied", "note", "queryTerm", "targets", "drugs", "omitted", "selection", "source"],
+        "required": ["applied", "note", "queryTerm", "targets", "drugs", "omitted", "excluded", "selection", "source"],
         "additionalProperties": false,
         "properties": {
           "applied": { "type": "boolean", "description": "False when ChEMBL had no target or approved drug, or could not be reached; the gene query then runs alone." },
@@ -569,6 +569,22 @@
             }
           },
           "omitted": { "type": "array", "items": { "type": "string" }, "description": "Approved drugs left out by the cap of 10." },
+          "excluded": {
+            "type": "array",
+            "description": "Approved drugs left out because their FDA label indication is defined by another gene (curated, each with a label link), e.g. brigatinib for EGFR.",
+            "items": {
+              "type": "object",
+              "required": ["name", "chemblId", "primaryTarget", "reason", "sourceUrl"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string" },
+                "chemblId": { "type": "string" },
+                "primaryTarget": { "type": "string" },
+                "reason": { "type": "string" },
+                "sourceUrl": { "type": "string" }
+              }
+            }
+          },
           "selection": { "type": "string", "description": "How the drug list was chosen." },
           "source": { "$ref": "#/components/schemas/Provenance" }
         }

@@ -63,6 +63,16 @@ export function TargetDrugsSection({ result }: { result: { ok: true; value: Targ
               <span className="capitalize">{result.value.omitted.join(", ")}</span>.
             </p>
           )}
+          {result.value.excluded.map((d) => (
+            <p key={d.chemblId} className="mt-2 text-xs text-muted-foreground">
+              Not listed: <span className="capitalize">{d.name}</span>. ChEMBL links it to this target, but its primary target is{" "}
+              {d.primaryTarget} (
+              <a href={d.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                {d.reason}
+              </a>
+              ).
+            </p>
+          ))}
         </>
       )}
       {result.ok && (
