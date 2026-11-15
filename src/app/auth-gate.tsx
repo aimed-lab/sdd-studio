@@ -14,6 +14,8 @@ import {
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { DataClassBadge, PageClassStrip } from "@/components/data-provenance";
 import { pageClassFor } from "@/data/page-classes";
+import { isPublicPath } from "@/data/public-routes";
+import { PublicShell, PublicToolsBanner } from "@/components/public-shell";
 import { RoleAvatar } from "@/components/role-avatar";
 import { PLATFORM_CONFIG } from "@/lib/platform-config";
 import { type AppRole, hasRole } from "@/lib/roles";
@@ -39,7 +41,13 @@ function AuthSwitch({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    if (isPublicPath(pathname)) return <PublicShell>{children}</PublicShell>;
+    return (
+      <>
+        <PublicToolsBanner />
+        <LoginPage />
+      </>
+    );
   }
 
   return (

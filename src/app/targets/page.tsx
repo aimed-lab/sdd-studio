@@ -8,6 +8,8 @@ import { EgfrResistancePanel } from "@/components/egfr-resistance-panel";
 import { GlossaryTerm } from "@/components/glossary-term";
 import { referenceCompounds } from "@/data/curated/chembl-reference-compounds";
 import { pdbLigandLinks, rcsbSearchUrl } from "@/data/curated/pdb-ligands";
+import { trialsHrefFor } from "@/data/curated/target-default-conditions";
+import { usePublicMode } from "@/lib/public-mode";
 import { cn } from "@/lib/utils";
 
 interface Target {
@@ -108,6 +110,32 @@ export default function TargetsPage() {
 }
 
 function TargetsContent() {
+  const isPublic = usePublicMode();
+  if (isPublic) return <PublicTargets />;
+  return <MemberTargets />;
+}
+
+/** Anonymous visitors see only the curated, cited resistance set; target cards hold illustrative fields. */
+function PublicTargets() {
+  return (
+    <div className="p-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">EGFR resistance mechanisms</h1>
+        <p className="text-muted-foreground mt-1">
+          A curated reference set from primary literature, each row linked to its PubMed record.
+        </p>
+      </div>
+      <p className="text-sm">
+        <Link href={trialsHrefFor("EGFR")} className={extLink}>
+          Search EGFR trials in non-small cell lung cancer
+        </Link>
+      </p>
+      <EgfrResistancePanel />
+    </div>
+  );
+}
+
+function MemberTargets() {
   const router = useRouter();
   const urlQuery = useSearchParams().get("q") ?? "";
   const [input, setInput] = useState(urlQuery);
@@ -248,7 +276,7 @@ function TargetsContent() {
                       Resistance (curated)
                     </a>
                   )}
-                  <Link href={`/clinical/trials?term=${encodeURIComponent(target.gene)}`} className={extLink}>
+                  <Link href={trialsHrefFor(target.gene)} className={extLink}>
                     Trials
                   </Link>
                   <a
