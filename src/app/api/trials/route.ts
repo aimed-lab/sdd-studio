@@ -225,8 +225,9 @@ export async function GET(request: NextRequest) {
     const keywords = p.conditionsModule?.keywords ?? [];
     const title = p.identificationModule?.briefTitle ?? "";
     const officialTitle = p.identificationModule?.officialTitle ?? "";
+    const names = [term, ...(ambiguous?.synonyms ?? findAmbiguousSymbol(term)?.synonyms ?? [])];
     const direct = [title, officialTitle, ...conditions, ...keywords, ...interventionDetails.map((i) => i.name)]
-      .some((text) => mentionsToken(text, term));
+      .some((text) => names.some((name) => mentionsToken(text, name)));
     return {
       nctId,
       url: NCT_ID.test(nctId) ? `https://clinicaltrials.gov/study/${nctId}` : null,
