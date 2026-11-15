@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { SourceLine } from "@/components/data-provenance";
@@ -27,9 +27,9 @@ interface Source {
 const PHASE_OPTIONS: [string, string][] = [
   ["", "Any phase"],
   ["EARLY_PHASE1", "Early Phase 1"],
-  ["PHASE1", "Phase 1"],
-  ["PHASE2", "Phase 2"],
-  ["PHASE3", "Phase 3"],
+  ["PHASE1", "Phase 1 (incl. Phase 1/2)"],
+  ["PHASE2", "Phase 2 (incl. Phase 1/2, 2/3)"],
+  ["PHASE3", "Phase 3 (incl. Phase 2/3)"],
   ["PHASE4", "Phase 4"],
 ];
 
@@ -67,9 +67,15 @@ export function TrialLandscape({ initialTerm }: { initialTerm: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const inFlight = useRef<AbortController | null>(null);
+
   const load = useCallback(
     async (append: string | null) => {
       if (!term.trim()) return;
+      inFlight.current?.abort();
+      const controller = new AbortController();
+      inFlight.current = controller;
+      if (!append) setNextToken(null);
       setLoading(true);
       setError(null);
       const params = new URLSearchParams({ term: term.trim() });
@@ -78,18 +84,20 @@ export function TrialLandscape({ initialTerm }: { initialTerm: string }) {
       if (status) params.set("status", status);
       if (append) params.set("pageToken", append);
       try {
-        const res = await fetch(`/api/trials?${params}`);
+        const res = await fetch(`/api/trials?${params}`, { signal: controller.signal });
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (!res.ok) throw new Error(data.error ?? "Trial search failed");
         setRows((prev) => (append ? [...prev, ...data.results] : data.results));
         setTotal(data.total);
         setNextToken(data.nextPageToken);
         setSource(data.source);
       } catch (err) {
+        if (controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : "Trial search failed");
         if (!append) setRows([]);
       } finally {
-        setLoading(false);
+        if (inFlight.current === controller) setLoading(false);
       }
     },
     [term, condition, phase, status]

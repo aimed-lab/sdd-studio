@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MAX_QUERY_LENGTH, type Provenance, UpstreamError, badRequest, fetchUpstream, sourceUnavailable } from "@/lib/upstream";
+import {
+  MAX_QUERY_LENGTH, type Provenance, UpstreamError, badRequest, fetchUpstream, rejectUnknownParams, upstreamErrorResponse,
+} from "@/lib/upstream";
 
 const CTGOV_API = "https://clinicaltrials.gov/api/v2/studies";
 const SOURCE = { name: "ClinicalTrials.gov API v2", url: "https://clinicaltrials.gov/" };
@@ -43,18 +45,21 @@ export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
   const term = sp.get("term")?.trim() ?? "";
   const condition = sp.get("condition")?.trim() ?? "";
-  const phase = sp.get("phase") ?? "";
-  const status = sp.get("status") ?? "";
+  const phase = (sp.get("phase") ?? "").trim().toUpperCase();
+  const status = (sp.get("status") ?? "").trim().toUpperCase();
   const pageToken = sp.get("pageToken") ?? "";
 
-  if (!term) return badRequest("Query parameter 'term' is required");
+  const unknown = rejectUnknownParams(sp, ["term", "condition", "phase", "status", "pageToken"]);
+  if (unknown) return unknown;
+  if (!term && !condition) return badRequest("Provide 'term', 'condition', or both");
   if (term.length > MAX_QUERY_LENGTH || condition.length > MAX_QUERY_LENGTH)
     return badRequest(`Query is too long (max ${MAX_QUERY_LENGTH} characters)`);
-  if (phase && !(TRIAL_PHASES as readonly string[]).includes(phase)) return badRequest(`Unknown phase '${phase}'`);
-  if (status && !(TRIAL_STATUSES as readonly string[]).includes(status)) return badRequest(`Unknown status '${status}'`);
+  if (phase && !(TRIAL_PHASES as readonly string[]).includes(phase)) return badRequest(`Unknown phase '${phase}'. Allowed: ${TRIAL_PHASES.join(", ")}`);
+  if (status && !(TRIAL_STATUSES as readonly string[]).includes(status)) return badRequest(`Unknown status '${status}'. Allowed: ${TRIAL_STATUSES.join(", ")}`);
   if (pageToken && !/^[A-Za-z0-9_-]{1,200}$/.test(pageToken)) return badRequest("Invalid page token");
 
-  const params = new URLSearchParams({ "query.term": term, pageSize: "25", countTotal: "true", fields: FIELDS });
+  const params = new URLSearchParams({ pageSize: "25", countTotal: "true", fields: FIELDS });
+  if (term) params.set("query.term", term);
   if (condition) params.set("query.cond", condition);
   if (status) params.set("filter.overallStatus", status);
   if (phase) params.set("filter.advanced", `AREA[Phase]${phase}`);
@@ -65,7 +70,7 @@ export async function GET(request: NextRequest) {
   try {
     ({ data, provenance } = await fetchUpstream<typeof data>(SOURCE, `${CTGOV_API}?${params}`));
   } catch (err) {
-    if (err instanceof UpstreamError) return sourceUnavailable(SOURCE.name);
+    if (err instanceof UpstreamError) return upstreamErrorResponse(err, SOURCE.name);
     throw err;
   }
 

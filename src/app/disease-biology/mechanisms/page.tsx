@@ -14,8 +14,9 @@ interface MoAStudy {
   steps: string[];
   pathway: string;
   method: string;
-  status: "Validated" | "Under review" | "Investigating";
-  confidence: number;
+  status: "Placeholder" | "Validated" | "Under review" | "Investigating";
+  // null until a real analysis with cited evidence exists
+  confidence: number | null;
   evidence: string;
 }
 
@@ -34,8 +35,8 @@ const moaStudies: MoAStudy[] = [
     title: "BRAF V600E \u2192 MEK \u2192 ERK Cascade",
     pathway: "MAPK/ERK",
     method: "GeneTerrain + PETS",
-    status: "Validated",
-    confidence: 92,
+    status: "Placeholder",
+    confidence: null,
     evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
@@ -45,8 +46,8 @@ const moaStudies: MoAStudy[] = [
     title: "Tau Phosphorylation via GSK-3\u03B2",
     pathway: "Wnt/GSK3",
     method: "Network propagation",
-    status: "Under review",
-    confidence: 78,
+    status: "Placeholder",
+    confidence: null,
     evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
@@ -56,8 +57,8 @@ const moaStudies: MoAStudy[] = [
     title: "JAK2-STAT Signaling in MPN",
     pathway: "JAK-STAT",
     method: "Perturb-seq analysis",
-    status: "Validated",
-    confidence: 88,
+    status: "Placeholder",
+    confidence: null,
     evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
   {
@@ -67,8 +68,8 @@ const moaStudies: MoAStudy[] = [
     title: "EGFR \u2192 PI3K \u2192 AKT Resistance",
     pathway: "PI3K/AKT/mTOR",
     method: "GeneTerrain + BioReason-Pro",
-    status: "Investigating",
-    confidence: 65,
+    status: "Placeholder",
+    confidence: null,
     evidence: "Placeholder — no analysis has been run on this platform; evidence not yet curated",
   },
 ];
@@ -80,6 +81,7 @@ const evidenceStreams: EvidenceStream[] = [
 ];
 
 const statusColors: Record<string, string> = {
+  Placeholder: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   Validated: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
   "Under review": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
   Investigating: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
@@ -146,14 +148,16 @@ export default function MechanismsPage() {
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Confidence</span>
-                    <span className="font-medium">{study.confidence}%</span>
+                    <span className="font-medium">{study.confidence === null ? "Not assessed" : `${study.confidence}%`}</span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-muted">
-                    <div
-                      className={cn("h-2 rounded-full transition-all", confidenceColor(study.confidence))}
-                      style={{ width: `${study.confidence}%` }}
-                    />
-                  </div>
+                  {study.confidence !== null && (
+                    <div className="h-2 w-full rounded-full bg-muted">
+                      <div
+                        className={cn("h-2 rounded-full transition-all", confidenceColor(study.confidence))}
+                        style={{ width: `${study.confidence}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Evidence */}
@@ -192,7 +196,7 @@ export default function MechanismsPage() {
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Confidence</dt>
-                  <dd className="font-medium">{selected.confidence}%</dd>
+                  <dd className="font-medium">{selected.confidence === null ? "Not assessed" : `${selected.confidence}%`}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Related target</dt>

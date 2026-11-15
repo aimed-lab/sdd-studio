@@ -107,7 +107,7 @@ export default function DecisionsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Decision Reports</h1>
         <p className="text-muted-foreground">
-          Regulatory, IP, and business strategy decisions
+          Illustrative go/no-go decision records for regulatory, IP and business strategy
         </p>
       </div>
 

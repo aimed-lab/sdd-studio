@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const MAX_QUERY_LENGTH = 100;
 
-const USER_AGENT = "SmartDrugDiscovery/1.0 (+https://target.smartdrugdiscovery.org)";
+const USER_AGENT = "SmartDrugDiscovery/1.0 (+https://studio.smartdrugdiscovery.org)";
 
 export interface Provenance {
   name: string;
@@ -13,6 +13,13 @@ export interface Provenance {
 }
 
 export class UpstreamError extends Error {}
+
+/** The upstream answered but refused the query (HTTP 4xx), as opposed to being down. */
+export class UpstreamRejected extends UpstreamError {
+  constructor(readonly sourceName: string, readonly status: number) {
+    super(`${sourceName} rejected the query (HTTP ${status})`);
+  }
+}
 
 export async function fetchUpstream<T>(
   source: { name: string; url: string },
@@ -29,6 +36,7 @@ export async function fetchUpstream<T>(
   } catch {
     throw new UpstreamError(`${source.name} did not respond`);
   }
+  if (res.status >= 400 && res.status < 500) throw new UpstreamRejected(source.name, res.status);
   if (!res.ok) throw new UpstreamError(`${source.name} responded ${res.status}`);
 
   // The upstream Date header is stored with a cached response, so it reflects the real fetch time.
@@ -54,3 +62,21 @@ export const sourceUnavailable = (name: string) =>
     { results: [], error: `Source unavailable: ${name} could not be reached. No cached or demo data is shown in its place.` },
     { status: 502 }
   );
+
+export function upstreamErrorResponse(err: UpstreamError, name: string) {
+  if (err instanceof UpstreamRejected) {
+    return NextResponse.json(
+      { results: [], error: `${err.message}. Check the query; this is not an outage.` },
+      { status: 400 }
+    );
+  }
+  return sourceUnavailable(name);
+}
+
+/** Unknown parameters are an error, so a typo such as `limt=50` never silently returns default results. */
+export function rejectUnknownParams(params: URLSearchParams, allowed: readonly string[]): NextResponse | null {
+  const unknown = Array.from(new Set(params.keys())).filter((k) => !allowed.includes(k));
+  return unknown.length
+    ? badRequest(`Unknown parameter${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}. Allowed: ${allowed.join(", ")}`)
+    : null;
+}
