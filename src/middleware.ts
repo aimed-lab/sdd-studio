@@ -63,5 +63,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/target-evidence", "/api/mcp", "/targets/:gene"],
+  matcher: ["/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/target-evidence", "/api/mcp", "/targets/:path+"],
 };
