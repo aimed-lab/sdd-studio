@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSetting } from "@/lib/db";
 import { findAmbiguousSymbol, mentionsToken } from "@/data/ambiguous-symbols";
 import {
-  MAX_QUERY_LENGTH, type Provenance, UpstreamError, badRequest, fetchUpstream, rejectUnknownParams, upstreamErrorResponse,
+  MAX_QUERY_LENGTH, PUBLIC_CACHE_HEADERS, type Provenance, UpstreamError, badRequest, ctgovRelease, fetchUpstream,
+  rejectUnknownParams, upstreamErrorResponse,
 } from "@/lib/upstream";
 
 export const maxDuration = 25;
@@ -158,7 +159,12 @@ export async function GET(request: NextRequest) {
     let data: CtgovResponse;
     let provenance: Provenance;
     try {
-      ({ data, provenance } = await fetchUpstream<CtgovResponse>(SOURCE, `${CTGOV_API}?${params}`, { timeoutMs: 15000 }));
+      const [fetched, release] = await Promise.all([
+        fetchUpstream<CtgovResponse>(SOURCE, `${CTGOV_API}?${params}`, { timeoutMs: 15000 }),
+        ctgovRelease(),
+      ]);
+      data = fetched.data;
+      provenance = release ? { ...fetched.provenance, release } : fetched.provenance;
     } catch (err) {
       if (err instanceof UpstreamError) return upstreamErrorResponse(err, SOURCE.name);
       throw err;
@@ -186,7 +192,7 @@ export async function GET(request: NextRequest) {
       byStatus: count(studies.map((s) => s.protocolSection?.statusModule?.overallStatus || "Not specified")),
       bySponsor: otherN ? [...top, { label: "Other sponsors", n: otherN }] : top,
       source: provenance,
-    });
+    }, { headers: PUBLIC_CACHE_HEADERS });
   }
 
   const params = new URLSearchParams(base);
@@ -197,7 +203,12 @@ export async function GET(request: NextRequest) {
   let data: CtgovResponse;
   let provenance: Provenance;
   try {
-    ({ data, provenance } = await fetchUpstream<CtgovResponse>(SOURCE, `${CTGOV_API}?${params}`));
+    const [fetched, release] = await Promise.all([
+      fetchUpstream<CtgovResponse>(SOURCE, `${CTGOV_API}?${params}`),
+      ctgovRelease(),
+    ]);
+    data = fetched.data;
+    provenance = release ? { ...fetched.provenance, release } : fetched.provenance;
   } catch (err) {
     if (err instanceof UpstreamError) return upstreamErrorResponse(err, SOURCE.name);
     throw err;
@@ -262,5 +273,5 @@ export async function GET(request: NextRequest) {
     total: data.totalCount ?? results.length,
     nextPageToken: data.nextPageToken ?? null,
     source: provenance,
-  });
+  }, { headers: PUBLIC_CACHE_HEADERS });
 }

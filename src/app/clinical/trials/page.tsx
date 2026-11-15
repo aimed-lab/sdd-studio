@@ -9,6 +9,7 @@ import { TrialLandscape, filtersToParams, type TrialFilters } from "@/components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { usePublicMode } from "@/lib/public-mode";
 
 interface Trial {
   id: string;
@@ -126,7 +127,9 @@ const QUERY_KEYS = ["term", "condition", "intervention", "location", "phase", "s
 function TrialsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tab = searchParams.get("tab") === "internal" ? "internal" : "landscape";
+  const isPublic = usePublicMode();
+  // Anonymous visitors only ever get the live landscape; the demo tab is not rendered for them.
+  const tab = !isPublic && searchParams.get("tab") === "internal" ? "internal" : "landscape";
   const fromUrl = QUERY_KEYS.some((k) => searchParams.get(k));
   const [initial] = useState<TrialFilters>(() =>
     fromUrl
@@ -156,15 +159,24 @@ function TrialsContent() {
       <div>
         <h1 className="text-3xl font-bold">Trials</h1>
         <p className="text-muted-foreground mt-1">
-          Registered trial landscape from ClinicalTrials.gov, plus illustrative internal trial designs
+          {isPublic
+            ? "Registered trial landscape from ClinicalTrials.gov"
+            : "Registered trial landscape from ClinicalTrials.gov, plus illustrative internal trial designs"}
         </p>
       </div>
 
+      <p role="note" className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <strong>Not medical advice.</strong> Trial details and recruiting status come from ClinicalTrials.gov as of each
+        row&apos;s &ldquo;Updated&rdquo; date. Eligibility and availability change; check with the trial site or your clinician.
+      </p>
+
       <Tabs value={tab} onValueChange={(v) => replaceUrl(lastFilters, v)}>
-        <TabsList>
-          <TabsTrigger value="landscape">Trial Landscape (ClinicalTrials.gov)</TabsTrigger>
-          <TabsTrigger value="internal">Illustrative internal programs (demo)</TabsTrigger>
-        </TabsList>
+        {!isPublic && (
+          <TabsList>
+            <TabsTrigger value="landscape">Trial Landscape (ClinicalTrials.gov)</TabsTrigger>
+            <TabsTrigger value="internal">Illustrative internal programs (demo)</TabsTrigger>
+          </TabsList>
+        )}
         <TabsContent value="landscape" className="mt-4">
           <TrialLandscape
             initial={lastFilters}
@@ -174,10 +186,12 @@ function TrialsContent() {
             }}
           />
         </TabsContent>
-        <TabsContent value="internal" className="mt-4 space-y-4">
-          <DemoDataNotice />
-          <IllustrativePrograms />
-        </TabsContent>
+        {!isPublic && (
+          <TabsContent value="internal" className="mt-4 space-y-4">
+            <DemoDataNotice />
+            <IllustrativePrograms />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
