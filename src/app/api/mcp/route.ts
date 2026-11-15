@@ -6,6 +6,7 @@ import { GET as searchGET } from "@/app/api/search/route";
 import { GET as compoundGET } from "@/app/api/compound/[chemblId]/route";
 import { GET as trialsGET } from "@/app/api/trials/route";
 import { GET as structureGET } from "@/app/api/structure/route";
+import { GET as targetEvidenceGET } from "@/app/api/target-evidence/route";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 15;
@@ -82,6 +83,19 @@ const TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: "get_target_evidence",
+    description: `Open Targets Platform evidence for one gene (HGNC approved symbol, e.g. EGFR; aliases are not resolved): top disease associations with overall and per-datatype scores (limit 1–50, default 10, plus the total count), tractability buckets per modality (small molecule, antibody, PROTAC, other) with evidence labels as Open Targets reports them, and the count of drug and clinical-candidate records. Scores are Open Targets' own metrics, not predictions by this site. Provenance includes the Open Targets release. ${PROVENANCE_NOTE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        gene: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9-]{0,19}$", description: "Approved gene symbol, e.g. MAPT" },
+        limit: { type: "integer", minimum: 1, maximum: 50 },
+      },
+      required: ["gene"],
+      additionalProperties: false,
+    },
+  },
 ] as const;
 
 type Args = Record<string, unknown>;
@@ -110,6 +124,8 @@ async function runTool(name: string, args: Args, origin: string): Promise<Respon
       return trialsGET(at("/api/trials", toQuery(args)));
     case "structure_search":
       return structureGET(at("/api/structure", toQuery(args)));
+    case "get_target_evidence":
+      return targetEvidenceGET(at("/api/target-evidence", toQuery(args)));
     default:
       return NextResponse.json({ error: `Unknown tool: ${name}` }, { status: 400 });
   }

@@ -30,12 +30,26 @@ export class UpstreamRejected extends UpstreamError {
 export async function fetchUpstream<T>(
   source: { name: string; url: string },
   queryUrl: string,
-  { ttlSeconds = 3600, timeoutMs = 8000 }: { ttlSeconds?: number; timeoutMs?: number } = {}
+  {
+    ttlSeconds = 3600,
+    timeoutMs = 8000,
+    jsonBody,
+  }: {
+    ttlSeconds?: number;
+    timeoutMs?: number;
+    /** When set, the request is a POST with this JSON body (e.g. a fixed GraphQL query with typed variables). */
+    jsonBody?: unknown;
+  } = {}
 ): Promise<{ data: T; provenance: Provenance }> {
   let res: Response;
   try {
     res = await fetch(queryUrl, {
-      headers: { Accept: "application/json", "User-Agent": USER_AGENT },
+      ...(jsonBody === undefined ? {} : { method: "POST", body: JSON.stringify(jsonBody) }),
+      headers: {
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+        ...(jsonBody === undefined ? {} : { "Content-Type": "application/json" }),
+      },
       next: { revalidate: ttlSeconds },
       signal: AbortSignal.timeout(timeoutMs),
     });

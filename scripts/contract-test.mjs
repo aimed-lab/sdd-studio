@@ -71,6 +71,11 @@ const CASES = [
   { path: "/api/trials", query: { term: "EGFR", pageToken: "__NEXT__" }, status: 200, needsToken: true },
   { path: "/api/trials", query: { phase: "PHASE3" }, status: 400 },
   { path: "/api/trials", query: { term: "EGFR", phase: "PHASE9" }, status: 400 },
+  { path: "/api/target-evidence", query: { gene: "EGFR" }, status: 200 },
+  { path: "/api/target-evidence", query: { gene: "mapt", limit: "5" }, status: 200 },
+  { path: "/api/target-evidence", query: { gene: "EGFR;{}" }, status: 400 },
+  { path: "/api/target-evidence", query: { gene: "EGFR", limit: "51" }, status: 400 },
+  { path: "/api/target-evidence", query: { gene: "NOTAGENE1" }, status: 404 },
 ];
 
 const failures = [];

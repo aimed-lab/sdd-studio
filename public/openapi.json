@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "SmartDrugDiscovery Studio read-only data API",
-    "version": "1.0.0",
-    "summary": "Read-only JSON proxies for ChEMBL and ClinicalTrials.gov with provenance on every response.",
+    "version": "1.1.0",
+    "summary": "Read-only JSON proxies for ChEMBL, ClinicalTrials.gov and Open Targets with provenance on every response.",
     "description": "Unauthenticated and read-only. The API may change; the version field changes when it does. Every successful response carries a `source` block (upstream name, query URL, retrieval time, cache TTL, and data release when available). Demo data is never served by these endpoints. Requests are rate-limited per IP (HTTP 429 with Retry-After). Unknown query parameters are rejected with HTTP 400. Contract-tested in CI against this file (scripts/contract-test.mjs). A read-only MCP endpoint (Streamable HTTP, stateless, JSON responses) exposes the same handlers as tools; see `x-mcp`.",
     "contact": { "url": "https://github.com/aimed-lab/sdd-studio" }
   },
@@ -34,11 +34,77 @@
         "name": "structure_search",
         "sameAs": "GET /api/structure",
         "limits": "Slow substructure queries can exceed the endpoint's 15 s budget; use GET /api/structure for those"
+      },
+      {
+        "name": "get_target_evidence",
+        "sameAs": "GET /api/target-evidence"
       }
     ],
     "results": "Each tool returns the same JSON body as its REST route, as text content and structuredContent, with isError=true for 4xx/5xx. Every successful body carries the `source` provenance block. Demo data is never returned."
   },
   "paths": {
+    "/api/target-evidence": {
+      "get": {
+        "operationId": "getTargetEvidence",
+        "summary": "Open Targets disease associations, tractability and drug-candidate count for one gene",
+        "description": "Resolves an approved gene symbol (case-insensitive; aliases are not resolved) to its Ensembl ID through Open Targets search, then runs one fixed GraphQL query with typed variables. Association scores and tractability buckets are Open Targets' own metrics, not predictions by this site. Cached 24 h; `source.release` is the Open Targets data release (YY.MM). Rate limit: 20 burst, 20/min per IP.",
+        "parameters": [
+          {
+            "name": "gene",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9-]{0,19}$"
+            },
+            "example": "EGFR"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            },
+            "description": "Number of top-scored disease associations"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evidence for the target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetEvidenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "Not an approved gene symbol in Open Targets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "502": {
+            "$ref": "#/components/responses/SourceUnavailable"
+          }
+        }
+      }
+    },
     "/api/search": {
       "get": {
         "operationId": "searchCompounds",
@@ -109,6 +175,165 @@
       "SourceUnavailable": { "description": "The upstream source could not be reached; no cached or demo data is substituted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
     },
     "schemas": {
+      "TargetEvidenceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Open Targets Platform evidence for one target, passed through as Open Targets reports it. Nothing is re-scored by this site.",
+        "required": [
+          "gene",
+          "ensemblId",
+          "approvedName",
+          "openTargetsUrl",
+          "associations",
+          "tractability",
+          "drugAndClinicalCandidates",
+          "note",
+          "source"
+        ],
+        "properties": {
+          "gene": {
+            "type": "string",
+            "description": "Open Targets approved symbol"
+          },
+          "ensemblId": {
+            "type": "string",
+            "pattern": "^ENSG\\d+$"
+          },
+          "approvedName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "openTargetsUrl": {
+            "type": "string"
+          },
+          "associations": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "total",
+              "limit",
+              "rows"
+            ],
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "All diseases associated with the target in this release"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "rows": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "diseaseId",
+                    "diseaseName",
+                    "score",
+                    "datatypeScores"
+                  ],
+                  "properties": {
+                    "diseaseId": {
+                      "type": "string",
+                      "description": "EFO/MONDO ID as used by Open Targets"
+                    },
+                    "diseaseName": {
+                      "type": "string"
+                    },
+                    "score": {
+                      "type": "number",
+                      "description": "Open Targets overall association score (0–1)"
+                    },
+                    "datatypeScores": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "datatype",
+                          "score"
+                        ],
+                        "properties": {
+                          "datatype": {
+                            "type": "string",
+                            "description": "Open Targets datatype ID, e.g. genetic_association, literature"
+                          },
+                          "score": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "tractability": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "modality",
+                "modalityLabel",
+                "evidence"
+              ],
+              "properties": {
+                "modality": {
+                  "type": "string",
+                  "enum": [
+                    "SM",
+                    "AB",
+                    "PR",
+                    "OC"
+                  ]
+                },
+                "modalityLabel": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "description": "Open Targets tractability bucket label"
+                      },
+                      "value": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "drugAndClinicalCandidates": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Count of drug and clinical-candidate records for the target in Open Targets"
+          },
+          "note": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Provenance"
+          }
+        }
+      },
       "ApiError": {
         "type": "object",
         "required": ["error"],

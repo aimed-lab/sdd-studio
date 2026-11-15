@@ -22,7 +22,7 @@ Server-side secrets (GitHub token, Anthropic key) are never returned in any resp
 
 ## Read-only JSON API
 
-`GET /api/search`, `GET /api/compound/{chemblId}` and `GET /api/trials` proxy public sources (ChEMBL and ClinicalTrials.gov). They need no sign-in, write nothing, and never return demo data. **Unauthenticated; may change.**
+`GET /api/search`, `GET /api/compound/{chemblId}`, `GET /api/trials` and `GET /api/target-evidence` proxy public sources (ChEMBL, ClinicalTrials.gov and Open Targets). They need no sign-in, write nothing, and never return demo data. **Unauthenticated; may change.**
 
 **Machine-readable contract:** [`/openapi.json`](https://studio.smartdrugdiscovery.org/openapi.json) (OpenAPI 3.1, file `public/openapi.json`) documents every parameter, response field, error shape and the provenance schema. `scripts/contract-test.mjs` checks the live API against it: on every PR that touches the API (against the PR's own build) and nightly against production (`.github/workflows/api-contract.yml`). A response field or parameter that isn't in the spec fails the test, so update the spec in the same PR as the handler.
 
@@ -32,8 +32,8 @@ Server-side secrets (GitHub token, Anthropic key) are never returned in any resp
 |---|---|
 | Unknown query parameters | `400` with the list of allowed parameters, so a typo such as `limt=50` never silently returns default results |
 | Free-text length | `q`, `term` and `condition` are capped at 100 characters (`400` above that) |
-| Rate limit | Per client IP, per server instance: `/api/search` and `/api/trials` allow a burst of 60 then 1 request/s; `/api/compound` a burst of 15 then 1 request every 4 s. Over the limit: `429` with `Retry-After` (seconds) |
-| Caching | Successful responses carry `Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400`; upstream data is cached for up to 1 h (24 h for `/api/compound`) |
+| Rate limit | Per client IP, per server instance: `/api/search` and `/api/trials` allow a burst of 60 then 1 request/s; `/api/compound` a burst of 15 then 1 request every 4 s; `/api/target-evidence` a burst of 20 then 1 request every 3 s. Over the limit: `429` with `Retry-After` (seconds) |
+| Caching | Successful responses carry `Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400`; upstream data is cached for up to 1 h (24 h for `/api/compound` and `/api/target-evidence`) |
 | Upstream rejected the query | `400` — "<source> rejected the query (HTTP n). Check the query; this is not an outage." |
 | Upstream down or timed out | `502` — "Source unavailable … No cached or demo data is shown in its place." |
 | CORS | Not enabled; browser calls from other origins are blocked. Server-side and command-line clients are unaffected |
@@ -134,9 +134,43 @@ ClinicalTrials.gov API v2 search, 25 studies per page. Provide `term`, `conditio
 
 Provide at least one of `term`, `condition`, `intervention` or `location`. The full response schema, including `symbolMatch` per row and the `summary` view, is in `/openapi.json`. `source.release` carries the ClinicalTrials.gov API version and data timestamp when available.
 
+### GET /api/target-evidence
+
+Open Targets Platform evidence for one gene. The symbol is matched case-insensitively against Open Targets' approved symbols (HGNC) and resolved to its Ensembl ID through Open Targets search; aliases are not resolved. The site then runs one **fixed** GraphQL query with typed variables (Ensembl ID and row count); request text is never sent as query text.
+
+| Parameter | Description |
+|---|---|
+| `gene` | Approved gene symbol, e.g. `EGFR`, `MAPT` (letters, digits and hyphens, ≤ 20 characters; anything else is `400`) |
+| `limit` | Top disease associations to return, `1`–`50`, default `10` |
+
+```json
+{
+  "gene": "MAPT",
+  "ensemblId": "ENSG00000186868",
+  "approvedName": "microtubule associated protein tau",
+  "openTargetsUrl": "https://platform.opentargets.org/target/ENSG00000186868",
+  "associations": {
+    "total": 3002, "limit": 10,
+    "rows": [{ "diseaseId": "MONDO_0017276", "diseaseName": "frontotemporal dementia", "score": 0.788,
+               "datatypeScores": [{ "datatype": "genetic_association", "score": 0.951 }, { "datatype": "literature", "score": 0.984 }] }]
+  },
+  "tractability": [
+    { "modality": "SM", "modalityLabel": "Small molecule",
+      "evidence": [{ "label": "Approved Drug", "value": false }, { "label": "Structure with Ligand", "value": true }] },
+    { "modality": "AB", "modalityLabel": "Antibody", "evidence": [{ "label": "Advanced Clinical", "value": true }] }
+  ],
+  "drugAndClinicalCandidates": 6,
+  "note": "Association scores and tractability buckets are Open Targets' own metrics, reported as published; they are not predictions by this site.",
+  "source": { "name": "Open Targets Platform", "queryUrl": "https://api.platform.opentargets.org/api/v4/graphql",
+              "release": { "version": "26.09", "date": null }, "...": "provenance object" }
+}
+```
+
+(Example values from release 26.09, shortened.) Scores and tractability labels are passed through exactly as Open Targets reports them; this site computes no scores of its own. Tractability modalities are `SM` small molecule, `AB` antibody, `PR` PROTAC and `OC` other modalities. `drugAndClinicalCandidates` is the count of Open Targets drug and clinical-candidate records for the target. `404` if the symbol is not an approved target symbol in Open Targets. `source.release` is the Open Targets data release (`YY.MM`). The `queryUrl` is the GraphQL endpoint; the request is a POST of the fixed query in `src/app/api/target-evidence/route.ts`.
+
 ### Agent and MCP access
 
-- **This API:** point agent frameworks at `/openapi.json`; every tool call gets provenance and stable IDs (ChEMBL ID, NCT ID).
+- **This API:** point agent frameworks at `/openapi.json`; every tool call gets provenance and stable IDs (ChEMBL ID, NCT ID, Ensembl ID).
 - **MCP endpoint (this site):** `POST https://studio.smartdrugdiscovery.org/api/mcp`, Streamable HTTP in stateless JSON-response mode (no sessions, no SSE; GET/DELETE return 405). It is read-only and unauthenticated, rate-limited per IP (20 burst, 20/min) and runs with a 15 s budget. Each tool calls the same handler as its REST route, so it applies the same validation, caching and provenance and never returns demo data:
 
   | Tool | Same as | Limits |
@@ -145,6 +179,7 @@ Provide at least one of `term`, `condition`, `intervention` or `location`. The f
   | `get_compound` | `GET /api/compound/{chemblId}` | Mechanisms via the parent molecule; ≤ 50 activity rows (a subset, not a potency ranking) |
   | `search_trials` | `GET /api/trials` | 25 per page; gene-symbol disambiguation on by default (`disambiguate`, `fieldsGeneOnly`, `withExcludedCount`); not medical advice |
   | `structure_search` | `GET /api/structure` | SMILES ≤ 200; similarity 70–100 or substructure ≥ 7 heavy atoms; slow substructure queries can exceed the 15 s budget |
+  | `get_target_evidence` | `GET /api/target-evidence` | Approved gene symbol only; ≤ 50 associations; Open Targets' own scores, not predictions |
 
   Claude Code: `claude mcp add --transport http sdd-studio https://studio.smartdrugdiscovery.org/api/mcp`. The tool results carry `structuredContent` as well as the JSON text, and errors come back with `isError: true` and the REST error message. Per the #73 consensus, usage is reviewed 90 days after the endpoint is publicly listed: fewer than 50 tool calls from distinct non-panel clients means removal is recommended, and the PI decides. It is not registered in any external MCP registry yet; listing it there is the PI's call.
 - **Upstream MCP servers for data this site doesn't cover:** Claude's **bio-research** plugin bundles a **ChEMBL** MCP server (tools such as `compound_search`, `target_search`, `get_bioactivity`, `get_mechanism`, `drug_search`, `get_admet`) and a **ClinicalTrials.gov** MCP server (`search_trials`, `get_trial_details`, `search_by_sponsor`, `search_by_eligibility`, `search_investigators`, `analyze_endpoints`), plus Open Targets, PubMed and bioRxiv servers. Use them directly for full target-centric bioactivity, eligibility matching and literature search.
