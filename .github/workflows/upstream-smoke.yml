@@ -35,15 +35,27 @@ jobs:
           echo "$body" | jq -e '.results | length > 0' > /dev/null
           echo "$body" | jq -e '.results[0].nctId | startswith("NCT")' > /dev/null
 
+      - name: EGFR disambiguation keeps NSCLC recall (#57)
+        id: disambig
+        continue-on-error: true
+        run: |
+          q="$BASE_URL/api/trials?term=EGFR&condition=non-small%20cell%20lung%20cancer"
+          on=$(curl -sS --fail-with-body --max-time 30 "$q" | jq -e '.total')
+          off=$(curl -sS --fail-with-body --max-time 30 "$q&disambiguate=false" | jq -e '.total')
+          echo "EGFR+NSCLC default=$on without disambiguation=$off"
+          # Ratio, not absolute totals (they drift daily): the default may drop under 1% of trials.
+          awk -v on="$on" -v off="$off" 'BEGIN { exit !(off > 0 && on / off >= 0.99) }'
+
       - name: Report failures
-        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure'
+        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure' || steps.disambig.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHEMBL: ${{ steps.chembl.outcome }}
           CTGOV: ${{ steps.ctgov.outcome }}
+          DISAMBIG: ${{ steps.disambig.outcome }}
         run: |
           title="Upstream smoke test failing"
-          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV, EGFR disambiguation recall=$DISAMBIG. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number -q '.[0].number')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$msg"
