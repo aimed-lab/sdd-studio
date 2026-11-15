@@ -55,7 +55,8 @@ const isApproved = (phase: number | string | null | undefined) => Number(phase) 
 /**
  * Looks up a gene symbol in ChEMBL (human single-protein targets), collects mechanism-of-action
  * records with max_phase 4, and returns the parent molecules' preferred names. Ordered by first
- * approval year (oldest first, as older drugs have more registered trials), capped at MAX_TARGET_DRUGS.
+ * approval year (newest first, so current standard-of-care drugs are kept; unknown years last), capped at
+ * MAX_TARGET_DRUGS.
  * Throws UpstreamError when ChEMBL cannot be reached; callers fall back to the default search.
  */
 export async function approvedDrugsForTarget(symbol: string): Promise<TargetDrugs> {
@@ -120,7 +121,7 @@ export async function approvedDrugsForTarget(symbol: string): Promise<TargetDrug
           moleculeType: x.molecule_type ?? null,
         }))
         .filter((x) => SAFE_NAME.test(x.name) && !seen.has(x.name) && seen.add(x.name))
-        .sort((a, b) => (a.firstApproval ?? 9999) - (b.firstApproval ?? 9999) || a.name.localeCompare(b.name));
+        .sort((a, b) => (b.firstApproval ?? -1) - (a.firstApproval ?? -1) || a.name.localeCompare(b.name));
     }
   }
 
@@ -132,7 +133,7 @@ export async function approvedDrugsForTarget(symbol: string): Promise<TargetDrug
     omitted: drugs.slice(MAX_TARGET_DRUGS).map((d) => d.name),
     selection:
       `ChEMBL mechanism-of-action records for human single-protein target(s) named ${key}, max_phase 4 (approved), ` +
-      `parent molecules, ordered by first approval year (oldest first), at most ${MAX_TARGET_DRUGS}.`,
+      `parent molecules, ordered by first approval year (newest first), at most ${MAX_TARGET_DRUGS}.`,
     source: source
       ? { ...source, ...(release ? { release } : {}) }
       : {
