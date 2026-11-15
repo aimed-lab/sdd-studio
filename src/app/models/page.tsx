@@ -9,7 +9,7 @@ import { DemoDataNotice } from "@/components/data-provenance";
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type ModelStatus = "connected" | "available" | "local" | "not_installed";
-type ModelProvider = "Anthropic" | "OpenAI" | "Google" | "Microsoft" | "Meta" | "UAB SysPAI" | "Mistral" | "FROGENT Lab" | "THU-ATOM";
+type ModelProvider = string;
 type SortKey = "arenaElo" | "hfStars" | "contextK" | "inputPer1M" | "releaseDate" | "paramB";
 
 // ── Leaderboard entry ─────────────────────────────────────────────────────────
@@ -19,11 +19,11 @@ interface LeaderboardEntry {
   name: string;
   provider: ModelProvider;
   version: string;
-  arenaElo: number;          // LMSYS Chatbot Arena ELO
-  hfStars: number;           // HuggingFace stars (thousands)
-  contextK: number;          // context window K tokens
-  inputPer1M: number;        // USD per 1M input tokens
-  outputPer1M: number;       // USD per 1M output tokens
+  arenaElo: number | null;          // LMSYS Chatbot Arena ELO
+  hfStars: number | null;           // HuggingFace stars (thousands)
+  contextK: number | null;          // context window K tokens
+  inputPer1M: number | null;        // USD per 1M input tokens
+  outputPer1M: number | null;       // USD per 1M output tokens
   paramB: number | null;     // parameter count in billions (null = undisclosed)
   releaseDate: string;       // YYYY-MM
   lastUpdateDate: string;    // YYYY-MM
@@ -37,73 +37,63 @@ interface LeaderboardEntry {
 const leaderboard: LeaderboardEntry[] = [
   {
     rank: 1,
-    name: "Gemini 2.5 Pro", provider: "Google", version: "gemini-2.5-pro-preview",
-    arenaElo: 1380, hfStars: 0, contextK: 1000,
-    inputPer1M: 1.25, outputPer1M: 5.00, paramB: null,
-    releaseDate: "2025-03", lastUpdateDate: "2026-03",
-    location: "US (Google Cloud)", license: "Proprietary",
-    bestFor: ["Long context", "Clinical docs", "EHR analysis"],
-    biomedRank: 3, notes: "Largest context window available. Best for full-paper + EHR ingestion.",
+    name: "Claude Sonnet 4.5", provider: "Anthropic", version: "claude-sonnet-4-5",
+    arenaElo: null, hfStars: null, contextK: null,
+    inputPer1M: null, outputPer1M: null, paramB: null,
+    releaseDate: "Q? 20??", lastUpdateDate: "Q? 20??",
+    location: "—", license: "Proprietary",
+    bestFor: ["Literature", "Code", "General reasoning"],
+    biomedRank: null, notes: "Supported by the site's assistant with your own API key. Figures removed until they can be shown with a source and date.",
   },
   {
     rank: 2,
-    name: "Claude Opus 4", provider: "Anthropic", version: "claude-opus-4-0",
-    arenaElo: 1371, hfStars: 0, contextK: 200,
-    inputPer1M: 15.00, outputPer1M: 75.00, paramB: null,
-    releaseDate: "2025-06", lastUpdateDate: "2026-01",
-    location: "US / EU (AWS Bedrock, GCP)", license: "Proprietary",
-    bestFor: ["Decision reports", "Multi-step reasoning", "Go/No-Go analysis"],
-    biomedRank: 1, notes: "Top biomedical reasoning. Highest cost — use for critical decisions.",
+    name: "GPT-4o", provider: "OpenAI", version: "gpt-4o",
+    arenaElo: null, hfStars: null, contextK: null,
+    inputPer1M: null, outputPer1M: null, paramB: null,
+    releaseDate: "Q? 20??", lastUpdateDate: "Q? 20??",
+    location: "—", license: "Proprietary",
+    bestFor: ["Multimodal", "Literature + code"],
+    biomedRank: null, notes: "Supported by the site's assistant with your own API key. Figures removed until they can be shown with a source and date.",
   },
   {
     rank: 3,
-    name: "GPT-4o", provider: "OpenAI", version: "gpt-4o-2024-11-20",
-    arenaElo: 1345, hfStars: 0, contextK: 128,
-    inputPer1M: 2.50, outputPer1M: 10.00, paramB: null,
-    releaseDate: "2024-05", lastUpdateDate: "2024-11",
-    location: "US (Azure)", license: "Proprietary",
-    bestFor: ["Multimodal", "Structure images", "Literature + code"],
-    biomedRank: 2, notes: "Native multimodal — can read spectra images, gel photos, and PDFs together.",
+    name: "Gemini 2.0 Flash", provider: "Google", version: "gemini-2.0-flash",
+    arenaElo: null, hfStars: null, contextK: null,
+    inputPer1M: null, outputPer1M: null, paramB: null,
+    releaseDate: "Q? 20??", lastUpdateDate: "Q? 20??",
+    location: "—", license: "Proprietary",
+    bestFor: ["Long context", "Document analysis"],
+    biomedRank: null, notes: "Supported by the site's assistant with your own API key. Figures removed until they can be shown with a source and date.",
   },
   {
     rank: 4,
-    name: "Claude Sonnet 4.5", provider: "Anthropic", version: "claude-sonnet-4-5",
-    arenaElo: 1330, hfStars: 0, contextK: 200,
-    inputPer1M: 3.00, outputPer1M: 15.00, paramB: null,
-    releaseDate: "2025-07", lastUpdateDate: "2025-10",
-    location: "US / EU (AWS Bedrock, GCP)", license: "Proprietary",
-    bestFor: ["Drug design", "Literature", "Code", "General reasoning"],
-    biomedRank: 4, notes: "Best cost/performance ratio. Platform default model.",
+    name: "Llama 3.3 70B", provider: "Meta (via Groq)", version: "llama-3.3-70b-versatile",
+    arenaElo: null, hfStars: null, contextK: null,
+    inputPer1M: null, outputPer1M: null, paramB: null,
+    releaseDate: "Q? 20??", lastUpdateDate: "Q? 20??",
+    location: "—", license: "Llama",
+    bestFor: ["Low-cost inference", "General reasoning"],
+    biomedRank: null, notes: "Supported by the site's assistant with your own API key. Figures removed until they can be shown with a source and date.",
   },
   {
     rank: 5,
-    name: "Mistral Large 2", provider: "Mistral", version: "mistral-large-2411",
-    arenaElo: 1251, hfStars: 14.2, contextK: 128,
-    inputPer1M: 2.00, outputPer1M: 6.00, paramB: 123,
-    releaseDate: "2024-11", lastUpdateDate: "2025-02",
-    location: "EU (Mistral La Plateforme)", license: "Proprietary",
-    bestFor: ["EU GDPR compliance", "Code generation", "Data analysis"],
-    biomedRank: null, notes: "EU-hosted — required for GDPR / European data residency. Strong at function calling.",
+    name: "Model 1", provider: "Company A", version: "—",
+    arenaElo: null, hfStars: null, contextK: null,
+    inputPer1M: null, outputPer1M: null, paramB: null,
+    releaseDate: "Q? 20??", lastUpdateDate: "Q? 20??",
+    location: "—", license: "Proprietary",
+    bestFor: ["Complex reasoning"],
+    biomedRank: null, notes: "Placeholder entry. Figures removed until they can be shown with a source and date.",
   },
   {
     rank: 6,
-    name: "Llama 3.3 70B", provider: "Meta", version: "llama3.3:70b-instruct",
-    arenaElo: 1215, hfStars: 98.7, contextK: 128,
-    inputPer1M: 0.39, outputPer1M: 0.39, paramB: 70,
-    releaseDate: "2024-12", lastUpdateDate: "2025-01",
-    location: "Any (self-hosted / Groq / Together AI)", license: "Llama",
-    bestFor: ["Privacy-sensitive data", "Low-cost inference", "Custom fine-tuning"],
-    biomedRank: 6, notes: "Open-weight. Host on Groq ($0.39/1M) for speed, or locally for full privacy.",
-  },
-  {
-    rank: 7,
-    name: "BioGPT-Large", provider: "Microsoft", version: "microsoft/BioGPT-Large",
-    arenaElo: null as unknown as number, hfStars: 2.1, contextK: 4,
-    inputPer1M: 0, outputPer1M: 0, paramB: 1.5,
-    releaseDate: "2022-10", lastUpdateDate: "2023-06",
-    location: "Self-hosted (HuggingFace)", license: "MIT",
-    bestFor: ["Biomedical NLP", "Entity extraction", "PubMed QA"],
-    biomedRank: 5, notes: "Pre-trained on 15M PubMed abstracts. Narrow domain — not general chat. Free to run.",
+    name: "Model 2", provider: "Company B", version: "—",
+    arenaElo: null, hfStars: null, contextK: null,
+    inputPer1M: null, outputPer1M: null, paramB: null,
+    releaseDate: "Q? 20??", lastUpdateDate: "Q? 20??",
+    location: "—", license: "Open-weight",
+    bestFor: ["Biomedical NLP"],
+    biomedRank: null, notes: "Placeholder entry. Figures removed until they can be shown with a source and date.",
   },
 ];
 
@@ -116,12 +106,14 @@ interface FoundationModel {
   provider: ModelProvider;
   status: ModelStatus;
   useCase: string[];
-  contextK: number;
+  contextK: number | null;
   inputPer1M: number | null;
   outputPer1M: number | null;
-  latencyMs: number;
-  uptime: number;
+  latencyMs: number | null;
+  uptime: number | null;
   hasKey: boolean;
+  /** True when the site's assistant can call this model with a user-supplied key */
+  needsKey: boolean;
   keyMasked?: string;
   description: string;
   safetyFiltered: boolean;
@@ -142,193 +134,162 @@ const models: FoundationModel[] = [
     name: "Claude Sonnet 4.5",
     version: "claude-sonnet-4-5",
     provider: "Anthropic",
-    status: "connected",
-    useCase: ["Drug design", "Literature", "Reasoning", "Code"],
-    contextK: 200,
-    inputPer1M: 3.0,
-    outputPer1M: 15.0,
-    latencyMs: 820,
-    uptime: 99.9,
-    hasKey: true,
-    keyMasked: "sk-ant-•••••••••Kp2",
-    description: "Best general-purpose model for drug discovery reasoning, literature synthesis, and code generation. Currently powering Design with AI.",
-    safetyFiltered: true,
-    domainTuned: false,
-  },
-  {
-    id: "claude-opus",
-    name: "Claude Opus 4",
-    version: "claude-opus-4-0",
-    provider: "Anthropic",
     status: "available",
-    useCase: ["Complex reasoning", "Multi-step design", "Decision reports"],
-    contextK: 200,
-    inputPer1M: 15.0,
-    outputPer1M: 75.0,
-    latencyMs: 2100,
-    uptime: 99.8,
-    hasKey: true,
-    keyMasked: "sk-ant-•••••••••Kp2",
-    description: "Highest-capability Anthropic model. Recommended for decision reports, complex multi-step drug design workflows, and Go/No-Go analyses.",
+    useCase: ["Literature", "Reasoning", "Code"],
+    contextK: null,
+    inputPer1M: null,
+    outputPer1M: null,
+    latencyMs: null,
+    uptime: null,
+    hasKey: false,
+    needsKey: true,
+    description: "Supported by the site's assistant with your own API key. No key is stored here, and context, price and uptime figures are not shown until they can be sourced.",
     safetyFiltered: true,
     domainTuned: false,
   },
   {
     id: "gpt4o",
     name: "GPT-4o",
-    version: "gpt-4o-2024-11-20",
+    version: "gpt-4o",
     provider: "OpenAI",
     status: "available",
-    useCase: ["Multimodal", "Structure analysis", "Literature"],
-    contextK: 128,
-    inputPer1M: 2.5,
-    outputPer1M: 10.0,
-    latencyMs: 950,
-    uptime: 99.5,
+    useCase: ["Multimodal", "Literature"],
+    contextK: null,
+    inputPer1M: null,
+    outputPer1M: null,
+    latencyMs: null,
+    uptime: null,
     hasKey: false,
-    description: "OpenAI flagship multimodal model. Useful for analyzing structure images, spectral data, and literature PDFs alongside text.",
+    needsKey: true,
+    description: "Supported by the site's assistant with your own API key. No key is stored here, and context, price and uptime figures are not shown until they can be sourced.",
     safetyFiltered: true,
     domainTuned: false,
   },
   {
-    id: "gemini-pro",
-    name: "Gemini 2.5 Pro",
-    version: "gemini-2.5-pro",
+    id: "gemini-flash",
+    name: "Gemini 2.0 Flash",
+    version: "gemini-2.0-flash",
     provider: "Google",
     status: "available",
-    useCase: ["Long context", "Document analysis", "Clinical data"],
-    contextK: 1000,
-    inputPer1M: 1.25,
-    outputPer1M: 5.0,
-    latencyMs: 1100,
-    uptime: 99.3,
+    useCase: ["Long context", "Document analysis"],
+    contextK: null,
+    inputPer1M: null,
+    outputPer1M: null,
+    latencyMs: null,
+    uptime: null,
     hasKey: false,
-    description: "Google's 1M-token context model. Best for full clinical trial documents, EHR ingestion, and long-chain biomedical reasoning.",
+    needsKey: true,
+    description: "Supported by the site's assistant with your own API key. No key is stored here, and context, price and uptime figures are not shown until they can be sourced.",
+    safetyFiltered: true,
+    domainTuned: false,
+  },
+  {
+    id: "llama3",
+    name: "Llama 3.3 70B",
+    version: "llama-3.3-70b-versatile",
+    provider: "Meta (via Groq)",
+    status: "available",
+    useCase: ["General reasoning", "Low-cost inference"],
+    contextK: null,
+    inputPer1M: null,
+    outputPer1M: null,
+    latencyMs: null,
+    uptime: null,
+    hasKey: false,
+    needsKey: true,
+    description: "Supported by the site's assistant with your own API key. No key is stored here, and context, price and uptime figures are not shown until they can be sourced.",
     safetyFiltered: true,
     domainTuned: false,
   },
   {
     id: "drug-gpt",
     name: "Drug-GPT",
-    version: "v1.2",
+    version: "planned",
     provider: "UAB SysPAI",
     status: "not_installed",
     useCase: ["Molecule generation", "SMILES design", "ADMET prediction"],
-    contextK: 32,
+    contextK: null,
     inputPer1M: null,
     outputPer1M: null,
-    latencyMs: 0,
-    uptime: 0,
+    latencyMs: null,
+    uptime: null,
     hasKey: false,
-    description: "Domain-fine-tuned model for molecular SMILES generation, scaffold hopping, and ADMET property prediction. Coming soon — hosted UAB SysPAI API endpoint.",
-    safetyFiltered: true,
+    needsKey: false,
+    description: "Planned domain-tuned model for molecule generation and property prediction. Not built yet; nothing on this site calls it.",
+    safetyFiltered: false,
     domainTuned: true,
   },
   {
-    id: "biogpt",
-    name: "BioGPT",
-    version: "microsoft/BioGPT-Large",
-    provider: "Microsoft",
+    id: "model-1",
+    name: "Model 1",
+    version: "—",
+    provider: "Company A",
     status: "not_installed",
-    useCase: ["Biomedical NLP", "Target extraction", "Literature QA"],
-    contextK: 4,
+    useCase: ["Biomedical NLP", "Literature QA"],
+    contextK: null,
     inputPer1M: null,
     outputPer1M: null,
-    latencyMs: 0,
-    uptime: 0,
+    latencyMs: null,
+    uptime: null,
     hasKey: false,
-    description: "Pre-trained on 15M PubMed abstracts. Best for entity extraction, relation classification, and biomedical QA. Available via HuggingFace Inference API.",
+    needsKey: false,
+    description: "Placeholder for a biomedical language model. Not connected.",
     safetyFiltered: false,
     domainTuned: true,
-  },
-  {
-    id: "llama3",
-    name: "Llama 3.3 70B",
-    version: "llama-3.3-70b-versatile",
-    provider: "Meta",
-    status: "available",
-    useCase: ["General reasoning", "Low-cost inference", "Custom fine-tuning"],
-    contextK: 128,
-    inputPer1M: 0.39,
-    outputPer1M: 0.39,
-    latencyMs: 380,
-    uptime: 99.2,
-    hasKey: false,
-    description: "Open-weight model served via Groq Cloud API ($0.39/1M tokens, input & output). Highest open-model throughput; also available on Together AI and Fireworks AI.",
-    safetyFiltered: false,
-    domainTuned: false,
-  },
-  {
-    id: "mistral",
-    name: "Mistral Large 2",
-    version: "mistral-large-2411",
-    provider: "Mistral",
-    status: "available",
-    useCase: ["Code generation", "Data analysis", "EU compliance"],
-    contextK: 128,
-    inputPer1M: 2.0,
-    outputPer1M: 6.0,
-    latencyMs: 730,
-    uptime: 99.1,
-    hasKey: false,
-    description: "EU-hosted model. Recommended when GDPR / European data residency requirements apply to patient cohort analysis.",
-    safetyFiltered: true,
-    domainTuned: false,
   },
   {
     id: "frogent",
-    name: "FROGENT",
-    version: "arXiv:2508.10760",
-    provider: "FROGENT Lab",
+    name: "Tool 1",
+    version: "—",
+    provider: "Group A",
     status: "not_installed",
-    useCase: ["End-to-end drug design", "Multi-agent orchestration", "Retrosynthesis", "ADMET screening"],
-    contextK: 0,
+    useCase: ["Multi-agent orchestration", "Molecule design"],
+    contextK: null,
     inputPer1M: null,
     outputPer1M: null,
-    latencyMs: 0,
-    uptime: 0,
+    latencyMs: null,
+    uptime: null,
     hasKey: false,
-    description: "Full-process drug design multi-agent system with four coordinated agents: Orchestrate (workflow planning), Retrieve (PubMed/PDB/DrugBank), Forge (molecule generation via TargetDiff, MolCRAFT, SAFE), and Gauge (ADMET + docking validation via QVina/PLIP). Integrates via MCP.",
+    needsKey: false,
+    description: "Placeholder for an external multi-agent drug-design system that could connect over MCP. Not connected, and no claims are made about its performance.",
     safetyFiltered: false,
     domainTuned: true,
     isAgentSystem: true,
-    paperUrl: "https://arxiv.org/abs/2508.10760",
     mcpPluginId: "frogent-mcp",
   },
   {
     id: "drugclip",
-    name: "DrugCLIP",
-    version: "NeurIPS 2023 · Science 2026",
-    provider: "THU-ATOM",
+    name: "Tool 2",
+    version: "—",
+    provider: "Group B",
     status: "not_installed",
-    useCase: ["Virtual screening", "Ligand-pocket embedding", "Ultra-fast docking"],
-    contextK: 0,
+    useCase: ["Virtual screening", "Ligand-pocket embedding"],
+    contextK: null,
     inputPer1M: null,
     outputPer1M: null,
-    latencyMs: 0,
-    uptime: 0,
+    latencyMs: null,
+    uptime: null,
     hasKey: false,
-    description: "Contrastive learning model that encodes protein binding pockets and drug molecules into a shared 128-dim embedding space — enabling ultra-fast virtual screening (up to 10M× faster than docking). Model weights available on HuggingFace; runs locally via Python.",
+    needsKey: false,
+    description: "Placeholder for an external virtual-screening model. Not connected, and no claims are made about its speed or accuracy.",
     safetyFiltered: false,
     domainTuned: true,
-    isAgentSystem: false,
-    paperUrl: "https://arxiv.org/abs/2310.06367",
     mcpPluginId: "drugclip-jupyter",
   },
 ];
 
 // ── Usage mock data ───────────────────────────────────────────────────────────
 
-const usageMock = [
-  { model: "Claude Sonnet 4.5", inputM: 1.24, outputM: 0.31, calls: 418, costUSD: 8.37 },
-  { model: "Claude Opus 4",     inputM: 0.08, outputM: 0.02, calls: 12,  costUSD: 2.70 },
-  { model: "Llama 3.3 70B",    inputM: 0.42, outputM: 0.11, calls: 67,  costUSD: 0.21 },
+// Usage is not tracked yet, so every figure shows "—".
+const usageMock: { model: string }[] = [
+  { model: "Claude Sonnet 4.5" },
+  { model: "GPT-4o" },
+  { model: "Llama 3.3 70B" },
 ];
-const totalCost = usageMock.reduce((s, r) => s + r.costUSD, 0);
 
 // ── Config maps ───────────────────────────────────────────────────────────────
 
-const providerBadge: Record<ModelProvider, string> = {
+const providerBadge: Record<string, string> = {
   Anthropic:      "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
   OpenAI:         "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
   Google:         "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
@@ -337,7 +298,7 @@ const providerBadge: Record<ModelProvider, string> = {
   "UAB SysPAI":   "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
   Mistral:        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
   "FROGENT Lab":  "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300",
-  "THU-ATOM":     "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "Meta (via Groq)": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300",
 };
 
 const statusConfig: Record<ModelStatus, { dot: string; label: string; text: string }> = {
@@ -472,7 +433,7 @@ export default function ModelsPage() {
                         <CardTitle className="text-base truncate">{model.name}</CardTitle>
                         <CardDescription className="font-mono text-[10px] mt-0.5">{model.version}</CardDescription>
                       </div>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0", providerBadge[model.provider])}>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0", (providerBadge[model.provider] ?? "bg-muted text-muted-foreground"))}>
                         {model.provider}
                       </span>
                     </div>
@@ -519,32 +480,17 @@ export default function ModelsPage() {
                     <div className="grid grid-cols-3 gap-1.5 text-center">
                       <div className="rounded-lg bg-muted/60 py-1.5">
                         <p className="text-[10px] text-muted-foreground">Context</p>
-                        <p className="text-xs font-semibold">{model.contextK}K</p>
+                        <p className="text-xs font-semibold">—</p>
                       </div>
                       <div className="rounded-lg bg-muted/60 py-1.5">
                         <p className="text-[10px] text-muted-foreground">Input/1M</p>
-                        <p className="text-xs font-semibold">{model.inputPer1M !== null ? `$${model.inputPer1M.toFixed(2)}` : "Free"}</p>
+                        <p className="text-xs font-semibold">—</p>
                       </div>
                       <div className="rounded-lg bg-muted/60 py-1.5">
                         <p className="text-[10px] text-muted-foreground">Output/1M</p>
-                        <p className="text-xs font-semibold">{model.outputPer1M !== null ? `$${model.outputPer1M.toFixed(2)}` : "Free"}</p>
+                        <p className="text-xs font-semibold">—</p>
                       </div>
                     </div>
-
-                    {model.uptime > 0 && (
-                      <div className="space-y-0.5">
-                        <div className="flex justify-between text-[10px] text-muted-foreground">
-                          <span>30-day uptime · {model.latencyMs > 0 ? `avg ${model.latencyMs}ms` : "—"}</span>
-                          <span>{model.uptime}%</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={cn("h-full rounded-full", model.uptime > 99 ? "bg-green-500" : "bg-yellow-400")}
-                            style={{ width: `${model.uptime}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
 
                     {/* Actions — mt-auto pins button to card bottom regardless of content height */}
                     <div className="mt-auto pt-1">
@@ -620,13 +566,12 @@ export default function ModelsPage() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <p className="text-sm text-muted-foreground">
-                Sortable comparison of remote API models — Arena ELO, HuggingFace stars, context, cost, and biomedical benchmark rank.
+                Planned comparison of remote API models. Rankings, prices and benchmark figures are removed until each value can be shown with its source and retrieval date.
                 Click any column header to sort. <span className="font-medium">No local models listed.</span>
               </p>
             </div>
             <div className="flex gap-2 text-xs text-muted-foreground shrink-0">
-              <span className="rounded-full bg-muted px-2 py-1">Sources: LMSYS Arena · HuggingFace · provider pricing pages</span>
-              <span className="rounded-full bg-muted px-2 py-1">Updated 2026-03</span>
+              <span className="rounded-full bg-muted px-2 py-1">Figures: —</span>
             </div>
           </div>
 
@@ -665,41 +610,12 @@ export default function ModelsPage() {
                         </div>
                       </td>
                       <td className="py-3 pr-3">
-                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", providerBadge[m.provider])}>{m.provider}</span>
+                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", (providerBadge[m.provider] ?? "bg-muted text-muted-foreground"))}>{m.provider}</span>
                       </td>
-                      {/* Arena ELO */}
-                      <td className="py-3 pr-3">
-                        {m.arenaElo ? (
-                          <span className={cn("font-semibold", m.arenaElo >= 1350 ? "text-green-600 dark:text-green-400" : m.arenaElo >= 1250 ? "text-yellow-600 dark:text-yellow-400" : "text-muted-foreground")}>
-                            {m.arenaElo.toLocaleString()}
-                          </span>
-                        ) : <span className="text-muted-foreground text-xs">—</span>}
-                      </td>
-                      {/* HF Stars */}
-                      <td className="py-3 pr-3 text-xs">
-                        {m.hfStars > 0 ? (
-                          <span className="text-yellow-600 dark:text-yellow-400 font-medium">★ {m.hfStars.toFixed(1)}k</span>
-                        ) : <span className="text-muted-foreground">Proprietary</span>}
-                      </td>
-                      {/* Context */}
-                      <td className="py-3 pr-3 font-mono text-xs font-medium">
-                        <span className={cn(m.contextK >= 500 ? "text-green-600 dark:text-green-400" : "")}>{m.contextK}K</span>
-                      </td>
-                      {/* Cost */}
-                      <td className="py-3 pr-3 font-mono text-xs">
-                        {m.inputPer1M === 0 ? (
-                          <span className="text-green-600 dark:text-green-400 font-semibold">Free</span>
-                        ) : (
-                          <span>
-                            <span className="font-semibold">${m.inputPer1M.toFixed(2)}</span>
-                            <span className="text-muted-foreground"> / ${m.outputPer1M.toFixed(2)}</span>
-                          </span>
-                        )}
-                      </td>
-                      {/* Params */}
-                      <td className="py-3 pr-3 text-xs text-muted-foreground font-mono">
-                        {m.paramB ? `${m.paramB}B` : "—"}
-                      </td>
+                      {/* Arena ELO, HF stars, context, cost, params: not shown until sourced */}
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <td key={i} className="py-3 pr-3 text-xs text-muted-foreground">—</td>
+                      ))}
                       {/* Release date */}
                       <td className="py-3 pr-3 text-xs text-muted-foreground">{m.releaseDate}</td>
                       {/* Last update */}
@@ -707,13 +623,7 @@ export default function ModelsPage() {
                       {/* Location */}
                       <td className="py-3 pr-3 text-xs text-muted-foreground max-w-[140px]">{m.location}</td>
                       {/* Biomed rank */}
-                      <td className="py-3 pr-3 text-center">
-                        {m.biomedRank ? (
-                          <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", m.biomedRank <= 2 ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" : m.biomedRank <= 4 ? "bg-yellow-100 text-yellow-800" : "bg-muted text-muted-foreground")}>
-                            #{m.biomedRank}
-                          </span>
-                        ) : <span className="text-muted-foreground text-xs">—</span>}
-                      </td>
+                      <td className="py-3 pr-3 text-center text-muted-foreground text-xs">—</td>
                       {/* Best for */}
                       <td className="py-3 pr-4">
                         <div className="flex flex-wrap gap-1">
@@ -743,7 +653,7 @@ export default function ModelsPage() {
           </div>
 
           <p className="text-[10px] text-muted-foreground">
-            Arena ELO from LMSYS Chatbot Arena (chatbot-arena.lmsys.org). HuggingFace stars from huggingface.co/models. Biomedical rank based on MedQA + PubMedQA combined performance. Pricing sourced from provider API pages as of 2026-03 — verify before production use.
+            Planned page. Models listed with a provider are the ones the site&apos;s assistant can call with your own key; Model N and Tool N are placeholders. No ranking, price or benchmark figure is shown.
           </p>
         </TabsContent>
 
@@ -771,17 +681,17 @@ export default function ModelsPage() {
                       <tr key={m.id}>
                         <td className="py-2.5 pr-4 font-medium">{m.name}</td>
                         <td className="py-2.5 pr-4">
-                          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", providerBadge[m.provider])}>
+                          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", (providerBadge[m.provider] ?? "bg-muted text-muted-foreground"))}>
                             {m.provider}
                           </span>
                         </td>
                         <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground">
-                          {m.hasKey ? m.keyMasked : m.inputPer1M === null ? "Not required" : "—"}
+                          {m.hasKey ? m.keyMasked : !m.needsKey ? "Not required" : "—"}
                         </td>
                         <td className="py-2.5 pr-4">
                           {m.hasKey ? (
                             <span className="text-green-600 text-xs font-medium">✓ Set</span>
-                          ) : m.inputPer1M === null ? (
+                          ) : !m.needsKey ? (
                             <span className="text-blue-600 text-xs">Local / free</span>
                           ) : (
                             <span className="text-orange-500 text-xs">Missing</span>
@@ -789,7 +699,7 @@ export default function ModelsPage() {
                         </td>
                         <td className="py-2.5">
                           <div className="flex gap-2">
-                            {m.inputPer1M !== null && (
+                            {m.needsKey && (
                               <button
                                 onClick={() => { setKeyModal({ modelId: m.id, name: m.name, currentKey: m.keyMasked ?? "" }); setKeyInput(""); setKeyVisible(false); }}
                                 className="rounded-md border px-2.5 py-1 text-xs hover:bg-muted transition-colors"
@@ -817,10 +727,10 @@ export default function ModelsPage() {
         <TabsContent value="usage" className="mt-4 space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Total cost (Mar)",  val: `$${totalCost.toFixed(2)}` },
-              { label: "Total API calls",   val: `${usageMock.reduce((s,r)=>s+r.calls,0)}` },
-              { label: "Input (M tokens)",  val: usageMock.reduce((s,r)=>s+r.inputM,0).toFixed(2) },
-              { label: "Output (M tokens)", val: usageMock.reduce((s,r)=>s+r.outputM,0).toFixed(2) },
+              { label: "Total cost",        val: "—" },
+              { label: "Total API calls",   val: "—" },
+              { label: "Input (M tokens)",  val: "—" },
+              { label: "Output (M tokens)", val: "—" },
             ].map(({ label, val }) => (
               <div key={label} className="rounded-xl border bg-card p-4">
                 <p className="text-2xl font-bold">{val}</p>
@@ -831,7 +741,7 @@ export default function ModelsPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Per-model breakdown — March 2026</CardTitle>
+              <CardTitle className="text-base">Per-model breakdown</CardTitle>
             </CardHeader>
             <CardContent>
               <table className="w-full text-sm">
@@ -848,18 +758,18 @@ export default function ModelsPage() {
                   {usageMock.map((row) => (
                     <tr key={row.model}>
                       <td className="py-2.5 pr-4 font-medium">{row.model}</td>
-                      <td className="py-2.5 pr-4 text-muted-foreground">{row.calls}</td>
-                      <td className="py-2.5 pr-4 font-mono text-xs">{row.inputM.toFixed(2)}</td>
-                      <td className="py-2.5 pr-4 font-mono text-xs">{row.outputM.toFixed(2)}</td>
-                      <td className="py-2.5 font-semibold">${row.costUSD.toFixed(2)}</td>
+                      <td className="py-2.5 pr-4 text-muted-foreground">—</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs">—</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs">—</td>
+                      <td className="py-2.5 font-semibold">—</td>
                     </tr>
                   ))}
                   <tr className="border-t font-semibold">
                     <td className="py-2.5 pr-4">Total</td>
-                    <td className="py-2.5 pr-4">{usageMock.reduce((s,r)=>s+r.calls,0)}</td>
-                    <td className="py-2.5 pr-4 font-mono text-xs">{usageMock.reduce((s,r)=>s+r.inputM,0).toFixed(2)}</td>
-                    <td className="py-2.5 pr-4 font-mono text-xs">{usageMock.reduce((s,r)=>s+r.outputM,0).toFixed(2)}</td>
-                    <td className="py-2.5">${totalCost.toFixed(2)}</td>
+                    <td className="py-2.5 pr-4">—</td>
+                    <td className="py-2.5 pr-4 font-mono text-xs">—</td>
+                    <td className="py-2.5 pr-4 font-mono text-xs">—</td>
+                    <td className="py-2.5">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -875,12 +785,12 @@ export default function ModelsPage() {
                 <div key={row.model} className="space-y-0.5">
                   <div className="flex justify-between text-xs">
                     <span>{row.model}</span>
-                    <span className="font-medium">${row.costUSD.toFixed(2)}</span>
+                    <span className="font-medium">—</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary/70"
-                      style={{ width: `${totalCost > 0 ? (row.costUSD / totalCost) * 100 : 0}%` }}
+                      style={{ width: "0%" }}
                     />
                   </div>
                 </div>
@@ -946,12 +856,9 @@ export default function ModelsPage() {
               )}
               <div className={cn(
                 "rounded-md p-3 text-xs",
-                parseFloat(costCap) > 0 && totalCost / parseFloat(costCap) > 0.8
-                  ? "bg-orange-50 border border-orange-200 text-orange-700"
-                  : "bg-muted text-muted-foreground"
+                "bg-muted text-muted-foreground"
               )}>
-                Current spend: <span className="font-semibold">${totalCost.toFixed(2)}</span> of ${costCap || "—"} cap
-                {costCap && ` (${((totalCost / parseFloat(costCap)) * 100).toFixed(0)}% used)`}
+                Current spend: <span className="font-semibold">—</span> of ${costCap || "—"} cap (usage is not tracked yet)
               </div>
             </CardContent>
           </Card>

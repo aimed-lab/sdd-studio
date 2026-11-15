@@ -17,11 +17,11 @@ interface AIAgent {
   name: string;
   description: string;
   capabilities: string[];
-  creditsPerRun: number;
+  creditsPerRun: number | null;
   status: "available" | "busy" | "maintenance";
   operatesOn: string[];
   category: "computational" | "experimental" | "clinical";
-  successRate: number;
+  successRate: number | null;
   avgRunTime: string;
 }
 
@@ -31,9 +31,9 @@ interface HumanExpert {
   title: string;
   specialties: string[];
   availability: "available" | "limited" | "unavailable";
-  rating: number;
-  reviewCount: number;
-  hourlyRate: number;
+  rating: number | null;
+  reviewCount: number | null;
+  hourlyRate: number | null;
   operatesOn: string[];
   category: "computational" | "experimental" | "clinical";
   bio: string;
@@ -45,7 +45,7 @@ const agents: AIAgent[] = [
     id: "agent-001",
     name: "ADMET Prediction Agent",
     description:
-      "Predicts ADMET profiles using ensemble ML models trained on ChEMBL data",
+      "Planned: would predict ADMET profiles. No model is trained or run yet.",
     capabilities: [
       "Lipinski Ro5 check",
       "CYP450 inhibition prediction",
@@ -53,37 +53,37 @@ const agents: AIAgent[] = [
       "BBB permeability",
       "Hepatotoxicity scoring",
     ],
-    creditsPerRun: 5,
+    creditsPerRun: null,
     status: "available",
     operatesOn: ["compounds"],
     category: "computational",
-    successRate: 94,
-    avgRunTime: "~2 min",
+    successRate: null,
+    avgRunTime: "—",
   },
   {
     id: "agent-002",
     name: "Molecular Docking Agent",
     description:
-      "Automated docking pipeline with flexible ligand/receptor prep and scoring",
+      "Planned: automated docking pipeline with ligand/receptor preparation and scoring. Not built yet.",
     capabilities: [
-      "AutoDock Vina",
+      "Docking engine",
       "Binding pose prediction",
       "Affinity estimation",
       "Interaction maps",
       "Ensemble docking",
     ],
-    creditsPerRun: 15,
+    creditsPerRun: null,
     status: "available",
     operatesOn: ["compounds", "targets"],
     category: "computational",
-    successRate: 87,
-    avgRunTime: "~15 min",
+    successRate: null,
+    avgRunTime: "—",
   },
   {
     id: "agent-003",
     name: "Literature Mining Agent",
     description:
-      "Scans PubMed, bioRxiv, and patents for relevant findings",
+      "Planned: would scan the literature and patents for relevant findings. Not built yet.",
     capabilities: [
       "PubMed search",
       "Patent analysis",
@@ -91,18 +91,18 @@ const agents: AIAgent[] = [
       "MoA extraction",
       "Citation networks",
     ],
-    creditsPerRun: 8,
+    creditsPerRun: null,
     status: "available",
     operatesOn: ["targets", "projects"],
     category: "computational",
-    successRate: 91,
-    avgRunTime: "~5 min",
+    successRate: null,
+    avgRunTime: "—",
   },
   {
     id: "agent-004",
     name: "Lead Optimization Agent",
     description:
-      "Suggests structural modifications using generative chemistry models",
+      "Planned: would suggest structural modifications. No generative model is run yet.",
     capabilities: [
       "Scaffold hopping",
       "R-group enumeration",
@@ -110,18 +110,18 @@ const agents: AIAgent[] = [
       "MMP analysis",
       "Synthetic accessibility",
     ],
-    creditsPerRun: 20,
+    creditsPerRun: null,
     status: "busy",
     operatesOn: ["compounds", "experiments"],
     category: "computational",
-    successRate: 82,
-    avgRunTime: "~30 min",
+    successRate: null,
+    avgRunTime: "—",
   },
   {
     id: "agent-005",
     name: "Assay Design Agent",
     description:
-      "Recommends optimal assay protocols based on target biology",
+      "Planned: would recommend assay protocols based on target biology. Not built yet.",
     capabilities: [
       "Protocol recommendation",
       "Control selection",
@@ -129,18 +129,18 @@ const agents: AIAgent[] = [
       "Power analysis",
       "Readout optimization",
     ],
-    creditsPerRun: 10,
+    creditsPerRun: null,
     status: "available",
     operatesOn: ["experiments", "targets"],
     category: "experimental",
-    successRate: 89,
-    avgRunTime: "~3 min",
+    successRate: null,
+    avgRunTime: "—",
   },
   {
     id: "agent-006",
     name: "Clinical Trial Feasibility Agent",
     description:
-      "Analyzes trial feasibility based on populations and regulatory precedent",
+      "Planned: would assess trial feasibility. Not built yet.",
     capabilities: [
       "Population estimation",
       "Regulatory pathways",
@@ -148,19 +148,19 @@ const agents: AIAgent[] = [
       "Endpoint recommendation",
       "Site selection",
     ],
-    creditsPerRun: 25,
+    creditsPerRun: null,
     status: "maintenance",
     operatesOn: ["projects"],
     category: "clinical",
-    successRate: 78,
-    avgRunTime: "~20 min",
+    successRate: null,
+    avgRunTime: "—",
   },
 ];
 
 const experts: HumanExpert[] = [
   {
     id: "exp-001",
-    name: "Dr. Elena Vasquez",
+    name: "Scientist 1",
     title: "Medicinal Chemist",
     specialties: [
       "Kinase inhibitor design",
@@ -169,17 +169,17 @@ const experts: HumanExpert[] = [
       "Synthetic route planning",
     ],
     availability: "available",
-    rating: 4.9,
-    reviewCount: 47,
-    hourlyRate: 250,
+    rating: null,
+    reviewCount: null,
+    hourlyRate: null,
     operatesOn: ["compounds", "projects"],
     category: "experimental",
-    bio: "15+ years in medicinal chemistry at Pfizer and Novartis. Expert in oncology kinase programs.",
-    initials: "EV",
+    bio: "Placeholder profile. No real person is listed.",
+    initials: "S1",
   },
   {
     id: "exp-002",
-    name: "Dr. Raj Patel",
+    name: "Scientist 2",
     title: "Computational Biologist",
     specialties: [
       "Molecular dynamics",
@@ -188,17 +188,17 @@ const experts: HumanExpert[] = [
       "QSAR modeling",
     ],
     availability: "available",
-    rating: 4.8,
-    reviewCount: 32,
-    hourlyRate: 200,
+    rating: null,
+    reviewCount: null,
+    hourlyRate: null,
     operatesOn: ["compounds", "targets"],
     category: "computational",
-    bio: "Specialist in structure-based drug design with 10+ years at AstraZeneca.",
-    initials: "RP",
+    bio: "Placeholder profile. No real person is listed.",
+    initials: "S2",
   },
   {
     id: "exp-003",
-    name: "Dr. Amanda Foster",
+    name: "Scientist 3",
     title: "Clinical Pharmacologist",
     specialties: [
       "PK/PD modeling",
@@ -207,17 +207,17 @@ const experts: HumanExpert[] = [
       "Biomarker strategy",
     ],
     availability: "limited",
-    rating: 4.95,
-    reviewCount: 28,
-    hourlyRate: 350,
+    rating: null,
+    reviewCount: null,
+    hourlyRate: null,
     operatesOn: ["experiments", "projects"],
     category: "clinical",
-    bio: "Former FDA reviewer. Expert in IND-enabling studies.",
-    initials: "AF",
+    bio: "Placeholder profile. No real person is listed.",
+    initials: "S3",
   },
   {
     id: "exp-004",
-    name: "Dr. Wei Zhang",
+    name: "Scientist 4",
     title: "Structural Biologist",
     specialties: [
       "X-ray crystallography",
@@ -226,17 +226,17 @@ const experts: HumanExpert[] = [
       "Fragment screening",
     ],
     availability: "unavailable",
-    rating: 4.7,
-    reviewCount: 19,
-    hourlyRate: 275,
+    rating: null,
+    reviewCount: null,
+    hourlyRate: null,
     operatesOn: ["targets"],
     category: "experimental",
-    bio: "Solved 50+ protein-ligand co-crystal structures.",
-    initials: "WZ",
+    bio: "Placeholder profile. No real person is listed.",
+    initials: "S4",
   },
   {
     id: "exp-005",
-    name: "Dr. Lucia Romano",
+    name: "Scientist 5",
     title: "Toxicologist",
     specialties: [
       "In vivo toxicology",
@@ -245,13 +245,13 @@ const experts: HumanExpert[] = [
       "Regulatory toxicology",
     ],
     availability: "available",
-    rating: 4.85,
-    reviewCount: 38,
-    hourlyRate: 300,
+    rating: null,
+    reviewCount: null,
+    hourlyRate: null,
     operatesOn: ["compounds", "experiments"],
     category: "clinical",
-    bio: "Board-certified toxicologist with IND-enabling and NDA experience.",
-    initials: "LR",
+    bio: "Placeholder profile. No real person is listed.",
+    initials: "S5",
   },
 ];
 
@@ -388,9 +388,9 @@ export default function ServicesPage() {
                       ))}
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{agent.successRate}%</span>
-                      <span className="text-muted-foreground">{agent.avgRunTime}</span>
-                      <span className="text-muted-foreground">{agent.creditsPerRun} credits</span>
+                      <span className="font-medium">Success rate: —</span>
+                      <span className="text-muted-foreground">Run time: {agent.avgRunTime}</span>
+                      <span className="text-muted-foreground">Credits: —</span>
                     </div>
                     <button
                       className="w-full rounded-md px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -484,12 +484,9 @@ export default function ServicesPage() {
 
                   <div className="flex items-center justify-between mt-auto pt-3 border-t">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm">{expert.rating}</span>
-                      <span className="text-muted-foreground text-sm">
-                        ({expert.reviewCount} reviews)
-                      </span>
+                      <span className="font-medium text-sm">Rating: —</span>
                     </div>
-                    <span className="font-semibold text-sm">${expert.hourlyRate}/hr</span>
+                    <span className="font-semibold text-sm">Rate: —</span>
                   </div>
 
                   <button
@@ -838,159 +835,159 @@ function saveConnections(data: Record<string, ConnectionInfo>) {
 const officeTools: OfficeTool[] = [
   {
     id: "notion",
-    name: "Notion",
-    logo: "N",
+    name: "Tool 1",
+    logo: "T1",
     logoColor: "bg-gray-800 text-white",
     oauthColor: "#000000",
-    description: "Link Notion workspaces to sync project notes, SOPs, and meeting summaries",
+    description: "Link a notes workspace to sync project notes, SOPs and meeting summaries",
     permissions: ["Read/write selected pages only", "No bulk workspace access", "No private pages"],
     category: "Productivity",
     authType: "oauth",
     testSteps: [
-      { label: "Validating OAuth token", result: "Token active · scope: notion.page.read, notion.page.write · expires in 89 days", ok: true },
-      { label: "Listing accessible workspaces", result: "3 workspaces found: Lab Notebook, SPARC-2026, Meeting Notes", ok: true },
-      { label: "Verifying read/write scope on selected pages", result: "Selected pages: read ✓, write ✓ · Private pages: blocked ✓", ok: true },
-      { label: "Confirming no bulk workspace access", result: "Workspace-level read scope absent — minimal permissions confirmed", ok: true },
+      { label: "Validating OAuth token", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Listing accessible workspaces", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Verifying read/write scope on selected pages", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming no bulk workspace access", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "google-drive",
-    name: "Google Drive",
-    logo: "GD",
+    name: "Tool 2",
+    logo: "T2",
     logoColor: "bg-blue-500 text-white",
     oauthColor: "#1a73e8",
-    description: "Access Google Drive files you explicitly share for import into projects",
+    description: "Access cloud-storage files you explicitly share for import into projects",
     permissions: ["Access only files you select", "No browsing full Drive", "No deletion rights"],
     category: "Storage",
     authType: "oauth",
     testSteps: [
-      { label: "Validating OAuth 2.0 access token", result: "Token active · last refresh 2 min ago · scope: drive.file", ok: true },
-      { label: "Listing explicitly shared files", result: "2 files accessible: compound_library.xlsx, EGFR_screen_results.csv", ok: true },
-      { label: "Fetching file metadata (read test)", result: "Metadata fetched for compound_library.xlsx · 0 bytes transferred · OK", ok: true },
-      { label: "Confirming full Drive browse is blocked", result: "drive.readonly scope absent — no full Drive access confirmed", ok: true },
-      { label: "Confirming deletion rights absent", result: "drive.delete scope absent — deletion blocked ✓", ok: true },
+      { label: "Validating access token", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Listing explicitly shared files", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Fetching file metadata (read test)", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming full Drive browse is blocked", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming deletion rights absent", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "onedrive",
-    name: "OneDrive",
-    logo: "OD",
+    name: "Tool 3",
+    logo: "T3",
     logoColor: "bg-sky-500 text-white",
     oauthColor: "#0078d4",
-    description: "Import files from OneDrive and sync reports back to selected folders",
+    description: "Import files from cloud storage and sync reports back to selected folders",
     permissions: ["Read/write selected folders only", "No account-level access", "No email access"],
     category: "Storage",
     authType: "oauth",
     testSteps: [
-      { label: "Validating Microsoft OAuth 2.0 token", result: "Token active · scope: Files.ReadWrite.Selected · tenant: uab.edu", ok: true },
-      { label: "Listing granted folder access", result: "1 folder accessible: /Research/SPARC-2026 · 14 files", ok: true },
-      { label: "Write permission smoke test", result: "Created SDD_connectivity_test.tmp → verified → deleted immediately · OK", ok: true },
-      { label: "Confirming account-level access is blocked", result: "Files.Read.All scope absent — folder-scoped only ✓", ok: true },
-      { label: "Confirming mail/calendar scopes absent", result: "Mail.Read, Calendars.Read not present in token ✓", ok: true },
+      { label: "Validating token", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Listing granted folder access", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Write permission smoke test", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming account-level access is blocked", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming mail/calendar scopes absent", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "box",
-    name: "BOX",
-    logo: "B",
+    name: "Tool 4",
+    logo: "T4",
     logoColor: "bg-blue-700 text-white",
     oauthColor: "#0061d5",
-    description: "Access BOX-hosted documents and compound libraries for regulated storage",
+    description: "Access documents and compound libraries in regulated cloud storage",
     permissions: ["Selected folder access only", "Read-only by default", "Audit log preserved"],
     category: "Storage",
     authType: "oauth",
     testSteps: [
-      { label: "Authenticating with BOX API v2", result: "Authenticated · user: researcher@uab.edu · app: SmartDrugDiscovery", ok: true },
-      { label: "Listing granted folder contents", result: "Folder 'Compound Libraries' (ID: 112358) · 14 files · last modified Mar 28", ok: true },
-      { label: "Verifying read-only scope", result: "write scope absent — read-only mode confirmed ✓", ok: true },
-      { label: "Checking enterprise audit log status", result: "Audit log active · last entry: 2026-03-28 11:42 UTC · retention: 90 days", ok: true },
+      { label: "Authenticating with the service API", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Listing granted folder contents", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Verifying read-only scope", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Checking enterprise audit log status", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "gmail",
-    name: "Gmail",
-    logo: "G",
+    name: "Tool 5",
+    logo: "T5",
     logoColor: "bg-red-500 text-white",
     oauthColor: "#ea4335",
-    description: "Send platform notifications and experiment summaries via Gmail",
+    description: "Send platform notifications and experiment summaries by email",
     permissions: ["Send-only (no read access)", "No inbox scanning", "Unsubscribe anytime"],
     category: "Communication",
     authType: "oauth",
     testSteps: [
-      { label: "Validating Gmail OAuth token", result: "Token active · scope: gmail.send only · no read/modify scopes", ok: true },
-      { label: "Sending test notification email", result: "Test email delivered to jakechen@gmail.com · Message-ID: <sdd-test-2026@gmail> · 12 ms", ok: true },
-      { label: "Confirming inbox scanning is blocked", result: "gmail.readonly, gmail.modify scopes absent — no inbox access ✓", ok: true },
-      { label: "Verifying unsubscribe header present", result: "List-Unsubscribe header injected into all outbound messages ✓", ok: true },
+      { label: "Validating OAuth token", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Sending test notification email", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming inbox scanning is blocked", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Verifying unsubscribe header present", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "calendar",
-    name: "Google Calendar",
-    logo: "Cal",
+    name: "Tool 6",
+    logo: "T6",
     logoColor: "bg-green-600 text-white",
     oauthColor: "#1e8e3e",
-    description: "Schedule experiment runs, milestone reviews, and team syncs",
+    description: "Schedule experiment runs, milestone reviews and team syncs",
     permissions: ["Read free/busy only", "Write new events only", "No existing event access"],
     category: "Productivity",
     authType: "oauth",
     testSteps: [
-      { label: "Validating Calendar OAuth token", result: "Token active · scope: calendar.events.owned, calendar.freebusy", ok: true },
-      { label: "Querying free/busy information", result: "Free/busy query succeeded · 3 busy blocks today · no event titles exposed", ok: true },
-      { label: "Creating and deleting a test event", result: "Event 'SDD Connectivity Test' created at 03:00 → deleted immediately · OK", ok: true },
-      { label: "Confirming existing event read is blocked", result: "calendar.readonly scope absent — existing events not accessible ✓", ok: true },
+      { label: "Validating OAuth token", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Querying free/busy information", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Creating and deleting a test event", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming existing event read is blocked", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "zapier",
-    name: "Zapier",
-    logo: "Z",
+    name: "Tool 7",
+    logo: "T7",
     logoColor: "bg-orange-500 text-white",
     oauthColor: "#ff4a00",
     description: "Trigger automated workflows when experiments complete or milestones are hit",
     permissions: ["Outbound webhooks only", "No inbound data stored", "Per-trigger authorization"],
     category: "Automation",
     authType: "api-key",
-    apiKeyPlaceholder: "zap_xxxxxxxxxxxxxxxxxxxx",
-    apiKeyHint: "Found in Zapier → Account → API Key",
+    apiKeyPlaceholder: "api_key_xxxxxxxxxxxxxxxx",
+    apiKeyHint: "Found in → Account → API Key",
     testSteps: [
-      { label: "Validating Zapier API key", result: "Key valid · account: jakechen@gmail.com · plan: Professional", ok: true },
-      { label: "Listing active Zaps for this app", result: "2 Zaps found: 'Experiment Complete → Slack', 'Milestone Hit → Email'", ok: true },
-      { label: "Sending test webhook POST", result: "POST /hooks/catch/sdd-test → HTTP 200 · response: {status:'ok'} · 38 ms", ok: true },
-      { label: "Confirming no inbound data is stored", result: "Webhook payload not persisted in Zapier storage — stateless confirmed ✓", ok: true },
+      { label: "Validating API key", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Listing active Zaps for this app", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Sending test webhook POST", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming no inbound data is stored", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "readai",
-    name: "read.ai",
-    logo: "R",
+    name: "Tool 8",
+    logo: "T8",
     logoColor: "bg-purple-600 text-white",
     oauthColor: "#7c3aed",
-    description: "Import meeting intelligence from lab meetings to auto-generate action items",
+    description: "Import meeting summaries from lab meetings to generate action items",
     permissions: ["Meeting summaries only", "No audio/video stored", "Speaker labels anonymized"],
     category: "Productivity",
     authType: "oauth",
     testSteps: [
-      { label: "Validating read.ai OAuth token", result: "Token active · scope: meetings.summaries.read · no media scopes", ok: true },
-      { label: "Listing recent meeting summaries", result: "3 meetings found: Lab Standup (Mar 28), SPARC Review (Mar 27), Grant Sync (Mar 25)", ok: true },
-      { label: "Fetching latest meeting summary", result: "Summary fetched: 847 words · 6 action items · speaker labels anonymized ✓", ok: true },
-      { label: "Confirming audio/video access is blocked", result: "meetings.recording, meetings.audio scopes absent — summaries only ✓", ok: true },
+      { label: "Validating OAuth token", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Listing recent meeting summaries", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Fetching latest meeting summary", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming audio/video access is blocked", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
   {
     id: "youtube",
-    name: "YouTube",
-    logo: "YT",
+    name: "Tool 9",
+    logo: "T9",
     logoColor: "bg-red-600 text-white",
     oauthColor: "#ff0000",
-    description: "Embed scientific talks, assay protocols, and conference recordings in projects",
+    description: "Embed public scientific talks, assay protocols and conference recordings in projects",
     permissions: ["Public video embed only", "No account login required", "No viewing history"],
     category: "Media",
     authType: "embed",
     testSteps: [
-      { label: "Checking YouTube Data API v3 accessibility", result: "API reachable · status 200 · quota remaining: 9,847 units/day", ok: true },
-      { label: "Testing public video embed lookup", result: "Sample video (Scientific Talk on EGFR): embeddable: true · captions: available", ok: true },
-      { label: "Confirming no account auth required", result: "Request sent without OAuth credentials — public content accessible ✓", ok: true },
-      { label: "Confirming viewing history is not tracked", result: "No user ID sent in request · no history scope · privacy-safe ✓", ok: true },
+      { label: "Checking accessibility", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Testing public video embed lookup", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming no account auth required", result: "Simulated: no real service was contacted", ok: true },
+      { label: "Confirming viewing history is not tracked", result: "Simulated: no real service was contacted", ok: true },
     ],
   },
 ];
@@ -1110,7 +1107,7 @@ function ConnectionTestModal({
               <span className="text-xl">{allPassed ? "✅" : "❌"}</span>
               <div>
                 <p className={cn("text-sm font-semibold", allPassed ? "text-green-800 dark:text-green-300" : "text-red-700 dark:text-red-300")}>
-                  {allPassed ? "All checks passed" : "One or more checks failed"}
+                  {allPassed ? "All simulated checks passed (no real service was contacted)" : "One or more checks failed"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {lines.filter((l) => l.ok && l.done).length}/{tool.testSteps.length} checks passed

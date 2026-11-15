@@ -69,25 +69,26 @@ const plugins: Plugin[] = [
     id: "sdd-studio-mcp",
     name: "SDD Studio MCP (this site)",
     description:
-      "Read-only MCP endpoint for this site's live data: ChEMBL compound search, mechanism/activity, structure search and ClinicalTrials.gov trial search, each result with provenance. Same handlers as the REST API; never returns demo data. Usage is reviewed 90 days after public listing (#73).",
+      "Read-only MCP endpoint for this site's live data (POST https://studio.smartdrugdiscovery.org/api/mcp). Five tools, each calling the same handler as its REST route with the same validation, caching and provenance: search_compounds, get_compound, search_trials, structure_search and get_target_evidence. Unauthenticated, rate-limited per IP, never returns demo data. Usage is reviewed 90 days after public listing (#73).",
     type: "mcp", version: "v1.0.0", author: "UAB SysPAI",
-    license: "Apache 2.0", pricing: "free", requiresKey: false,
+    license: "—", pricing: "free", requiresKey: false,
     url: "https://studio.smartdrugdiscovery.org/api/mcp",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: true, connected: true,
-    connectedTools: ["search_compounds", "get_compound", "search_trials", "structure_search"],
+    connectedTools: ["search_compounds", "get_compound", "search_trials", "structure_search", "get_target_evidence"],
     category: "Data", compatibleWith: ["A1", "A2", "A3", "A4"],
     testSteps: [
-      { label: 'search_compounds({ q: "imatinib", limit: 5 })', result: "✓ CHEMBL941 IMATINIB first · source ChEMBL with retrieval time and release" },
-      { label: 'get_compound({ chemblId: "CHEMBL1336" })', result: "✓ 7 mechanisms via the parent (sorafenib) · 2,035 activities in total, 50 shown" },
-      { label: 'search_trials({ term: "EGFR", condition: "non-small cell lung cancer", withExcludedCount: true })', result: "✓ 1,749 trials · 5 hidden by the eGFR disambiguation, recoverable with disambiguate: false" },
-      { label: 'structure_search({ smiles: <imatinib>, mode: "similarity", threshold: 90 })', result: "✓ 3 hits · CHEMBL941 first · Tanimoto on Morgan fingerprints (FPSim2)" },
+      { label: 'search_compounds({ q: "imatinib", limit: 5 })', result: "Example: ChEMBL rows, exact name match first, with source, retrieval time and ChEMBL release" },
+      { label: 'get_compound({ chemblId: "CHEMBL1336" })', result: "Example: mechanisms looked up via the parent molecule, plus a subset of activity rows with the total count" },
+      { label: 'search_trials({ term: "EGFR", condition: "non-small cell lung cancer", withExcludedCount: true })', result: "Example: ClinicalTrials.gov rows with the exact query sent and the number of trials hidden by eGFR disambiguation" },
+      { label: 'structure_search({ smiles: <imatinib>, mode: "similarity", threshold: 90 })', result: "Example: similar ChEMBL compounds with their similarity scores" },
+      { label: 'get_target_evidence({ gene: "EGFR" })', result: "Example: top disease associations and tractability with Open Targets' own scores and the data release" },
     ],
     installInstructions: [
       {
         title: "Add to Claude Code",
         code: "claude mcp add --transport http sdd-studio https://studio.smartdrugdiscovery.org/api/mcp",
-        note: "Streamable HTTP, stateless, JSON responses. Read-only and unauthenticated; rate-limited per IP (20 requests/min).",
+        note: "Streamable HTTP, stateless, JSON responses. Read-only and unauthenticated; rate-limited per IP (20 burst, 20/min); 15 s budget per call.",
       },
       {
         title: "Other MCP clients",
@@ -97,492 +98,262 @@ const plugins: Plugin[] = [
   },
   {
     id: "chembl-mcp",
-    name: "ChEMBL MCP Server",
-    description: "Real-time access to 2.4M+ compounds, 15,000+ targets, and 20M+ bioactivity measurements via Model Context Protocol.",
-    type: "mcp", version: "v2.1.0", author: "ChEMBL Team / UAB SysPAI",
-    license: "Apache 2.0", pricing: "free", requiresKey: false,
-    url: "https://github.com/chembl/chembl-mcp",
+    name: "ChEMBL MCP server (Claude bio-research plugin)",
+    description: "MCP server for ChEMBL data, bundled with Claude's bio-research plugin. Use it from your own AI client for target-centric bioactivity data. It is not connected to this site; this site calls the ChEMBL REST API directly.",
+    type: "mcp", version: "—", author: "Claude bio-research plugin",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "https://www.ebi.ac.uk/chembl/",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
-    installed: true, connected: true,
+    installed: false, connected: false,
     connectedTools: ["compound_search", "drug_search", "target_search", "get_bioactivity", "get_mechanism", "get_admet"],
     category: "Data", compatibleWith: ["A1", "A2", "A3", "A4"],
     testSteps: [
-      { label: 'compound_search("vemurafenib", max_phase=4)', result: "✓ CHEMBL1229517 · Vemurafenib (Zelboraf) · MW 489.93 · ALogP 5.54 · Approved 2011" },
-      { label: 'target_search(gene_symbol="BRAF", organism="Homo sapiens")', result: "✓ CHEMBL5145 · Serine/threonine-protein kinase B-raf · UniProt P15056 · 100+ PDB structures" },
-      { label: 'get_bioactivity(target="CHEMBL5145", IC50, pChEMBL≥8)', result: "✓ 6 hits returned (of 3,993 total) · Most potent: IC50 = 5 nM (pChEMBL 8.30)" },
+      { label: 'compound_search("vemurafenib", max_phase=4)', result: "Simulated example (no live call is made from this page)" },
+      { label: 'target_search(gene_symbol="BRAF", organism="Homo sapiens")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'get_bioactivity(target="CHEMBL5145", IC50, pChEMBL≥8)', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "pubmed-mcp",
-    name: "PubMed MCP Server",
-    description: "Search and retrieve biomedical literature, article metadata, and full-text articles from PubMed Central.",
-    type: "mcp", version: "v1.8.0", author: "NCBI",
-    license: "Public Domain", pricing: "free", requiresKey: false,
-    url: "https://github.com/ncbi/pubmed-mcp",
+    name: "PubMed MCP server (Claude bio-research plugin)",
+    description: "MCP server for PubMed literature search, bundled with Claude's bio-research plugin. Not connected to this site.",
+    type: "mcp", version: "—", author: "Claude bio-research plugin",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "https://pubmed.ncbi.nlm.nih.gov/",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
-    installed: true, connected: false,
+    installed: false, connected: false,
     category: "Literature", compatibleWith: ["A7", "A8", "A9", "A10"],
     testSteps: [
-      { label: 'search_articles("BRAF V600E melanoma treatment")', result: "✓ 847 articles found · Top result: PMID 21639808 · Chapman et al. NEJM 2011" },
-      { label: 'get_article_metadata("PMID:21639808")', result: "✓ Title: 'Improved survival with vemurafenib in melanoma with BRAF V600E mutation' · IF: 91.2" },
+      { label: 'search_articles("BRAF V600E melanoma treatment")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'get_article_metadata("PMID:21639808")', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "open-targets-mcp",
-    name: "Open Targets MCP",
-    description: "Query Open Targets Platform for target-disease associations, genetic evidence, and drug mechanisms.",
-    type: "mcp", version: "v1.5.0", author: "Open Targets",
-    license: "Apache 2.0", pricing: "free", requiresKey: false,
-    url: "https://github.com/opentargets/ot-mcp",
+    name: "Open Targets MCP server (Claude bio-research plugin)",
+    description: "MCP server for the Open Targets Platform, bundled with Claude's bio-research plugin. Not connected to this site; this site's get_target_evidence tool calls the Open Targets API directly.",
+    type: "mcp", version: "—", author: "Claude bio-research plugin",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "https://platform.opentargets.org/",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: false, category: "Data", compatibleWith: ["A1", "A2", "A3"],
     testSteps: [
-      { label: 'target_associations("BRAF", disease="melanoma")', result: "✓ Score 0.94 · 23 genetic variants · 12 somatic mutations · L2G score 0.87" },
-    ],
-    installInstructions: [
-      {
-        title: "Add to Claude Desktop config",
-        code: `{
-  "mcpServers": {
-    "open-targets": {
-      "command": "npx",
-      "args": ["-y", "@opentargets/ot-mcp-server"]
-    }
-  }
-}`,
-        note: 'Open claude_desktop_config.json (macOS: ~/Library/Application Support/Claude/claude_desktop_config.json) and merge this block into the "mcpServers" object.',
-      },
-      {
-        title: "Restart Claude Desktop",
-        note: "Quit and relaunch Claude Desktop. The Open Targets tools will appear in the tool selector (🔧 icon) in your next conversation.",
-      },
-      {
-        title: "Verify installation",
-        note: 'In a new Claude conversation, ask: "What are the top genetic targets for melanoma?" — Claude should call target_associations and return ranked results.',
-      },
+      { label: 'target_associations("BRAF", disease="melanoma")', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "uniprot-api",
     name: "UniProt REST API",
-    description: "Protein sequence, function, and structural information for target characterization.",
-    type: "api", version: "v3.0", author: "UniProt Consortium",
-    license: "CC BY 4.0", pricing: "free", requiresKey: false,
+    description: "Protein sequence and function data from UniProt. Planned connection; this site does not call the UniProt API yet.",
+    type: "api", version: "—", author: "UniProt Consortium",
+    license: "—", pricing: "free", requiresKey: false,
     url: "https://www.uniprot.org/help/api",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
-    installed: true, category: "Data", compatibleWith: ["A1", "A2"],
+    installed: false, category: "Data", compatibleWith: ["A1", "A2"],
     testSteps: [
-      { label: 'GET /uniprotkb/P15056 (BRAF)', result: "✓ Gene: BRAF · 766 aa · Kinase domain 457-717 · 3 isoforms · Subcellular: cytoplasm, nucleus" },
+      { label: 'GET /uniprotkb/P15056 (BRAF)', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "clinicaltrials-api",
     name: "ClinicalTrials.gov API",
-    description: "Search clinical trials, eligibility criteria, endpoints, and results.",
-    type: "api", version: "v2.0", author: "NLM/NIH",
-    license: "Public Domain", pricing: "free", requiresKey: false,
-    url: "https://clinicaltrials.gov/api",
+    description: "Trial registry data. This site already calls the ClinicalTrials.gov API through its own /api/trials route; no separate plugin is needed.",
+    type: "api", version: "—", author: "NLM/NIH",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "https://clinicaltrials.gov/data-api/api",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: false, category: "Clinical", compatibleWith: ["A7", "A8", "A9"],
     testSteps: [
-      { label: 'search_trials("BRAF inhibitor melanoma", phase=3, status=completed)', result: "✓ 18 trials found · NCT01227889 (BRIM-3) · NCT01584648 (coBRIM) · NCT01689519 (COMBI-v)" },
-    ],
-    installInstructions: [
-      {
-        title: "No API key required — endpoint is public",
-        code: "# Base URL\nhttps://clinicaltrials.gov/api/v2\n\n# Example: search completed Phase 3 BRAF trials\ncurl \"https://clinicaltrials.gov/api/v2/studies?query.cond=BRAF+melanoma&filter.advanced=AREA%5BPhase%5DPHASE3&pageSize=5\"",
-        note: "ClinicalTrials.gov v2 API is open and requires no registration. Rate limit: 100 requests/min per IP.",
-      },
-      {
-        title: "Add as a custom API connector in Settings → Services",
-        note: 'Navigate to Services → Add-on Services → Custom APIs and enter the base URL above. SDD will proxy requests through its backend to avoid CORS issues.',
-      },
-      {
-        title: "Verify by clicking Mark as Installed below",
-        note: "Once added to Services, click Mark as Installed to enable the 🧪 Test button on this card.",
-      },
+      { label: 'search_trials("BRAF inhibitor melanoma", phase=3, status=completed)', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "alphafold-docker",
-    name: "AlphaFold Structure Prediction",
-    description: "Protein structure prediction using AlphaFold2 for target structural analysis and docking prep.",
-    type: "docker", version: "v2.3.2", author: "DeepMind",
-    license: "Apache 2.0", pricing: "free", requiresKey: false,
-    url: "https://github.com/deepmind/alphafold",
+    name: "Tool 1 — Structure prediction",
+    description: "Placeholder for a protein structure prediction container. Not connected; no claims are made about its accuracy.",
+    type: "docker", version: "—", author: "—",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "",
     fair: { findable: true, accessible: true, interoperable: false, reusable: true },
     installed: false, category: "Structure", compatibleWith: ["A1", "A3"],
     testSteps: [
-      { label: "predict_structure(sequence=BRAF_kinase_domain)", result: "✓ pLDDT 91.3 · TM-score vs 4MNE: 0.97 · ATP binding pocket identified · PDB generated" },
-    ],
-    installInstructions: [
-      {
-        title: "Prerequisites",
-        note: "Requires: Docker Desktop, NVIDIA GPU ≥ 16 GB VRAM, CUDA 11.x driver, nvidia-container-toolkit. Estimated download size: ~4.5 GB.",
-      },
-      {
-        title: "Pull the Docker image",
-        code: "docker pull ghcr.io/deepmind/alphafold:v2.3.2",
-      },
-      {
-        title: "Run a structure prediction",
-        code: `docker run --rm --gpus all \\
-  -v $(pwd)/input:/input \\
-  -v $(pwd)/output:/output \\
-  ghcr.io/deepmind/alphafold:v2.3.2 \\
-  --fasta_paths=/input/sequence.fasta \\
-  --output_dir=/output \\
-  --model_preset=monomer \\
-  --max_template_date=2024-01-01`,
-        note: "Place your FASTA file at ./input/sequence.fasta. Output PDB will appear in ./output/.",
-      },
-      {
-        title: "Verify by clicking Mark as Installed below",
-        note: "Once the container runs successfully, mark as installed to unlock the Test demo on this card.",
-      },
+      { label: "predict_structure(sequence=BRAF_kinase_domain)", result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "autodock-vina-docker",
-    name: "AutoDock Vina GPU",
-    description: "GPU-accelerated molecular docking for high-throughput virtual screening.",
-    type: "docker", version: "v1.2.5", author: "Scripps Research",
-    license: "Apache 2.0", pricing: "free", requiresKey: false,
-    url: "https://github.com/ccsb-scripps/AutoDock-Vina",
+    name: "Tool 2 — Molecular docking",
+    description: "Placeholder for a molecular docking container. Not connected.",
+    type: "docker", version: "—", author: "—",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: false, category: "Docking", compatibleWith: ["A1", "A4"],
     testSteps: [
-      { label: "dock(ligand=vemurafenib.sdf, receptor=4MNE.pdb)", result: "✓ Best pose: ΔG = -9.8 kcal/mol · RMSD vs crystal: 1.2 Å · Hinge contacts: T529, C532" },
-    ],
-    installInstructions: [
-      {
-        title: "Pull the Docker image",
-        code: "docker pull ghcr.io/ccsb-scripps/autodock-vina:v1.2.5-gpu",
-        note: "GPU version requires NVIDIA GPU + nvidia-container-toolkit. CPU-only: omit -gpu suffix.",
-      },
-      {
-        title: "Prepare receptor and ligand files",
-        code: `# Convert PDB to PDBQT (requires AutoDockTools or Open Babel)
-obabel receptor.pdb -O receptor.pdbqt -xr
-obabel ligand.sdf -O ligand.pdbqt --gen3d`,
-      },
-      {
-        title: "Run molecular docking",
-        code: `docker run --rm --gpus all -v $(pwd):/workspace \\
-  ghcr.io/ccsb-scripps/autodock-vina:v1.2.5-gpu \\
-  vina \\
-  --receptor /workspace/receptor.pdbqt \\
-  --ligand   /workspace/ligand.pdbqt \\
-  --center_x 10.5 --center_y 22.3 --center_z -8.1 \\
-  --size_x 25 --size_y 25 --size_z 25 \\
-  --exhaustiveness 32 --num_modes 9`,
-        note: "Set center_x/y/z to your binding site coordinates (from PDB or SiteMap).",
-      },
+      { label: "dock(ligand=vemurafenib.sdf, receptor=4MNE.pdb)", result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "admet-jupyter",
-    name: "ADMET Property Predictor",
-    description: "Ensemble ML models for ADMET prediction with interactive visualizations. Requires institutional account.",
-    type: "jupyter", version: "v1.0.3", author: "PharmAI Lab",
-    license: "MIT", pricing: "freemium", requiresKey: true,
-    url: "https://github.com/pharmai/admet-predictor",
+    name: "Tool 3 — ADMET prediction notebook",
+    description: "Placeholder for an ADMET property prediction notebook. Not connected; no predictions are made on this page.",
+    type: "jupyter", version: "—", author: "—",
+    license: "—", pricing: "freemium", requiresKey: true,
+    url: "",
     fair: { findable: true, accessible: true, interoperable: false, reusable: true },
     installed: false, category: "ADMET", compatibleWith: ["A4", "A6"],
     testSteps: [
-      { label: 'predict_admet(smiles="CCCS(=O)(=O)Nc1...")', result: "✓ Caco-2 permeability: 22.3 nm/s · hERG IC50: 18 µM · Microsomal t½: 42 min · BBB: No" },
+      { label: 'predict_admet(smiles="CCCS(=O)(=O)Nc1...")', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "scrnaseq-jupyter",
-    name: "scRNA-seq Analysis Pipeline",
-    description: "Single-cell RNA sequencing analysis for tissue-level drug response characterization.",
-    type: "jupyter", version: "v2.1.0", author: "Broad Institute",
-    license: "BSD-3", pricing: "free", requiresKey: false,
-    url: "https://github.com/broadinstitute/scrnaseq-pipeline",
+    name: "Tool 4 — Single-cell RNA-seq pipeline",
+    description: "Placeholder for a single-cell RNA-seq analysis notebook. Not connected.",
+    type: "jupyter", version: "—", author: "—",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: false, category: "Genomics", compatibleWith: ["A5"],
     testSteps: [
-      { label: "cluster_cells(matrix=melanoma_10x.h5, resolution=0.6)", result: "✓ 12 clusters · CD8+ T cells: 18% · Tumor cells: 34% · BRAF+ cells: 91% of tumor cluster" },
-    ],
-    installInstructions: [
-      {
-        title: "Create a conda environment",
-        code: "conda create -n scrnaseq python=3.10 -y\nconda activate scrnaseq",
-      },
-      {
-        title: "Install dependencies",
-        code: "pip install scanpy==1.9.6 leidenalg python-igraph scrublet anndata cellrank",
-        note: "Installation takes 3-5 minutes. Requires ~800 MB disk space.",
-      },
-      {
-        title: "Clone the pipeline repository",
-        code: "git clone https://github.com/broadinstitute/scrnaseq-pipeline\ncd scrnaseq-pipeline",
-        actionUrl: "https://github.com/broadinstitute/scrnaseq-pipeline",
-        actionLabel: "View on GitHub →",
-      },
-      {
-        title: "Launch JupyterLab",
-        code: "jupyter lab notebooks/01_preprocessing.ipynb",
-        note: "Open the notebook in your browser and follow the step-by-step analysis. Data files go in the data/ subdirectory.",
-      },
+      { label: "cluster_cells(matrix=melanoma_10x.h5, resolution=0.6)", result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "netpharm-source",
-    name: "Network Pharmacology Toolkit",
-    description: "Python package for constructing and analyzing drug-target-disease networks.",
-    type: "source", version: "v0.9.1", author: "NetPharm Lab",
-    license: "GPL-3.0", pricing: "free", requiresKey: false,
-    url: "https://github.com/netpharm/toolkit",
+    name: "Tool 5 — Network pharmacology package",
+    description: "Placeholder for a drug-target-disease network analysis package. Not connected.",
+    type: "source", version: "—", author: "—",
+    license: "—", pricing: "free", requiresKey: false,
+    url: "",
     fair: { findable: true, accessible: true, interoperable: false, reusable: false },
     installed: false, category: "Network", compatibleWith: ["A2", "A3"],
     testSteps: [
-      { label: 'build_network(drug="vemurafenib", disease="melanoma")', result: "✓ 147 nodes · 623 edges · Hub targets: BRAF, ERK2, MEK1 · Shortest path to apoptosis: 3 hops" },
-    ],
-    installInstructions: [
-      {
-        title: "Install from PyPI",
-        code: "pip install netpharm-toolkit",
-        note: "Requires Python ≥ 3.9. For GPU-accelerated graph algorithms, also install: pip install netpharm-toolkit[gpu]",
-      },
-      {
-        title: "Basic usage",
-        code: `from netpharm import NetworkBuilder
-
-net = NetworkBuilder()
-net.build(drug="vemurafenib", disease="melanoma")
-net.visualize()  # opens interactive network in browser
-
-# Get hub targets
-hubs = net.get_hubs(top_n=10)
-print(hubs)`,
-        actionUrl: "https://github.com/netpharm/toolkit",
-        actionLabel: "Documentation →",
-      },
+      { label: 'build_network(drug="vemurafenib", disease="melanoma")', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "huggingface-api",
-    name: "Hugging Face Hub",
-    description: "Access 500,000+ pretrained models (BioGPT, ESM2, ChemBERTa, MolBERT) and datasets via the HF Inference API. Browse, run, and fine-tune biomedical models without local GPU.",
-    type: "api", version: "v1.0", author: "Hugging Face",
-    license: "Various (per model)", pricing: "freemium", requiresKey: true,
-    url: "https://huggingface.co/docs/api-inference",
+    name: "Tool 6 — Model hub API",
+    description: "Placeholder for a hosted model and dataset hub. Not connected.",
+    type: "api", version: "—", author: "—",
+    license: "—", pricing: "freemium", requiresKey: true,
+    url: "",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: false, connected: false,
     category: "Foundation Models",
     compatibleWith: ["A1", "A2", "A4", "A5"],
     testSteps: [
-      { label: 'model_info("facebook/esm2_t33_650M_UR50D")', result: "✓ ESM-2 650M · Protein language model · 250M+ UniRef50 sequences · Downloads: 1.2M/month" },
-      { label: 'inference("MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGDEDRLELEWHQALLRGEMPQTIGGGIGQSRLTMLLLQLPHIGQVQAGVWPAAVRESVPSLL")', result: "✓ Embedding generated (1280-dim) · Top motif: kinase domain (conf 0.97) · Predicted structure: α/β fold" },
-      { label: 'dataset_search("drug discovery SMILES", task="molecular-generation")', result: "✓ 47 datasets found · ZINC-250k (250K drug-like) · ChEMBL-30 · MOSES benchmark · QM9 (134K molecules)" },
+      { label: 'model_info("facebook/esm2_t33_650M_UR50D")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'inference("MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGDEDRLELEWHQALLRGEMPQTIGGGIGQSRLTMLLLQLPHIGQVQAGVWPAAVRESVPSLL")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'dataset_search("drug discovery SMILES", task="molecular-generation")', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "kaggle-api",
-    name: "Kaggle Datasets & Notebooks",
-    description: "Access curated drug discovery datasets, competition notebooks, and genomics data. Includes TCGA, GDSC, BindingDB, and community-contributed pharmaceutical datasets.",
-    type: "api", version: "v1.6", author: "Google / Kaggle",
-    license: "Various (per dataset)", pricing: "free", requiresKey: true,
-    url: "https://www.kaggle.com/docs/api",
+    name: "Tool 7 — Dataset and notebook API",
+    description: "Placeholder for a public dataset and notebook service. Not connected.",
+    type: "api", version: "—", author: "—",
+    license: "—", pricing: "free", requiresKey: true,
+    url: "",
     fair: { findable: true, accessible: true, interoperable: true, reusable: false },
     installed: false, connected: false,
     category: "Datasets",
     compatibleWith: ["A4", "A5", "A8", "A9"],
     testSteps: [
-      { label: 'dataset_search("drug sensitivity cancer cell lines")', result: "✓ 12 datasets · GDSC2 (1,001 cell lines × 298 drugs) · CCLE (1,457 lines) · NCI-60 panel" },
-      { label: 'dataset_download("gcpr/gdsc-drug-sensitivity", file="GDSC2_fitted_dose_response.xlsx")', result: "✓ 310 MB · 324,765 IC50 measurements · 25 cancer types · Ready for pandas/sklearn ingestion" },
-      { label: 'notebook_search("BRAF melanoma machine learning", sort_by="vote_count")', result: "✓ 34 notebooks · Top: 'BRAF Mutation Drug Response Predictor' (⭐ 412) · XGBoost AUC 0.87" },
+      { label: 'dataset_search("drug sensitivity cancer cell lines")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'dataset_download("gcpr/gdsc-drug-sensitivity", file="GDSC2_fitted_dose_response.xlsx")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'notebook_search("BRAF melanoma machine learning", sort_by="vote_count")', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "sdd-chrome",
     name: "SmartDrugDiscovery for Chrome",
-    description: "Browser extension for one-click data clipping from PubMed, ChEMBL, ClinicalTrials.gov, and patent databases directly into your projects. Highlights and saves structures, tables, and citations.",
-    type: "source", version: "v0.9 (beta)", author: "UAB SysPAI",
-    license: "Enterprise", pricing: "free",
+    description: "Planned browser extension for clipping data from PubMed, ChEMBL and ClinicalTrials.gov pages into projects. Not built or published yet.",
+    type: "source", version: "planned", author: "UAB SysPAI",
+    license: "—", pricing: "free",
     requiresKey: false,
-    url: "https://chrome.google.com/webstore",
+    url: "",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: false, connected: false,
     category: "Browser",
     compatibleWith: ["All models"],
     testSteps: [
-      { label: "clip_selection() on PubMed abstract", result: "✓ Title, authors, DOI, abstract, and MeSH terms captured → added to active project" },
-      { label: "clip_structure() on ChEMBL compound page", result: "✓ SMILES, InChI, MW, logP, TPSA extracted → linked to compound asset" },
-      { label: "clip_table() on ClinicalTrials.gov results", result: "✓ 18-row HTML table parsed → CSV asset attached to project" },
-    ],
-    installInstructions: [
-      {
-        title: "Open the Chrome Web Store",
-        note: 'Search for "SmartDrugDiscovery" in the Chrome Web Store and click Add to Chrome.',
-        actionUrl: "https://chrome.google.com/webstore/search/SmartDrugDiscovery",
-        actionLabel: "Open Chrome Web Store →",
-      },
-      {
-        title: "Pin the extension",
-        note: "After installation, click the puzzle icon (🧩) in the Chrome toolbar → find SmartDrugDiscovery → click the pin icon to keep it visible.",
-      },
-      {
-        title: "Sign in with your ORCID",
-        note: "Click the SDD extension icon → Sign in with ORCID. Your projects and active session will sync automatically.",
-      },
-      {
-        title: "Test the clip function",
-        note: 'Visit any PubMed article page, select text, and right-click → "Clip to SDD" or use the keyboard shortcut Ctrl+Shift+C (Mac: ⌘+Shift+C).',
-      },
+      { label: "clip_selection() on PubMed abstract", result: "Simulated example (no live call is made from this page)" },
+      { label: "clip_structure() on ChEMBL compound page", result: "Simulated example (no live call is made from this page)" },
+      { label: "clip_table() on ClinicalTrials.gov results", result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "sdd-powerpoint",
     name: "SmartDrugDiscovery for PowerPoint",
-    description: "Office add-in for generating publication-quality slide decks from your project data — compound dashboards, A1–A10 validation summaries, survival curves, and MCP-pulled literature slides.",
-    type: "source", version: "v0.8 (beta)", author: "UAB SysPAI",
-    license: "Enterprise", pricing: "free",
+    description: "Planned Office add-in for building slides from project data. Not built or published yet.",
+    type: "source", version: "planned", author: "UAB SysPAI",
+    license: "—", pricing: "free",
     requiresKey: false,
-    url: "https://appsource.microsoft.com",
+    url: "",
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
     installed: false, connected: false,
     category: "Office",
     compatibleWith: ["All models"],
     testSteps: [
-      { label: 'generate_slide("BRAF compound validation summary")', result: "✓ 6-slide deck: executive summary, target overview, A1–A10 heatmap, ADMET profile, literature evidence, go/no-go recommendation" },
-      { label: 'export_survival_curve({ project_id: "P-001", format: "pptx" })', result: "✓ Kaplan-Meier chart embedded as editable PowerPoint chart object (not image)" },
-      { label: 'insert_mcp_slide({ source: "pubmed", query: "BRAF V600E resistance mechanisms" })', result: "✓ 1 literature slide with top-3 abstracts, citation table, and key figure placeholder" },
-    ],
-    installInstructions: [
-      {
-        title: "Open Microsoft AppSource",
-        note: 'Search for "SmartDrugDiscovery" in AppSource and click Get it now.',
-        actionUrl: "https://appsource.microsoft.com/en-us/search?search=SmartDrugDiscovery",
-        actionLabel: "Open Microsoft AppSource →",
-      },
-      {
-        title: "Add to PowerPoint",
-        note: "In PowerPoint, go to Insert → Get Add-ins (or My Add-ins) → search for SmartDrugDiscovery → click Add.",
-      },
-      {
-        title: "Activate with your SDD account",
-        note: "The add-in panel will open on the right side of PowerPoint. Sign in with your ORCID credentials to connect to your projects.",
-      },
-      {
-        title: "Generate your first slide deck",
-        note: 'In the SDD panel, choose a project → click "Generate Deck" → select a template (Validation Summary, ADMET Report, or Cohort Analysis). The deck is inserted into your current presentation.',
-      },
+      { label: 'generate_slide("BRAF compound validation summary")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'export_survival_curve({ project_id: "P-001", format: "pptx" })', result: "Simulated example (no live call is made from this page)" },
+      { label: 'insert_mcp_slide({ source: "pubmed", query: "BRAF V600E resistance mechanisms" })', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "frogent-mcp",
-    name: "FROGENT — Drug Design Multi-Agent System",
-    description: "End-to-end drug design via four coordinated MCP agents: Orchestrate (workflow planning), Retrieve (PubMed/PDB/DrugBank/UniProt), Forge (molecule generation: TargetDiff, MolCRAFT, SAFE, DiffSBDD), and Gauge (ADMET + QVina docking + PLIP interaction analysis). Wrap Claude or GPT-4o as the reasoning backbone.",
+    name: "Tool 8 — Multi-agent drug design system",
+    description: "Placeholder for an external multi-agent drug design system that could connect over MCP. Not connected; no claims are made about its performance.",
     type: "mcp",
-    version: "arXiv:2508.10760",
-    author: "FROGENT Lab",
-    license: "Research (arXiv)",
+    version: "—",
+    author: "—",
+    license: "—",
     pricing: "free",
     requiresKey: false,
-    url: "https://arxiv.org/abs/2508.10760",
+    url: "",
     fair: { findable: true, accessible: true, interoperable: true, reusable: false },
     installed: false,
     category: "Agent Systems",
     compatibleWith: ["A1", "A2", "A3", "A4", "A5", "A6"],
     testSteps: [
-      { label: 'orchestrate("Design a BRAF V600E inhibitor with MW < 500, logP < 5")', result: "✓ Workflow planned: retrieve targets → generate scaffolds → dock → filter ADMET → rank by score" },
-      { label: 'retrieve.search_targets("BRAF V600E", databases=["PDB","UniProt","DrugBank"])', result: "✓ PDB: 4MNE, 4RZV · UniProt: P15056 · DrugBank: 12 known inhibitors retrieved" },
-      { label: 'forge.generate_molecules(pocket="4MNE", model="MolCRAFT", n=50)', result: "✓ 50 candidates generated · Top scaffold: vemurafenib-like · Novel scaffold: fused triazine-pyridine" },
-      { label: 'gauge.score(candidates=top10, methods=["ADMET-ai","QVina","PLIP"])', result: "✓ Best candidate: ΔG = -10.2 kcal/mol · ADMET pass · Hinge contacts: T529, C532 · Recommended for synthesis" },
-    ],
-    installInstructions: [
-      {
-        title: "Prerequisites — LLM backbone",
-        note: "FROGENT uses Claude or GPT-4o as its reasoning core. Ensure your Anthropic or OpenAI API key is saved in Settings → API Keys. FROGENT also requires Python ≥ 3.10 and conda.",
-      },
-      {
-        title: "Clone the repository (once public)",
-        code: "# Repository will be released at:\n# https://github.com/frogent-lab/frogent\n# Watch the arXiv paper for the release announcement:\n# https://arxiv.org/abs/2508.10760\n\ngit clone https://github.com/frogent-lab/frogent\ncd frogent\nconda create -n frogent python=3.10 -y && conda activate frogent\npip install -e .",
-        note: "The authors note code release is planned. Star the arXiv paper to get notified.",
-        actionUrl: "https://arxiv.org/abs/2508.10760",
-        actionLabel: "Read the FROGENT paper →",
-      },
-      {
-        title: "Start the MCP server",
-        code: `# Launch FROGENT's four MCP tool servers:\npython -m frogent.mcp.orchestrate --port 8100 &\npython -m frogent.mcp.retrieve    --port 8101 &\npython -m frogent.mcp.forge       --port 8102 &\npython -m frogent.mcp.gauge       --port 8103 &`,
-        note: "Each agent exposes its tools over the Model Context Protocol. Ports are configurable in frogent/config.yaml.",
-      },
-      {
-        title: "Add to Claude Desktop config",
-        code: `{
-  "mcpServers": {
-    "frogent-orchestrate": { "url": "http://localhost:8100/mcp" },
-    "frogent-retrieve":    { "url": "http://localhost:8101/mcp" },
-    "frogent-forge":       { "url": "http://localhost:8102/mcp" },
-    "frogent-gauge":       { "url": "http://localhost:8103/mcp" }
-  }
-}`,
-        note: "After adding this to claude_desktop_config.json, restart Claude Desktop. You will see FROGENT tools in the 🔧 tool selector.",
-      },
+      { label: 'orchestrate("Design a BRAF V600E inhibitor with MW < 500, logP < 5")', result: "Simulated example (no live call is made from this page)" },
+      { label: 'retrieve.search_targets("BRAF V600E", databases=["PDB","UniProt","DrugBank"])', result: "Simulated example (no live call is made from this page)" },
+      { label: 'forge.generate_molecules(pocket="4MNE", model="MolCRAFT", n=50)', result: "Simulated example (no live call is made from this page)" },
+      { label: 'gauge.score(candidates=top10, methods=["ADMET-ai","QVina","PLIP"])', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "drugclip-jupyter",
-    name: "DrugCLIP — Contrastive Virtual Screening",
-    description: "Contrastive learning model that encodes protein binding pockets and drug molecules into a shared 128-dimensional embedding space. Enables ultra-fast virtual screening (up to 10M× faster than docking) by ranking candidates via embedding similarity. Model weights available on HuggingFace; runs locally via Python.",
+    name: "Tool 9 — Virtual screening model",
+    description: "Placeholder for an external virtual-screening model. Not connected; no claims are made about its speed or accuracy.",
     type: "jupyter",
-    version: "NeurIPS 2023 · Science Jan 2026",
-    author: "THU-ATOM (Tsinghua University)",
-    license: "Research (GitHub)",
+    version: "—",
+    author: "—",
+    license: "—",
     pricing: "free",
     requiresKey: false,
-    url: "https://github.com/bowen-gao/DrugCLIP",
+    url: "",
     fair: { findable: true, accessible: true, interoperable: false, reusable: true },
     installed: false,
     category: "Virtual Screening",
     compatibleWith: ["A1", "A3", "A4"],
     testSteps: [
-      { label: 'encode_pocket(pdb="4MNE", chain="A", residues=457-717)', result: "✓ Pocket embedding: 128-dim vector · Active site volume: 812 Å³ · DFG loop conformation: DFG-in" },
-      { label: 'screen_library(pocket_emb, library="ZINC250k", top_k=100)', result: "✓ 250,000 candidates screened in 0.8 s · Top hit similarity: 0.94 · 100 candidates returned for docking" },
-      { label: 'rank_candidates(candidates=top100, metric="cosine_similarity")', result: "✓ Rank 1: ZINC000001234567 (sim 0.941) · MW 432 · logP 3.1 · Passes Lipinski · Ready for QVina" },
-    ],
-    installInstructions: [
-      {
-        title: "Clone the DrugCLIP repository",
-        code: "git clone https://github.com/bowen-gao/DrugCLIP\ncd DrugCLIP",
-        actionUrl: "https://github.com/bowen-gao/DrugCLIP",
-        actionLabel: "View on GitHub →",
-      },
-      {
-        title: "Create conda environment and install dependencies",
-        code: "conda create -n drugclip python=3.9 -y\nconda activate drugclip\npip install torch torchvision --index-url https://download.pytorch.org/whl/cu118\npip install rdkit biopython lmdb tqdm numpy pandas",
-        note: "Requires CUDA GPU recommended for large library screening. CPU works for small libraries (<10K compounds).",
-      },
-      {
-        title: "Download pretrained model weights from HuggingFace",
-        code: "# Install HuggingFace datasets CLI\npip install datasets huggingface_hub\n\n# Download DrugCLIP weights\npython -c \"\nfrom huggingface_hub import snapshot_download\nsnapshot_download(\n  repo_id='THU-ATOM/DrugCLIP_data',\n  repo_type='dataset',\n  local_dir='./weights'\n)\"",
-        actionUrl: "https://huggingface.co/datasets/THU-ATOM/DrugCLIP_data",
-        actionLabel: "View weights on HuggingFace →",
-      },
-      {
-        title: "Prepare your protein pocket",
-        code: "# Extract binding pocket from PDB file\npython pocket_from_pdb.py \\\n  --pdb_folder ./pdb_files \\\n  --name my_target_pocket\n\n# This creates an LMDB database of pocket features",
-        note: "Input: PDB file(s) of your target protein. Output: LMDB pocket database for fast screening.",
-      },
-      {
-        title: "Run virtual screening",
-        code: "python screen.py \\\n  --model_path ./weights/drugclip_model.pt \\\n  --pocket_lmdb ./my_target_pocket.lmdb \\\n  --library_smiles ./compound_library.smi \\\n  --top_k 1000 \\\n  --output ./screening_results.csv",
-        note: "Output CSV contains compound SMILES, similarity scores, and ranking. Top hits can be passed directly to AutoDock Vina (also available in Tool Plugins) for confirmatory docking.",
-      },
+      { label: 'encode_pocket(pdb="4MNE", chain="A", residues=457-717)', result: "Simulated example (no live call is made from this page)" },
+      { label: 'screen_library(pocket_emb, library="ZINC250k", top_k=100)', result: "Simulated example (no live call is made from this page)" },
+      { label: 'rank_candidates(candidates=top100, metric="cosine_similarity")', result: "Simulated example (no live call is made from this page)" },
     ],
   },
   {
     id: "talent-kg",
     name: "Talent Knowledge Graph",
-    description: "Query researcher profiles, skills, availability, and project history to build optimal drug discovery teams from structured data",
+    description: "Planned MCP server for researcher skills and availability. Not built yet; no real people are listed.",
     type: "mcp",
-    version: "v1.0.0",
+    version: "planned",
     author: "UAB SysPAI",
-    license: "Internal",
-    url: "mcp://talent-kg.syspai.uab.edu",
+    license: "—",
+    url: "",
     pricing: "free",
     requiresKey: false,
     fair: { findable: true, accessible: true, interoperable: true, reusable: true },
@@ -591,35 +362,9 @@ print(hubs)`,
     category: "People & Teams",
     compatibleWith: ["All models"],
     testSteps: [
-      { label: 'search_experts({ skill: "BRAF kinase inhibitor" })', result: "3 matches: Dr. Sarah Chen (95%), Dr. Raj Patel (88%), Dr. Elena Vasquez (82%)" },
-      { label: 'get_availability({ person_ids: ["SC","RP"] })', result: "Sarah Chen: Available (80% capacity) · Raj Patel: Available (60% capacity)" },
-      { label: 'get_project_history({ person_id: "SC" })', result: "5 oncology programs: BRAF (lead), EGFR, KRAS, CDK4/6, MEK — all IND-stage or later" },
-    ],
-    installInstructions: [
-      {
-        title: "Add to Claude Desktop config",
-        code: `{
-  "mcpServers": {
-    "talent-kg": {
-      "command": "npx",
-      "args": ["-y", "@uab-syspai/talent-kg-mcp"],
-      "env": {
-        "TALENT_KG_ENDPOINT": "https://talent-kg.syspai.uab.edu",
-        "TALENT_KG_TOKEN": "<your-institutional-token>"
-      }
-    }
-  }
-}`,
-        note: 'Open claude_desktop_config.json and merge this block. Replace <your-institutional-token> with the token from your IT administrator.',
-      },
-      {
-        title: "Obtain your institutional token",
-        note: "Contact UAB SysPAI IT (syspai-it@uab.edu) to request a Talent KG access token. Tokens are issued per-user and linked to your ORCID identity.",
-      },
-      {
-        title: "Restart Claude Desktop",
-        note: "Quit and relaunch Claude Desktop. The talent_kg tools will appear in the tool selector in your next conversation.",
-      },
+      { label: 'search_experts({ skill: "BRAF kinase inhibitor" })', result: "Simulated example (no live call is made from this page)" },
+      { label: 'get_availability({ person_ids: ["SC","RP"] })', result: "Simulated example (no live call is made from this page)" },
+      { label: 'get_project_history({ person_id: "SC" })', result: "Simulated example (no live call is made from this page)" },
     ],
   },
 ];
@@ -810,7 +555,7 @@ function TestModal({ plugin, onClose }: { plugin: Plugin; onClose: () => void })
           <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">Test — {plugin.name}</p>
-            <p className="text-xs text-muted-foreground">{plugin.connectedTools?.length ?? "?"} tools · running live test query</p>
+            <p className="text-xs text-muted-foreground">{plugin.connectedTools?.length ?? "?"} tools · example output, not a live call</p>
           </div>
           <button onClick={onClose} className="rounded-md p-1.5 hover:bg-muted transition-colors text-muted-foreground">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
