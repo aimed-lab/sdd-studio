@@ -50,31 +50,31 @@ interface MarketData {
 }
 
 const competitors: Competitor[] = [
-  { company: "Pfizer", drug: "PF-07284892", target: "BRAF V600E", indication: "Melanoma", stage: "Phase 2", mechanism: "Next-gen BRAF inhibitor", status: "active", lastUpdate: "Jan 2026" },
-  { company: "Roche", drug: "RG7440", target: "BRAF/MEK", indication: "Melanoma", stage: "Phase 3", mechanism: "BRAF+MEK combo", status: "active", lastUpdate: "Dec 2025" },
-  { company: "AstraZeneca", drug: "AZD3759", target: "EGFR", indication: "NSCLC (brain mets)", stage: "Phase 2", mechanism: "BBB-penetrant EGFR TKI", status: "active", lastUpdate: "Feb 2026" },
-  { company: "Novartis", drug: "NVS-TAU-001", target: "Tau", indication: "Alzheimer's", stage: "Phase 1", mechanism: "Tau aggregation inhibitor", status: "active", lastUpdate: "Mar 2026" },
-  { company: "Eli Lilly", drug: "Donanemab", target: "Amyloid-\u03B2", indication: "Alzheimer's", stage: "Approved", mechanism: "Anti-amyloid antibody", status: "approved", lastUpdate: "Jul 2024" },
-  { company: "Incyte", drug: "Ruxolitinib (Jakafi)", target: "JAK1/2", indication: "Myelofibrosis", stage: "Approved", mechanism: "JAK1/2 inhibitor", status: "approved", lastUpdate: "Nov 2011" },
-  { company: "BMS", drug: "BMS-986399", target: "JAK2", indication: "MPN", stage: "Phase 1", mechanism: "Selective JAK2", status: "active", lastUpdate: "Nov 2025" },
-  { company: "Merck", drug: "MK-1026", target: "EGFR C797S", indication: "NSCLC", stage: "Phase 1", mechanism: "4th-gen EGFR TKI", status: "discontinued", lastUpdate: "Sep 2025" },
+  { company: "Company A", drug: "Competitor asset 1", target: "BRAF V600E", indication: "Melanoma", stage: "Phase 2", mechanism: "Next-gen BRAF inhibitor", status: "active", lastUpdate: "Q? 20??" },
+  { company: "Company B", drug: "Competitor asset 2", target: "BRAF/MEK", indication: "Melanoma", stage: "Phase 3", mechanism: "BRAF+MEK combo", status: "active", lastUpdate: "Q? 20??" },
+  { company: "Company C", drug: "Competitor asset 3", target: "EGFR", indication: "NSCLC (brain mets)", stage: "Phase 2", mechanism: "BBB-penetrant EGFR TKI", status: "active", lastUpdate: "Q? 20??" },
+  { company: "Company D", drug: "Competitor asset 4", target: "Tau", indication: "Alzheimer's", stage: "Phase 1", mechanism: "Tau aggregation inhibitor", status: "active", lastUpdate: "Q? 20??" },
+  { company: "Company E", drug: "Competitor asset 5", target: "Amyloid-\u03B2", indication: "Alzheimer's", stage: "Approved", mechanism: "Anti-amyloid antibody", status: "approved", lastUpdate: "Q? 20??" },
+  { company: "Company F", drug: "Competitor asset 6", target: "JAK1/2", indication: "Myelofibrosis", stage: "Approved", mechanism: "JAK1/2 inhibitor", status: "approved", lastUpdate: "Q? 20??" },
+  { company: "Company G", drug: "Competitor asset 7", target: "JAK2", indication: "MPN", stage: "Phase 1", mechanism: "Selective JAK2", status: "active", lastUpdate: "Q? 20??" },
+  { company: "Company H", drug: "Competitor asset 8", target: "EGFR C797S", indication: "NSCLC", stage: "Phase 1", mechanism: "4th-gen EGFR TKI", status: "discontinued", lastUpdate: "Q? 20??" },
 ];
 
 const patents: Patent[] = [
-  { id: "US11234567B2", title: "Substituted pyrrolo[2,3-b]pyridines as BRAF inhibitors", assignee: "PharmaTech Research", filingDate: "2023-06-15", expiryDate: "2043-06-15", status: "active", relevantTo: "BRAF Inhibitor Program", claims: 24 },
-  { id: "US11345678B2", title: "7-Azaindole derivatives for kinase inhibition", assignee: "PharmaTech Research", filingDate: "2024-01-20", expiryDate: "2044-01-20", status: "pending", relevantTo: "BRAF Inhibitor Program", claims: 18 },
-  { id: "WO2024/123456", title: "Novel tau phosphorylation inhibitors", assignee: "PharmaTech Research", filingDate: "2024-03-10", expiryDate: "2044-03-10", status: "pending", relevantTo: "Alzheimer's Tau Program", claims: 12 },
-  { id: "US10987654B2", title: "BRAF V600E selective inhibitor compositions", assignee: "Pfizer Inc.", filingDate: "2021-09-01", expiryDate: "2041-09-01", status: "active", relevantTo: "Competitive", claims: 32 },
-  { id: "EP3456789A1", title: "JAK2 selective inhibitors and methods", assignee: "Incyte Corp.", filingDate: "2019-04-15", expiryDate: "2039-04-15", status: "active", relevantTo: "JAK2 Inhibitor Optimization", claims: 28 },
-  { id: "US9876543B2", title: "EGFR T790M mutation targeting compounds", assignee: "AstraZeneca AB", filingDate: "2017-11-20", expiryDate: "2037-11-20", status: "active", relevantTo: "EGFR-T790M Resistance Program", claims: 36 },
+  { id: "Patent 1", title: "Substituted pyrrolo[2,3-b]pyridines as BRAF inhibitors", assignee: "PharmaTech Research", filingDate: "—", expiryDate: "—", status: "active", relevantTo: "BRAF Inhibitor Program", claims: 24 },
+  { id: "Patent 2", title: "7-Azaindole derivatives for kinase inhibition", assignee: "PharmaTech Research", filingDate: "—", expiryDate: "—", status: "pending", relevantTo: "BRAF Inhibitor Program", claims: 18 },
+  { id: "Patent 3", title: "Novel tau phosphorylation inhibitors", assignee: "PharmaTech Research", filingDate: "—", expiryDate: "—", status: "pending", relevantTo: "Alzheimer's Tau Program", claims: 12 },
+  { id: "Patent 4", title: "BRAF V600E selective inhibitor compositions", assignee: "Competitor 4", filingDate: "—", expiryDate: "—", status: "active", relevantTo: "Competitive", claims: 32 },
+  { id: "Patent 5", title: "JAK2 selective inhibitors and methods", assignee: "Competitor 5", filingDate: "—", expiryDate: "—", status: "active", relevantTo: "JAK2 Inhibitor Optimization", claims: 28 },
+  { id: "Patent 6", title: "EGFR T790M mutation targeting compounds", assignee: "Competitor 6", filingDate: "—", expiryDate: "—", status: "active", relevantTo: "EGFR-T790M Resistance Program", claims: 36 },
 ];
 
 const marketData: MarketData[] = [
-  { indication: "Metastatic Melanoma", marketSize: "$8.2B", cagr: "7.3%", topDrug: "Keytruda", topDrugRevenue: "$3.8B", unmetNeed: "Resistance to targeted therapy", ourProgram: "BRAF Inhibitor Program" },
-  { indication: "Alzheimer's Disease", marketSize: "$12.1B", cagr: "15.2%", topDrug: "Leqembi", topDrugRevenue: "$1.2B", unmetNeed: "Disease modification in early stages", ourProgram: "Alzheimer's Tau Program" },
-  { indication: "Myeloproliferative Neoplasms", marketSize: "$3.4B", cagr: "6.1%", topDrug: "Jakafi", topDrugRevenue: "$2.5B", unmetNeed: "Disease-modifying therapy", ourProgram: "JAK2 Inhibitor Optimization" },
-  { indication: "NSCLC (EGFR-mutant)", marketSize: "$15.6B", cagr: "8.9%", topDrug: "Tagrisso", topDrugRevenue: "$5.8B", unmetNeed: "Resistance to 3rd-gen TKIs", ourProgram: "EGFR-T790M Resistance Program" },
-  { indication: "Rheumatoid Arthritis", marketSize: "$28.4B", cagr: "4.2%", topDrug: "Humira/biosimilars", topDrugRevenue: "$4.1B", unmetNeed: "Oral targeted therapy", ourProgram: "\u2014" },
+  { indication: "Metastatic Melanoma", marketSize: "—", cagr: "—", topDrug: "—", topDrugRevenue: "—", unmetNeed: "Resistance to targeted therapy", ourProgram: "BRAF Inhibitor Program" },
+  { indication: "Alzheimer's Disease", marketSize: "—", cagr: "—", topDrug: "—", topDrugRevenue: "—", unmetNeed: "Disease modification in early stages", ourProgram: "Alzheimer's Tau Program" },
+  { indication: "Myeloproliferative Neoplasms", marketSize: "—", cagr: "—", topDrug: "—", topDrugRevenue: "—", unmetNeed: "Disease-modifying therapy", ourProgram: "JAK2 Inhibitor Optimization" },
+  { indication: "NSCLC (EGFR-mutant)", marketSize: "—", cagr: "—", topDrug: "—", topDrugRevenue: "—", unmetNeed: "Resistance to 3rd-gen TKIs", ourProgram: "EGFR-T790M Resistance Program" },
+  { indication: "Rheumatoid Arthritis", marketSize: "—", cagr: "—", topDrug: "—", topDrugRevenue: "—", unmetNeed: "Oral targeted therapy", ourProgram: "\u2014" },
 ];
 
 const indicationFilters = ["All", "Melanoma", "Alzheimer's", "MPN", "NSCLC"];

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { cn } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/data-provenance";
 
-type Quarter = "Q1 2026" | "Q2 2026" | "Q3 2026" | "Q4 2026";
+type Quarter = "Q? 20??";
 type Subject = "person" | "agent" | "team";
 
 interface Review {
@@ -22,9 +22,9 @@ interface Review {
 const reviews: Review[] = [
   {
     id: "rev-001",
-    subject: "Dr. Sarah Chen",
+    subject: "Scientist 1",
     type: "person",
-    quarter: "Q1 2026",
+    quarter: "Q? 20??",
     goalsSet: 5,
     goalsMet: 5,
     highlights: ["Completed BRAF lead optimization ahead of schedule", "Published 2 first-author papers", "Mentored 2 postdocs"],
@@ -33,9 +33,9 @@ const reviews: Review[] = [
   },
   {
     id: "rev-002",
-    subject: "Dr. James Wilson",
+    subject: "Scientist 4",
     type: "person",
-    quarter: "Q1 2026",
+    quarter: "Q? 20??",
     goalsSet: 4,
     goalsMet: 3,
     highlights: ["Hit-to-lead completed for Tau program", "Established BACE1 SAR"],
@@ -46,7 +46,7 @@ const reviews: Review[] = [
     id: "rev-003",
     subject: "Drug-GPT Agent",
     type: "agent",
-    quarter: "Q1 2026",
+    quarter: "Q? 20??",
     goalsSet: 8,
     goalsMet: 7,
     highlights: ["Generated 1,240 novel SMILES candidates", "ADMET accuracy 89% vs. wet lab", "Zero hallucinated structures"],
@@ -57,7 +57,7 @@ const reviews: Review[] = [
     id: "rev-004",
     subject: "Literature Bot",
     type: "agent",
-    quarter: "Q1 2026",
+    quarter: "Q? 20??",
     goalsSet: 6,
     goalsMet: 4,
     highlights: ["Indexed 12,400 papers", "Surfaced 3 novel target hypotheses"],
@@ -68,7 +68,7 @@ const reviews: Review[] = [
     id: "rev-005",
     subject: "Oncology Team",
     type: "team",
-    quarter: "Q1 2026",
+    quarter: "Q? 20??",
     goalsSet: 10,
     goalsMet: 9,
     highlights: ["BRAF candidate nominated", "EGFR IND accepted", "Zero safety incidents"],
@@ -79,7 +79,7 @@ const reviews: Review[] = [
     id: "rev-006",
     subject: "Neurology Team",
     type: "team",
-    quarter: "Q1 2026",
+    quarter: "Q? 20??",
     goalsSet: 8,
     goalsMet: 5,
     highlights: ["Tau hit-to-lead milestone met", "Established cryo-EM pipeline"],
@@ -105,7 +105,7 @@ export default function PerformancePage() {
     <div className="p-6 md:p-8 space-y-6 max-w-5xl">
       <div>
         <h1 className="text-2xl font-bold">Performance Evaluations</h1>
-        <p className="text-muted-foreground text-sm mt-1">Quarterly reviews for persons, AI agents, and teams — Q1 2026</p>
+        <p className="text-muted-foreground text-sm mt-1">Quarterly reviews for persons, AI agents, and teams — Q? 20??</p>
       </div>
 
       <DemoDataNotice />

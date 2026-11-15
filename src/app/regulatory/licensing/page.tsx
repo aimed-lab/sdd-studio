@@ -49,7 +49,7 @@ const licenseAssets: LicenseAsset[] = [
     fairScore: [true, true, false, true],
     compliance: "Partial",
     owner: "UAB SPARC",
-    expiry: "2028-12-31",
+    expiry: "—",
   },
   {
     asset: "BRAF Compound Library",
@@ -58,7 +58,7 @@ const licenseAssets: LicenseAsset[] = [
     fairScore: [true, true, false, false],
     compliance: "Internal only",
     owner: "PharmaTech",
-    expiry: "2027-06-30",
+    expiry: "—",
   },
   {
     asset: "GeneTerrain GTKM",
@@ -84,8 +84,8 @@ const licenseAssets: LicenseAsset[] = [
     license: "IRB Restricted",
     fairScore: [true, false, false, false],
     compliance: "Restricted",
-    owner: "UAB IRB",
-    expiry: "2030-12-31",
+    owner: "Institution A IRB",
+    expiry: "—",
   },
   {
     asset: "PharmAlchemy KB",
