@@ -16,6 +16,9 @@ export interface ResistanceMechanism {
 
 export const EGFR_RESISTANCE_REVIEWED = "2026-11-14";
 
+// Set to true only after a person has reviewed every plainLanguage sentence (#62).
+export const PLAIN_LANGUAGE_HUMAN_REVIEWED = false;
+
 const AI_CURATOR = "AI-curated (Claude), checked against the PubMed abstract";
 
 export const egfrResistance: ResistanceMechanism[] = [

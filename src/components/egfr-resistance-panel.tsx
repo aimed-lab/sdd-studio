@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CuratedLabel } from "@/components/data-provenance";
 import { ExportCsvButton } from "@/components/export-csv-button";
-import { EGFR_RESISTANCE_REVIEWED, egfrResistance } from "@/data/curated/egfr-resistance";
+import { EGFR_RESISTANCE_REVIEWED, PLAIN_LANGUAGE_HUMAN_REVIEWED, egfrResistance } from "@/data/curated/egfr-resistance";
 
 const csvRows = egfrResistance.map((r) => ({
   data_status: "curated, cited",
@@ -13,7 +13,7 @@ const csvRows = egfrResistance.map((r) => ({
   mechanism: r.mechanism,
   affects: r.affects,
   evidence_as_reported: r.evidence,
-  plain_language: r.plainLanguage,
+  ...(PLAIN_LANGUAGE_HUMAN_REVIEWED ? { plain_language: r.plainLanguage } : {}),
   supporting_excerpt: r.excerpt,
   pmid: r.citation.pmid,
   doi: r.citation.doi,
@@ -36,14 +36,16 @@ export function EgfrResistancePanel() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <CuratedLabel reviewed={EGFR_RESISTANCE_REVIEWED} />
-          <button
-            type="button"
-            onClick={() => setPlain((p) => !p)}
-            aria-pressed={plain}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted"
-          >
-            {plain ? "Show technical detail" : "Plain language"}
-          </button>
+          {PLAIN_LANGUAGE_HUMAN_REVIEWED && (
+            <button
+              type="button"
+              onClick={() => setPlain((p) => !p)}
+              aria-pressed={plain}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted"
+            >
+              {plain ? "Show technical detail" : "Plain language"}
+            </button>
+          )}
           <ExportCsvButton
             rows={csvRows}
             filename="egfr-resistance-curated"
