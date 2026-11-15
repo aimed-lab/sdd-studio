@@ -54,6 +54,14 @@ export const pageClasses: Record<string, PageClass> = {
   "/models": { kind: "planned" },
   "/services": { kind: "planned" },
   "/plugins": { kind: "planned" },
+  "/targets/[gene]": {
+    kind: "mixed",
+    sections: [
+      { label: "Identity: UniProt, HGNC and ChEMBL target IDs, class (curated registry; HGNC live for other genes)", kind: "curated" },
+      { label: "Open Targets evidence, ChEMBL approved drugs and trial searches", kind: "live" },
+      { label: "Program fields (members only)", kind: "demo" },
+    ],
+  },
   "/projects/team": { kind: "app" },
   "/admin": { kind: "app" },
   "/settings": { kind: "app" },
@@ -62,4 +70,11 @@ export const pageClasses: Record<string, PageClass> = {
   "/login": { kind: "app" },
 };
 
-export const pageClassFor = (path: string): PageClass | undefined => pageClasses[path];
+/** Exact route first, then dynamic routes such as "/targets/[gene]" (one segment per bracket). */
+export const pageClassFor = (path: string): PageClass | undefined =>
+  pageClasses[path] ??
+  Object.entries(pageClasses).find(([route]) => {
+    if (!route.includes("[")) return false;
+    const re = new RegExp("^" + route.replace(/\[[^\]]+\]/g, "[^/]+") + "$");
+    return re.test(path);
+  })?.[1];

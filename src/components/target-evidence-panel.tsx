@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { DataClassBadge } from "@/components/data-provenance";
 
@@ -26,14 +26,11 @@ const fmt = (n: number) => n.toFixed(2);
 const datatypeLabel = (id: string) => id.replace(/_/g, " ");
 
 /** Open Targets evidence for one gene, fetched from /api/target-evidence when first expanded. */
-export function TargetEvidencePanel({ gene }: { gene: string }) {
+export function TargetEvidencePanel({ gene, initiallyOpen = false }: { gene: string; initiallyOpen?: boolean }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>({ status: "idle" });
 
-  const toggle = async () => {
-    const next = !open;
-    setOpen(next);
-    if (!next || state.status === "ok" || state.status === "loading") return;
+  const load = async () => {
     setState({ status: "loading" });
     try {
       const res = await fetch(`/api/target-evidence?gene=${encodeURIComponent(gene)}`);
@@ -43,6 +40,21 @@ export function TargetEvidencePanel({ gene }: { gene: string }) {
     } catch {
       setState({ status: "error", message: "Could not reach this site's API." });
     }
+  };
+
+  // Detail pages open the panel on load; cards keep it collapsed until asked.
+  useEffect(() => {
+    if (!initiallyOpen) return;
+    setOpen(true);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initiallyOpen, gene]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (!next || state.status === "ok" || state.status === "loading") return;
+    load();
   };
 
   const panelId = `ot-evidence-${gene}`;
