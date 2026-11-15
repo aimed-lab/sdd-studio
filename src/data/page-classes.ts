@@ -14,6 +14,7 @@ export const pageClasses: Record<string, PageClass> = {
     kind: "mixed",
     sections: [
       { label: "Gene, protein name, organism, class and accession (UniProtKB); reference-compound counts (ChEMBL); EGFR resistance table (PubMed)", kind: "curated" },
+      { label: "Evidence panel: disease associations and tractability (Open Targets Platform)", kind: "live" },
       { label: "Target IDs (TGT-…) and program disease areas", kind: "demo" },
     ],
   },

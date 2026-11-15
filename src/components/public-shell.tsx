@@ -49,7 +49,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <p className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground md:px-8">
-            Public read-only view: live data from ChEMBL and ClinicalTrials.gov, and a PubMed-cited curated set. Every
+            Public read-only view: live data from ChEMBL, ClinicalTrials.gov and Open Targets, and a PubMed-cited curated set. Every
             result shows its source and retrieval time. Members can sign in for the full workspace.
           </p>
         </header>
