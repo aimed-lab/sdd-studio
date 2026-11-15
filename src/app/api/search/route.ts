@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
   if (!q) return badRequest("Query parameter 'q' (or 'ids') is required");
   if (INCHIKEY.test(q) || looksLikeSmiles(q)) {
     return badRequest(
-      "This looks like a chemical structure (SMILES or InChIKey). Structure search isn't supported yet; search by compound name, synonym or ChEMBL ID."
+      "This looks like a chemical structure (SMILES or InChIKey). Use Structure mode on /search (or GET /api/structure?smiles=…) for similarity or substructure search; name search takes compound names, synonyms or ChEMBL IDs."
     );
   }
   if (q.length > MAX_QUERY_LENGTH) return badRequest(`Query is too long (max ${MAX_QUERY_LENGTH} characters)`);

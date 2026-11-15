@@ -46,16 +46,25 @@ jobs:
           # Ratio, not absolute totals (they drift daily): the default may drop under 1% of trials.
           awk -v on="$on" -v off="$off" 'BEGIN { exit !(off > 0 && on / off >= 0.99) }'
 
+      - name: ChEMBL similarity via /api/structure (#72)
+        id: structure
+        continue-on-error: true
+        run: |
+          smi='Cc1ccc(NC(=O)c2ccc(CN3CCN(C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1'
+          body=$(curl -sS --fail-with-body --max-time 30 -G "$BASE_URL/api/structure" --data-urlencode "smiles=$smi" --data-urlencode "threshold=90") || { echo "$body"; exit 1; }
+          echo "$body" | jq -e '.state == "ok" and .results[0].chemblId == "CHEMBL941"' > /dev/null
+
       - name: Report failures
-        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure' || steps.disambig.outcome == 'failure'
+        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure' || steps.disambig.outcome == 'failure' || steps.structure.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHEMBL: ${{ steps.chembl.outcome }}
           CTGOV: ${{ steps.ctgov.outcome }}
           DISAMBIG: ${{ steps.disambig.outcome }}
+          STRUCTURE: ${{ steps.structure.outcome }}
         run: |
           title="Upstream smoke test failing"
-          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV, EGFR disambiguation recall=$DISAMBIG. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV, EGFR disambiguation recall=$DISAMBIG, structure search=$STRUCTURE. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number -q '.[0].number')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$msg"
