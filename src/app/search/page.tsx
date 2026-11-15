@@ -8,6 +8,7 @@ import { ExportCsvButton } from "@/components/export-csv-button";
 import { SourceLine } from "@/components/data-provenance";
 import { MoleculeViewer } from "@/components/molecule-viewer";
 import { CompoundDetail } from "./compound-detail";
+import { StructureSearch } from "./structure-search";
 import { cn } from "@/lib/utils";
 
 interface SearchResult {
@@ -41,7 +42,7 @@ const COLUMNS: [string, string][] = [
   ["Name", "ChEMBL preferred name"],
   ["Type", "ChEMBL molecule type"],
   ["MW", `Molecular weight in g/mol (full molecule). ${CHEMBL_CALC}`],
-  ["ALogP", `Calculated octanol–water partition coefficient (Ghose–Crippen ALogP). ${CHEMBL_CALC}`],
+  ["ALogP", `Calculated octanol–water partition coefficient (ALogP, Wildman–Crippen atomic contributions, 1999, per ChEMBL documentation). ${CHEMBL_CALC}`],
   ["HBA/HBD", `Hydrogen-bond acceptors / donors, ChEMBL convention (not Lipinski counts). ${CHEMBL_CALC}`],
   ["PSA", `Polar surface area in Å². ${CHEMBL_CALC}`],
   ["QED", `Quantitative estimate of drug-likeness, 0–1 (weighted). ${CHEMBL_CALC}`],
@@ -63,6 +64,9 @@ function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialQuery = searchParams.get("q") ?? "";
+  const searchMode = searchParams.get("mode") === "structure" ? "structure" : "name";
+  const setSearchMode = (m: "name" | "structure") =>
+    router.replace(m === "structure" ? "/search?mode=structure" : "/search", { scroll: false });
   const [query, setQuery] = useState(initialQuery);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState("");
@@ -129,6 +133,28 @@ function SearchContent() {
           Live compound search against the EMBL-EBI ChEMBL database
         </p>
       </div>
+
+      <div role="tablist" aria-label="Search by" className="inline-flex rounded-md border p-1 text-sm">
+        {(["name", "structure"] as const).map((m) => (
+          <button
+            key={m}
+            role="tab"
+            aria-selected={searchMode === m}
+            onClick={() => setSearchMode(m)}
+            className={cn(
+              "rounded px-3 py-1.5 font-medium transition-colors",
+              searchMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {m === "name" ? "Name or ChEMBL ID" : "Structure (SMILES)"}
+          </button>
+        ))}
+      </div>
+
+      {searchMode === "structure" ? (
+        <StructureSearch initialSmiles={searchParams.get("smiles") ?? ""} />
+      ) : (
+        <>
 
       <Card>
         <CardHeader>
@@ -332,6 +358,8 @@ function SearchContent() {
             </div>
           </CardContent>
         </Card>
+      )}
+        </>
       )}
     </div>
   );
