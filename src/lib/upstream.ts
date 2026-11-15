@@ -4,12 +4,18 @@ export const MAX_QUERY_LENGTH = 100;
 
 const USER_AGENT = "SmartDrugDiscovery/1.0 (+https://studio.smartdrugdiscovery.org)";
 
+export interface DataRelease {
+  version: string;
+  date: string | null;
+}
+
 export interface Provenance {
   name: string;
   url: string;
   queryUrl: string;
   retrieved: string;
   cacheTtlSeconds: number;
+  release?: DataRelease;
 }
 
 export class UpstreamError extends Error {}
@@ -79,4 +85,37 @@ export function rejectUnknownParams(params: URLSearchParams, allowed: readonly s
   return unknown.length
     ? badRequest(`Unknown parameter${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}. Allowed: ${allowed.join(", ")}`)
     : null;
+}
+
+/** Shared-cache header for successful public GETs: the CDN serves repeats without invoking a function. */
+export const PUBLIC_CACHE_HEADERS = { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" };
+
+const DAY = 24 * 60 * 60;
+
+/** ChEMBL release (e.g. ChEMBL_37). Returns null on failure so callers never fail because of it. */
+export async function chemblRelease(): Promise<DataRelease | null> {
+  try {
+    const { data } = await fetchUpstream<{ chembl_db_version?: string; chembl_release_date?: string }>(
+      { name: "ChEMBL", url: "https://www.ebi.ac.uk/chembl/" },
+      "https://www.ebi.ac.uk/chembl/api/data/status.json",
+      { ttlSeconds: DAY, timeoutMs: 4000 }
+    );
+    return data.chembl_db_version ? { version: data.chembl_db_version, date: data.chembl_release_date ?? null } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** ClinicalTrials.gov API version and data timestamp. Returns null on failure. */
+export async function ctgovRelease(): Promise<DataRelease | null> {
+  try {
+    const { data } = await fetchUpstream<{ apiVersion?: string; dataTimestamp?: string }>(
+      { name: "ClinicalTrials.gov API v2", url: "https://clinicaltrials.gov/" },
+      "https://clinicaltrials.gov/api/v2/version",
+      { ttlSeconds: DAY, timeoutMs: 4000 }
+    );
+    return data.apiVersion ? { version: `API ${data.apiVersion}`, date: data.dataTimestamp ?? null } : null;
+  } catch {
+    return null;
+  }
 }

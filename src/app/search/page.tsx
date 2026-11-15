@@ -1,15 +1,20 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { SourceLine } from "@/components/data-provenance";
 import { MoleculeViewer } from "@/components/molecule-viewer";
+import { CompoundDetail } from "./compound-detail";
 import { cn } from "@/lib/utils";
 
 interface SearchResult {
   chemblId: string;
+  parentChemblId: string | null;
+  isSalt: boolean;
+  inchiKey: string | null;
   name: string;
   smiles: string | null;
   mw: number | null;
@@ -26,6 +31,7 @@ interface SourceInfo {
   name: string;
   url: string;
   retrieved: string;
+  release?: { version: string; date: string | null };
 }
 
 const CHEMBL_CALC = "Calculated by ChEMBL for the parent structure";
@@ -40,6 +46,7 @@ const COLUMNS: [string, string][] = [
   ["PSA", `Polar surface area in Å². ${CHEMBL_CALC}`],
   ["QED", `Quantitative estimate of drug-likeness, 0–1 (weighted). ${CHEMBL_CALC}`],
   ["Phase", "Highest development phase recorded in ChEMBL (max_phase)"],
+  ["Details", "Mechanism of action and bioactivity from ChEMBL, loaded when you open it"],
 ];
 
 const fmt = (v: number | null, digits: number) => (v === null ? "—" : v.toFixed(digits));
@@ -57,6 +64,7 @@ function SearchContent() {
   const router = useRouter();
   const initialQuery = searchParams.get("q") ?? "";
   const [query, setQuery] = useState(initialQuery);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
@@ -195,7 +203,8 @@ function SearchContent() {
                   </thead>
                   <tbody className="divide-y">
                     {results.map((r) => (
-                      <tr key={r.chemblId} className="hover:bg-muted/50 transition-colors">
+                      <Fragment key={r.chemblId}>
+                      <tr className="hover:bg-muted/50 transition-colors">
                         <td className="px-4 py-2">
                           {r.smiles ? (
                             <div title={r.smiles}>
@@ -211,12 +220,43 @@ function SearchContent() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline"
+                            title={r.inchiKey ? `InChIKey ${r.inchiKey}` : undefined}
                           >
                             {r.chemblId}
                           </a>
+                          {r.smiles && /^CHEMBL\d+$/.test(r.chemblId) && (
+                            <a
+                              href={`https://www.ebi.ac.uk/chembl/api/data/molecule/${r.chemblId}.sdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 font-sans text-xs text-muted-foreground hover:underline"
+                              title="Download the structure as an SDF/molfile from ChEMBL"
+                            >
+                              SDF
+                            </a>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm font-medium">
                           {r.name === r.chemblId ? <span className="text-muted-foreground italic">(unnamed)</span> : r.name}
+                          {r.isSalt && r.parentChemblId ? (
+                            <div className="text-xs font-normal text-muted-foreground">
+                              Salt of{" "}
+                              <Link href={`/search?q=${r.parentChemblId}`} className="text-primary hover:underline">
+                                {r.parentChemblId}
+                              </Link>
+                            </div>
+                          ) : (
+                            r.name !== r.chemblId && (
+                              <div className="text-xs font-normal">
+                                <Link
+                                  href={`/clinical/trials?intervention=${encodeURIComponent(r.name)}`}
+                                  className="text-primary hover:underline"
+                                >
+                                  Trials for {r.name.toLowerCase()}
+                                </Link>
+                              </div>
+                            )
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{r.moleculeType}</td>
                         <td className="px-4 py-3 text-sm tabular-nums">{fmt(r.mw, 2)}</td>
@@ -231,13 +271,41 @@ function SearchContent() {
                             {phaseLabel(r.maxPhase)}
                           </span>
                         </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            aria-expanded={expanded === r.chemblId}
+                            onClick={() => setExpanded(expanded === r.chemblId ? null : r.chemblId)}
+                            className="whitespace-nowrap text-sm text-primary hover:underline"
+                          >
+                            {expanded === r.chemblId ? "Hide" : "Mechanism & activity"}
+                          </button>
+                        </td>
                       </tr>
+                      {expanded === r.chemblId && (
+                        <tr className="bg-muted/30">
+                          <td colSpan={COLUMNS.length} className="px-4 py-4">
+                            <CompoundDetail chemblId={r.chemblId} />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                {source && <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />}
+                {source && (
+                  <div className="text-xs text-muted-foreground">
+                    <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />
+                    {source.release && (
+                      <span>
+                        Data release {source.release.version}
+                        {source.release.date ? ` (${source.release.date})` : ""}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {results.length < total && (
                   <button
                     onClick={() => runSearch(submitted, results.length)}
