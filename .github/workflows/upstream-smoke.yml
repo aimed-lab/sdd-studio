@@ -64,8 +64,16 @@ jobs:
           call=$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_compounds","arguments":{"q":"imatinib","limit":5}}}') || { echo "$call"; exit 1; }
           echo "$call" | jq -e '.result.isError != true and .result.structuredContent.results[0].chemblId == "CHEMBL941" and .result.structuredContent.source.name == "ChEMBL"' > /dev/null
 
+      - name: Open Targets via /api/target-evidence (#27)
+        id: opentargets
+        continue-on-error: true
+        run: |
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$BASE_URL/api/target-evidence?gene=EGFR&limit=25") || { echo "$body"; exit 1; }
+          echo "$body" | jq -e '.ensemblId == "ENSG00000146648" and .source.name == "Open Targets Platform" and (.source.retrieved | length > 0)' > /dev/null
+          echo "$body" | jq -e '[.associations.rows[].diseaseName] | index("non-small cell lung carcinoma") != null' > /dev/null
+
       - name: Report failures
-        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure' || steps.disambig.outcome == 'failure' || steps.structure.outcome == 'failure' || steps.mcp.outcome == 'failure'
+        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure' || steps.disambig.outcome == 'failure' || steps.structure.outcome == 'failure' || steps.mcp.outcome == 'failure' || steps.opentargets.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHEMBL: ${{ steps.chembl.outcome }}
@@ -73,9 +81,10 @@ jobs:
           DISAMBIG: ${{ steps.disambig.outcome }}
           STRUCTURE: ${{ steps.structure.outcome }}
           MCP: ${{ steps.mcp.outcome }}
+          OPENTARGETS: ${{ steps.opentargets.outcome }}
         run: |
           title="Upstream smoke test failing"
-          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV, EGFR disambiguation recall=$DISAMBIG, structure search=$STRUCTURE, MCP=$MCP. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV, EGFR disambiguation recall=$DISAMBIG, structure search=$STRUCTURE, MCP=$MCP, Open Targets=$OPENTARGETS. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number -q '.[0].number')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$msg"

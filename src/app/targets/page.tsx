@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EgfrResistancePanel } from "@/components/egfr-resistance-panel";
 import { GlossaryTerm } from "@/components/glossary-term";
+import { TargetEvidencePanel } from "@/components/target-evidence-panel";
 import { referenceCompounds } from "@/data/curated/chembl-reference-compounds";
 import { pdbLigandLinks, rcsbSearchUrl } from "@/data/curated/pdb-ligands";
 import { trialsHrefFor } from "@/data/curated/target-default-conditions";
@@ -130,6 +131,10 @@ function PublicTargets() {
           Search EGFR trials in non-small cell lung cancer
         </Link>
       </p>
+      <div className="max-w-3xl rounded-lg border p-4">
+        <p className="text-sm font-medium">EGFR (UniProt P00533)</p>
+        <TargetEvidencePanel gene="EGFR" />
+      </div>
       <EgfrResistancePanel />
     </div>
   );
@@ -268,6 +273,7 @@ function MemberTargets() {
                   </dd>
                 </div>
               </dl>
+              <TargetEvidencePanel gene={target.gene} />
               <div className="mt-4 pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-muted-foreground">{target.id}</span>
                 <span className="flex flex-wrap gap-3">
