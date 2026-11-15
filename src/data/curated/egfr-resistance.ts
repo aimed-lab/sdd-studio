@@ -1,5 +1,7 @@
 // Curated reference set: every row is checked against the cited PubMed abstract, and `excerpt` is copied from it.
-// `plainLanguage` only restates the row in everyday words; it must be reviewed by a person before release.
+// `plainLanguage` only restates the row in everyday words. The 8 current sentences were reviewed on 2026-11-14 by three
+// independent reviewers (scientific accuracy vs PubMed abstracts, lay readability, fidelity/safety) to unanimous agreement;
+// record: .claude/skills/testing-system/runs/2026-11-14/plain-language-review.md. Re-review any new or edited sentence.
 export interface ResistanceMechanism {
   alteration: string;
   category: "On-target (EGFR)" | "Bypass signaling" | "Histologic transformation";
@@ -17,7 +19,7 @@ export interface ResistanceMechanism {
 export const EGFR_RESISTANCE_REVIEWED = "2026-11-14";
 
 // Set to true only after a person has reviewed every plainLanguage sentence (#62).
-export const PLAIN_LANGUAGE_HUMAN_REVIEWED = false;
+export const PLAIN_LANGUAGE_HUMAN_REVIEWED = true;
 
 const AI_CURATOR = "AI-curated (Claude), checked against the PubMed abstract";
 
@@ -29,7 +31,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "Second-site gatekeeper point mutation (threonine-to-methionine at 790) in the EGFR kinase domain.",
     affects: "1st-generation reversible TKIs (gefitinib, erlotinib)",
     evidence: "Found at relapse in a gefitinib-responsive patient; structural modeling and biochemistry showed it confers gefitinib resistance.",
-    plainLanguage: "A second change in the EGFR gene appeared when the cancer came back, and it stopped gefitinib from working.",
+    plainLanguage:
+      "In one patient whose cancer came back after first responding to gefitinib (an early EGFR-blocking drug), a second change appeared in the EGFR gene; lab studies showed this change makes gefitinib stop working.",
     excerpt: "a second point mutation, resulting in threonine-to-methionine amino acid change at position 790 of EGFR",
     curator: AI_CURATOR,
     verified: "2026-11-09",
@@ -42,7 +45,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "Mutation of the cysteine that covalent 3rd-generation inhibitors bind.",
     affects: "Covalent 3rd-generation TKIs (osimertinib / AZD9291)",
     evidence: "Acquired C797S detected in plasma cfDNA in 6 of 15 AZD9291-resistant patients; mutant construct conferred resistance in cells.",
-    plainLanguage: "A change in EGFR removes the spot where osimertinib attaches, so the drug can no longer block it.",
+    plainLanguage:
+      "In some patients (6 of 15) whose cancer grew on osimertinib (a newer EGFR-blocking drug), a change in EGFR altered the exact spot where the drug attaches; in lab cells, this change made the drug stop working.",
     excerpt: "six cases acquired the C797S mutation",
     curator: AI_CURATOR,
     verified: "2026-11-09",
@@ -55,7 +59,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "The T790M clone disappears at resistance, and other resistance mechanisms compete, including acquired KRAS mutations and targetable gene fusions.",
     affects: "Osimertinib given for T790M-positive resistance to an earlier EGFR TKI",
     evidence: "Of 41 patients with tumor sequencing after osimertinib resistance, 28 (68%) had lost T790M; time to treatment discontinuation was shorter with T790M loss (6.1 vs 15.2 months). Among the 13 with maintained T790M, C797S was seen in 9.",
-    plainLanguage: "In many patients the EGFR change that osimertinib targets disappeared, and the cancer grew through other routes instead, often sooner.",
+    plainLanguage:
+      "In one study, most patients (28 of 41) whose cancer stopped responding to osimertinib had lost the EGFR change the drug targets; the cancer found other ways to keep growing, and these patients stayed on osimertinib for a shorter time (about 6 vs 15 months).",
     excerpt: "Among 28 individuals (68%) with loss of T790M, a range of competing resistance mechanisms was detected",
     curator: AI_CURATOR,
     verified: "2026-11-14",
@@ -68,7 +73,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "Focal MET amplification drives ERBB3 (HER3)-dependent PI3K activation, bypassing EGFR.",
     affects: "1st-generation TKIs (gefitinib, erlotinib)",
     evidence: "Detected in 4 of 18 (22%) specimens with acquired gefitinib/erlotinib resistance; MET inhibition restored sensitivity in cells.",
-    plainLanguage: "The cancer makes extra copies of another growth gene, MET, which lets it keep growing even while EGFR is blocked.",
+    plainLanguage:
+      "In some tumors (4 of 18) that stopped responding to early EGFR-blocking drugs, the cancer had made extra copies of another growth gene, MET, which lets growth signals go around the blocked EGFR.",
     excerpt: "MET amplification was detected in 4 of 18 (22%) lung cancer specimens that had developed resistance to gefitinib or erlotinib",
     curator: AI_CURATOR,
     verified: "2026-11-09",
@@ -81,7 +87,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "HER2 amplification sustains signaling despite EGFR inhibition.",
     affects: "EGFR TKIs; mutually exclusive with T790M in this series",
     evidence: "Amplified in 12% of tumors with acquired resistance vs 1% of untreated lung adenocarcinomas.",
-    plainLanguage: "Extra copies of the HER2 gene let the cancer keep growing despite EGFR treatment.",
+    plainLanguage:
+      "Extra copies of another growth gene, HER2, were found in 12% of tumors that had become resistant to early EGFR-blocking drugs, compared with 1% of untreated lung tumors; HER2 can keep growth signals on despite these drugs.",
     excerpt: "HER2 was amplified in 12% of tumors with acquired resistance versus only 1% of untreated lung adenocarcinomas",
     curator: AI_CURATOR,
     verified: "2026-11-09",
@@ -94,7 +101,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "A RET gene fusion (e.g. CCDC6-RET) signals around the blocked EGFR.",
     affects: "Osimertinib and other EGFR TKIs",
     evidence: "Found in 2 of 41 osimertinib-resistance biopsies; CCDC6-RET was sufficient to confer EGFR-TKI resistance in cells, and osimertinib plus the RET inhibitor BLU-667 produced rapid responses in 2 patients.",
-    plainLanguage: "Two genes became fused into one, creating a new growth signal that does not depend on EGFR.",
+    plainLanguage:
+      "In a few patients (2 of 41) whose cancer grew on osimertinib, the RET gene had joined with another gene, creating a growth signal that works around the blocked EGFR.",
     excerpt: "CCDC6-RET was sufficient to confer resistance to EGFR tyrosine kinase inhibitors (TKI)",
     curator: AI_CURATOR,
     verified: "2026-11-14",
@@ -107,7 +115,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "NSCLC transforms histologically into small cell lung cancer while retaining the original EGFR mutation.",
     affects: "EGFR TKIs",
     evidence: "5 of 37 (14%) resistant tumors transformed to SCLC and were sensitive to standard SCLC treatment.",
-    plainLanguage: "The tumor changed into a different type of lung cancer that EGFR drugs do not treat.",
+    plainLanguage:
+      "In one study, some tumors (5 of 37) that stopped responding to early EGFR-blocking drugs changed into a different kind of lung cancer, small-cell lung cancer, while keeping their EGFR change; these tumors responded to standard small-cell treatment.",
     excerpt: "five resistant tumors (14%) transformed from NSCLC into small cell lung cancer (SCLC)",
     curator: AI_CURATOR,
     verified: "2026-11-09",
@@ -120,7 +129,8 @@ export const egfrResistance: ResistanceMechanism[] = [
     mechanism: "The tumor changes histology, mainly to squamous cell carcinoma; off-target genetic alterations also emerge early.",
     affects: "First-line and later-line osimertinib",
     evidence: "Among 62 patients, histologic transformation (primarily squamous) was found in 15% of first-line and 14% of later-line osimertinib cases; 5 of 27 first-line patients had off-target genetic resistance.",
-    plainLanguage: "Some tumors changed into a squamous type of lung cancer after osimertinib, and these patients tended to do worse.",
+    plainLanguage:
+      "In one study of 62 patients, about 1 in 7 tumors that stopped responding to osimertinib changed into a different kind of lung cancer, mostly one called squamous cell cancer; other gene changes also appeared early.",
     excerpt: "histologic transformation, primarily squamous transformation, was identified in 15% of first-line osimertinib cases and 14% of later-line cases",
     curator: AI_CURATOR,
     verified: "2026-11-14",
