@@ -8,7 +8,7 @@ import LoginPage from "./login/page";
 import { AccountStatusGate } from "@/components/pending-approval-screen";
 import { cn } from "@/lib/utils";
 import {
-  Dna, FlaskConical, Stethoscope, ShieldCheck,
+  Dna, FlaskConical, Stethoscope, ShieldCheck, Database,
   Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert,
 } from "lucide-react";
 import { FeedbackWidget } from "@/components/feedback-widget";
@@ -95,6 +95,16 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
+    // Not a module-access key, so it is visible to every role.
+    label: "Live data",
+    icon: Database,
+    items: [
+      { href: "/search", label: "Compound search" },
+      { href: "/targets", label: "Targets" },
+      { href: "/clinical/trials", label: "Trial landscape" },
+    ],
+  },
+  {
     label: "Projects",
     icon: FolderOpen,
     items: [
@@ -130,7 +140,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/clinical/cohorts", label: "Candidate Cohorts" },
       { href: "/clinical/biomarkers", label: "Companion Biomarker Opt." },
-      { href: "/clinical/trials", label: "Trial Simulations" },
+      { href: "/clinical/trials", label: "Trials" },
       { href: "/clinical/decisions", label: "Decision Reports" },
     ],
   },
@@ -164,7 +174,7 @@ function Sidebar({
   // Load persisted expanded state from localStorage (falls back to defaults)
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const defaults: Record<string, boolean> = {
-      "Projects": true, "Biology": false, "Pharmacology": false,
+      "Live data": true, "Projects": true, "Biology": false, "Pharmacology": false,
       "Clinical": false, "Regulation": false,
     };
     if (typeof window === "undefined") return defaults;

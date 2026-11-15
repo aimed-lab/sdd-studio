@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DemoDataNotice } from "@/components/data-provenance";
 import { EgfrResistancePanel } from "@/components/egfr-resistance-panel";
@@ -106,10 +106,19 @@ export default function TargetsPage() {
 }
 
 function TargetsContent() {
-  const q = (useSearchParams().get("q") ?? "").trim().toLowerCase();
+  const router = useRouter();
+  const urlQuery = useSearchParams().get("q") ?? "";
+  const [input, setInput] = useState(urlQuery);
+  const q = urlQuery.trim().toLowerCase();
   const shown = q
-    ? targets.filter((t) => t.gene.toLowerCase() === q || t.name.toLowerCase().includes(q))
+    ? targets.filter((t) => t.gene.toLowerCase().startsWith(q) || t.name.toLowerCase().includes(q))
     : targets;
+
+  const updateQuery = (value: string) => {
+    setInput(value);
+    const trimmed = value.trim();
+    router.replace(trimmed ? `/targets?q=${encodeURIComponent(trimmed)}` : "/targets", { scroll: false });
+  };
 
   return (
     <div className="p-8 space-y-6">
@@ -122,14 +131,28 @@ function TargetsContent() {
 
       <DemoDataNotice />
 
+      <div className="max-w-md">
+        <label htmlFor="target-search" className="text-sm font-medium">
+          Search targets
+        </label>
+        <input
+          id="target-search"
+          type="search"
+          value={input}
+          onChange={(e) => updateQuery(e.target.value)}
+          placeholder="Gene symbol or protein name"
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+
       {q && (
         <div className="flex items-center gap-3 text-sm">
           <span className="text-muted-foreground">
             Filtered by &ldquo;{q.toUpperCase()}&rdquo; &mdash; {shown.length} match{shown.length === 1 ? "" : "es"}
           </span>
-          <Link href="/targets" className={extLink}>
+          <button type="button" onClick={() => updateQuery("")} className={extLink}>
             Show all targets
-          </Link>
+          </button>
         </div>
       )}
 

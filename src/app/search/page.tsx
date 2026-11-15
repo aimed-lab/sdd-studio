@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { SourceLine } from "@/components/data-provenance";
@@ -18,7 +18,7 @@ interface SearchResult {
   hbd: number | null;
   psa: number | null;
   qed: number | null;
-  maxPhase: number;
+  maxPhase: number | null;
   moleculeType: string;
 }
 
@@ -27,6 +27,20 @@ interface SourceInfo {
   url: string;
   retrieved: string;
 }
+
+const CHEMBL_CALC = "Calculated by ChEMBL for the parent structure";
+const COLUMNS: [string, string][] = [
+  ["Structure", "2D depiction drawn from the ChEMBL canonical SMILES"],
+  ["ChEMBL ID", "ChEMBL molecule identifier; opens the ChEMBL record"],
+  ["Name", "ChEMBL preferred name"],
+  ["Type", "ChEMBL molecule type"],
+  ["MW", `Molecular weight in g/mol (full molecule). ${CHEMBL_CALC}`],
+  ["ALogP", `Calculated octanol–water partition coefficient (Ghose–Crippen ALogP). ${CHEMBL_CALC}`],
+  ["HBA/HBD", `Hydrogen-bond acceptors / donors, ChEMBL convention (not Lipinski counts). ${CHEMBL_CALC}`],
+  ["PSA", `Polar surface area in Å². ${CHEMBL_CALC}`],
+  ["QED", `Quantitative estimate of drug-likeness, 0–1 (weighted). ${CHEMBL_CALC}`],
+  ["Phase", "Highest development phase recorded in ChEMBL (max_phase)"],
+];
 
 const fmt = (v: number | null, digits: number) => (v === null ? "—" : v.toFixed(digits));
 
@@ -40,6 +54,7 @@ export default function SearchPage() {
 
 function SearchContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialQuery = searchParams.get("q") ?? "";
   const [query, setQuery] = useState(initialQuery);
   const [submitted, setSubmitted] = useState("");
@@ -49,22 +64,22 @@ function SearchContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const runSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string, offset = 0) => {
     if (!q.trim()) return;
     setLoading(true);
     setError(null);
     setSubmitted(q.trim());
 
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}&offset=${offset}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search request failed");
-      setResults(data.results ?? []);
+      setResults((prev) => (offset > 0 ? [...prev, ...(data.results ?? [])] : data.results ?? []));
       setTotal(data.total ?? 0);
       setSource(data.source ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch search results. Please try again.");
-      setResults([]);
+      if (offset === 0) setResults([]);
     } finally {
       setLoading(false);
     }
@@ -76,18 +91,23 @@ function SearchContent() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    runSearch(query);
+    if (!query.trim()) return;
+    router.replace(`/search?q=${encodeURIComponent(query.trim())}`, { scroll: false });
+    if (query.trim() === initialQuery.trim()) runSearch(query);
   };
 
-  const phaseLabel = (phase: number) => {
+  // ChEMBL max_phase: 4 approved, 1–3 clinical, 0.5 early phase 1, 0 preclinical, -1/null unknown.
+  const phaseLabel = (phase: number | null) => {
+    if (phase === null || phase < 0) return "Unknown";
     if (phase >= 4) return "Approved";
     if (phase >= 1) return `Phase ${Math.floor(phase)}`;
+    if (phase > 0) return "Early Phase 1";
     return "Preclinical";
   };
 
-  const phaseClass = (phase: number) => {
-    if (phase >= 4) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    if (phase >= 1) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+  const phaseClass = (phase: number | null) => {
+    if (phase !== null && phase >= 4) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+    if (phase !== null && phase > 0) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
     return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
   };
 
@@ -139,7 +159,7 @@ function SearchContent() {
         </Card>
       )}
 
-      {searched && !loading && !error && (
+      {searched && !error && (!loading || results.length > 0) && (
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -153,7 +173,7 @@ function SearchContent() {
               </div>
               {results.length > 0 && (
                 <ExportCsvButton
-                  rows={results}
+                  rows={results.map((r) => ({ query: submitted, ...r }))}
                   filename={`chembl-${submitted}`}
                   source={source ? { name: source.name, retrieved: source.retrieved } : undefined}
                 />
@@ -166,8 +186,8 @@ function SearchContent() {
                 <table className="w-full">
                   <thead className="border-b">
                     <tr>
-                      {["Structure", "ChEMBL ID", "Name", "Type", "MW", "LogP", "HBA/HBD", "PSA", "QED", "Phase"].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {COLUMNS.map(([h, tip]) => (
+                        <th key={h} title={tip} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           {h}
                         </th>
                       ))}
@@ -179,7 +199,7 @@ function SearchContent() {
                         <td className="px-4 py-2">
                           {r.smiles ? (
                             <div title={r.smiles}>
-                              <MoleculeViewer smiles={r.smiles} width={140} height={90} />
+                              <MoleculeViewer smiles={r.smiles} name={r.name} width={140} height={90} actions />
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">{"—"}</span>
@@ -195,7 +215,9 @@ function SearchContent() {
                             {r.chemblId}
                           </a>
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium">{r.name}</td>
+                        <td className="px-4 py-3 text-sm font-medium">
+                          {r.name === r.chemblId ? <span className="text-muted-foreground italic">(unnamed)</span> : r.name}
+                        </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{r.moleculeType}</td>
                         <td className="px-4 py-3 text-sm tabular-nums">{fmt(r.mw, 2)}</td>
                         <td className="px-4 py-3 text-sm tabular-nums">{fmt(r.logP, 2)}</td>
@@ -214,11 +236,18 @@ function SearchContent() {
                   </tbody>
                 </table>
               </div>
-              {source && (
-                <div className="mt-4">
-                  <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />
-                </div>
-              )}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                {source && <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />}
+                {results.length < total && (
+                  <button
+                    onClick={() => runSearch(submitted, results.length)}
+                    disabled={loading}
+                    className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+                  >
+                    {loading ? "Loading..." : `Load 25 more (${total - results.length} remaining)`}
+                  </button>
+                )}
+              </div>
             </CardContent>
           )}
         </Card>

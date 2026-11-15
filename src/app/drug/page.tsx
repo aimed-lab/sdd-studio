@@ -30,7 +30,6 @@ const drugs: Drug[] = [
   { id: "SDD-0012", name: "Vemurafenib analog", origin: "de-novo", modality: "small-molecule", target: "BRAF V600E", indication: "Melanoma", stage: "preclinical", moa: "BRAF kinase inhibitor", mw: "510.4" },
   { id: "SDD-0034", name: "Tau-Phos-1", origin: "de-novo", modality: "small-molecule", target: "GSK-3\u03B2", indication: "Alzheimer\u2019s", stage: "discovery", moa: "GSK-3\u03B2 inhibitor", mw: "385.2" },
   { id: "SDD-0056", name: "JAK2-Sel-7", origin: "de-novo", modality: "small-molecule", target: "JAK2", indication: "Myelofibrosis", stage: "preclinical", moa: "Selective JAK2 inhibitor", mw: "442.8" },
-  { id: "SDD-0078", name: "Osimertinib-R", origin: "repositioned", modality: "small-molecule", target: "EGFR T790M", indication: "NSCLC (C797S)", stage: "phase-1", moa: "Covalent EGFR inhibitor", mw: "499.6", originalIndication: "NSCLC (T790M)" },
   { id: "SDD-0091", name: "Anti-PD-L1-BRAF", origin: "de-novo", modality: "antibody", target: "PD-L1 + BRAF", indication: "Melanoma", stage: "discovery", moa: "Bispecific antibody" },
   { id: "SDD-0103", name: "Metformin", origin: "repositioned", modality: "small-molecule", target: "AMPK", indication: "Pancreatic cancer", stage: "phase-2", moa: "AMPK activator", smiles: "CN(C)C(=N)N=C(N)N", mw: "129.2", originalIndication: "Type 2 Diabetes" },
   { id: "SDD-0115", name: "TAU-ASO-1", origin: "de-novo", modality: "oligonucleotide", target: "MAPT mRNA", indication: "Alzheimer\u2019s", stage: "discovery", moa: "Antisense oligonucleotide" },
@@ -227,7 +226,7 @@ export default function DrugPage() {
                       <CardContent className="space-y-1 text-sm">
                         {drug.smiles && (
                           <div className="pb-2">
-                            <MoleculeViewer smiles={drug.smiles} width={120} height={80} />
+                            <MoleculeViewer smiles={drug.smiles} name={drug.name} width={120} height={80} />
                           </div>
                         )}
                         <div className="flex justify-between">

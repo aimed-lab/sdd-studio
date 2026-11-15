@@ -94,15 +94,19 @@ function CompoundsContent() {
 
   const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
     <th
-      className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-      onClick={() => handleSort(field)}
+      aria-sort={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+      className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
     >
-      <span className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className="inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground transition-colors"
+      >
         {label}
         {sortKey === field && (
-          <span className="text-foreground">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>
+          <span className="text-foreground" aria-hidden="true">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>
         )}
-      </span>
+      </button>
     </th>
   );
 
@@ -178,7 +182,7 @@ function CompoundsContent() {
                     <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{compound.id}</td>
                     <td className="px-4 py-3 text-sm font-medium">{compound.name}</td>
                     <td className="px-4 py-2" title={compound.smiles}>
-                      <MoleculeViewer smiles={compound.smiles} width={130} height={85} />
+                      <MoleculeViewer smiles={compound.smiles} name={compound.name} width={130} height={85} />
                     </td>
                     <td className="px-4 py-3 text-sm tabular-nums">{compound.mw.toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm tabular-nums">{compound.logP.toFixed(1)}</td>
@@ -203,8 +207,17 @@ function CompoundsContent() {
                         <>
                           {" "}
                           <Link href={`/search?q=${encodeURIComponent(targetFilter)}`} className="text-primary hover:underline">
-                            Search ChEMBL for &ldquo;{targetFilter}&rdquo;
+                            Search ChEMBL compound names containing &ldquo;{targetFilter}&rdquo;
                           </Link>
+                          {" · "}
+                          <a
+                            href={`https://platform.opentargets.org/search?q=${encodeURIComponent(targetFilter)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            Drugs known to act on {targetFilter} (Open Targets)
+                          </a>
                         </>
                       )}
                     </td>
