@@ -4,6 +4,8 @@
 
 export interface AmbiguousSymbol {
   symbol: string;
+  /** Names that mean the same gene; a match in title/conditions/keywords/interventions counts as direct. */
+  synonyms: string[];
   exclude: string;
   reason: string;
   evidence: string;
@@ -12,6 +14,9 @@ export interface AmbiguousSymbol {
 export const AMBIGUOUS_SYMBOLS: AmbiguousSymbol[] = [
   {
     symbol: "EGFR",
+    // HGNC:3236 approved name and alias ERBB1 (checked 2026-11-14). The previous symbol "ERBB" is
+    // left out because it names the whole receptor family.
+    synonyms: ["epidermal growth factor receptor", "ERBB1"],
     exclude: "glomerular",
     reason: "eGFR (estimated glomerular filtration rate) is a kidney-function measure that appears in eligibility and outcome text.",
     evidence:

@@ -1,0 +1,355 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SmartDrugDiscovery Studio read-only data API",
+    "version": "1.0.0",
+    "summary": "Read-only JSON proxies for ChEMBL and ClinicalTrials.gov with provenance on every response.",
+    "description": "Unauthenticated and read-only. The API may change; the version field changes when it does. Every successful response carries a `source` block (upstream name, query URL, retrieval time, cache TTL, and data release when available). Demo data is never served by these endpoints. Requests are rate-limited per IP (HTTP 429 with Retry-After). Unknown query parameters are rejected with HTTP 400. Contract-tested in CI against this file (scripts/contract-test.mjs). A read-only MCP endpoint (Streamable HTTP, stateless, JSON responses) exposes the same handlers as tools; see `x-mcp`.",
+    "contact": { "url": "https://github.com/aimed-lab/sdd-studio" }
+  },
+  "servers": [{ "url": "https://studio.smartdrugdiscovery.org" }],
+  "x-mcp": {
+    "endpoint": "/api/mcp",
+    "transport": "Streamable HTTP, stateless, JSON responses only (POST; GET and DELETE return 405; no sessions, no SSE)",
+    "protocolVersion": "2025-06-18",
+    "server": {
+      "name": "sdd-studio",
+      "version": "1.0.0"
+    },
+    "rateLimit": "Per IP: 20 burst, 20 requests/min (HTTP 429 with Retry-After)",
+    "tools": [
+      {
+        "name": "search_compounds",
+        "sameAs": "GET /api/search"
+      },
+      {
+        "name": "get_compound",
+        "sameAs": "GET /api/compound/{chemblId}"
+      },
+      {
+        "name": "search_trials",
+        "sameAs": "GET /api/trials"
+      },
+      {
+        "name": "structure_search",
+        "sameAs": "GET /api/structure",
+        "limits": "Slow substructure queries can exceed the endpoint's 15 s budget; use GET /api/structure for those"
+      }
+    ],
+    "results": "Each tool returns the same JSON body as its REST route, as text content and structuredContent, with isError=true for 4xx/5xx. Every successful body carries the `source` provenance block. Demo data is never returned."
+  },
+  "paths": {
+    "/api/search": {
+      "get": {
+        "operationId": "searchCompounds",
+        "summary": "Search ChEMBL molecules by name, synonym or ChEMBL ID, or batch-look-up up to 50 IDs",
+        "description": "Use either `q` (with optional `offset`/`limit`) or `ids`, not both. Structure strings (SMILES, InChIKey) are rejected with an explanatory 400. Results rank an exact preferred-name match first, then parent molecules before salts.",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 100 }, "description": "Compound name, synonym or ChEMBL ID.", "example": "imatinib" },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0, "maximum": 10000, "default": 0 }, "example": 25 },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 25 }, "example": 10 },
+          { "name": "ids", "in": "query", "schema": { "type": "string" }, "description": "Comma-separated ChEMBL molecule IDs (≤ 50). Rows come back in request order; unknown IDs are listed in `notFound`.", "example": "CHEMBL941,CHEMBL1" }
+        ],
+        "responses": {
+          "200": { "description": "Search or batch results", "content": { "application/json": { "schema": { "oneOf": [{ "$ref": "#/components/schemas/SearchResponse" }, { "$ref": "#/components/schemas/BatchResponse" }] } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" },
+          "502": { "$ref": "#/components/responses/SourceUnavailable" }
+        }
+      }
+    },
+    "/api/compound/{chemblId}": {
+      "get": {
+        "operationId": "getCompoundMechanismActivity",
+        "summary": "Mechanism of action and bioactivity for a ChEMBL molecule, resolved through its parent",
+        "description": "Mechanisms are looked up by parent (they are often stored on the salt record). Activities are a subset (pChEMBL set, no ChEMBL validity flag) in ChEMBL record order, not ranked by potency. Each section reports its own error without failing the response.",
+        "parameters": [
+          { "name": "chemblId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^CHEMBL\\d+$" }, "example": "CHEMBL941" }
+        ],
+        "responses": {
+          "200": { "description": "Mechanism and activity sections", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CompoundResponse" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "description": "Molecule not found in ChEMBL", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SimpleError" } } } },
+          "429": { "$ref": "#/components/responses/TooManyRequests" },
+          "502": { "$ref": "#/components/responses/SourceUnavailable" }
+        }
+      }
+    },
+    "/api/trials": {
+      "get": {
+        "operationId": "searchTrials",
+        "summary": "Search ClinicalTrials.gov with optional gene-symbol disambiguation",
+        "description": "At least one of term, condition, intervention or location is required. Ambiguous gene symbols (e.g. EGFR vs eGFR, the kidney-function measure) are disambiguated by default; the exact query sent is returned in `disambiguation.queryTerm` and `source.queryUrl`. `view=excluded` returns the trials the disambiguation hid; `view=summary` returns facet counts.",
+        "parameters": [
+          { "name": "term", "in": "query", "schema": { "type": "string", "maxLength": 100 }, "example": "EGFR" },
+          { "name": "condition", "in": "query", "schema": { "type": "string", "maxLength": 100 }, "example": "non-small cell lung cancer" },
+          { "name": "intervention", "in": "query", "schema": { "type": "string", "maxLength": 100 }, "example": "osimertinib" },
+          { "name": "location", "in": "query", "schema": { "type": "string", "maxLength": 100 }, "description": "Free-text location, e.g. a city and state.", "example": "Birmingham, Alabama" },
+          { "name": "phase", "in": "query", "schema": { "type": "string", "enum": ["EARLY_PHASE1", "PHASE1", "PHASE2", "PHASE3", "PHASE4", "NA"] }, "description": "Case-insensitive. PHASE3 also matches combined Phase 2/3 trials.", "example": "PHASE3" },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["RECRUITING", "NOT_YET_RECRUITING", "ACTIVE_NOT_RECRUITING", "ENROLLING_BY_INVITATION", "COMPLETED", "TERMINATED", "WITHDRAWN", "SUSPENDED"] }, "description": "Case-insensitive.", "example": "RECRUITING" },
+          { "name": "pageToken", "in": "query", "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,200}$" }, "description": "`nextPageToken` from the previous page." },
+          { "name": "disambiguate", "in": "query", "schema": { "type": "boolean", "default": true }, "description": "Apply the ambiguous-symbol exclusion (default true).", "example": false },
+          { "name": "fieldsGeneOnly", "in": "query", "schema": { "type": "boolean", "default": false }, "description": "Opt-in: match the gene symbol only in title, condition, keyword and intervention fields. Requires `term` to be a single symbol. Lowers recall.", "example": true },
+          { "name": "withExcludedCount", "in": "query", "schema": { "type": "boolean", "default": false }, "description": "Also return how many trials the disambiguation hid (one extra cached upstream count).", "example": true },
+          { "name": "view", "in": "query", "schema": { "type": "string", "enum": ["results", "excluded", "summary"], "default": "results" }, "example": "summary" }
+        ],
+        "responses": {
+          "200": { "description": "Trial rows or a summary", "content": { "application/json": { "schema": { "oneOf": [{ "$ref": "#/components/schemas/TrialsResponse" }, { "$ref": "#/components/schemas/TrialSummaryResponse" }] } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" },
+          "502": { "$ref": "#/components/responses/SourceUnavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "BadRequest": { "description": "Invalid or unknown parameter, or an upstream rejection of the query", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "TooManyRequests": { "description": "Per-IP rate limit exceeded; see the Retry-After header", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "SourceUnavailable": { "description": "The upstream source could not be reached; no cached or demo data is substituted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+    },
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "required": ["error"],
+        "additionalProperties": false,
+        "properties": { "results": { "type": "array", "maxItems": 0 }, "error": { "type": "string" } }
+      },
+      "SimpleError": {
+        "type": "object",
+        "required": ["error"],
+        "additionalProperties": false,
+        "properties": { "error": { "type": "string" } }
+      },
+      "DataRelease": {
+        "type": "object",
+        "required": ["version", "date"],
+        "additionalProperties": false,
+        "properties": { "version": { "type": "string" }, "date": { "type": ["string", "null"] } }
+      },
+      "Provenance": {
+        "type": "object",
+        "description": "Where the data came from and when it was fetched.",
+        "required": ["name", "url", "queryUrl", "retrieved", "cacheTtlSeconds"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "url": { "type": "string" },
+          "queryUrl": { "type": "string", "description": "Exact upstream request URL." },
+          "retrieved": { "type": "string", "description": "ISO time the upstream answered (from its Date header)." },
+          "cacheTtlSeconds": { "type": "integer" },
+          "release": { "$ref": "#/components/schemas/DataRelease" }
+        }
+      },
+      "Compound": {
+        "type": "object",
+        "required": ["chemblId", "parentChemblId", "isSalt", "name", "smiles", "inchiKey", "mw", "logP", "hba", "hbd", "psa", "qed", "maxPhase", "moleculeType"],
+        "additionalProperties": false,
+        "properties": {
+          "chemblId": { "type": "string" },
+          "parentChemblId": { "type": ["string", "null"] },
+          "isSalt": { "type": "boolean" },
+          "name": { "type": "string", "description": "ChEMBL preferred name, or the ChEMBL ID when unnamed." },
+          "smiles": { "type": ["string", "null"] },
+          "inchiKey": { "type": ["string", "null"] },
+          "mw": { "type": ["number", "null"] },
+          "logP": { "type": ["number", "null"], "description": "ChEMBL ALogP." },
+          "hba": { "type": ["number", "null"] },
+          "hbd": { "type": ["number", "null"] },
+          "psa": { "type": ["number", "null"] },
+          "qed": { "type": ["number", "null"] },
+          "maxPhase": { "type": ["number", "null"], "description": "ChEMBL max_phase: 4 approved, 1–3 clinical, 0.5 early phase 1, 0 preclinical, null or -1 unknown." },
+          "moleculeType": { "type": "string" }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "required": ["results", "total", "offset", "limit", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "results": { "type": "array", "items": { "$ref": "#/components/schemas/Compound" } },
+          "total": { "type": "integer" },
+          "offset": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "source": { "$ref": "#/components/schemas/Provenance" }
+        }
+      },
+      "BatchResponse": {
+        "type": "object",
+        "required": ["results", "notFound", "total", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "results": { "type": "array", "items": { "$ref": "#/components/schemas/Compound" } },
+          "notFound": { "type": "array", "items": { "type": "string" } },
+          "total": { "type": "integer" },
+          "source": { "$ref": "#/components/schemas/Provenance" }
+        }
+      },
+      "MechanismRow": {
+        "type": "object",
+        "required": ["recordChemblId", "mechanism", "actionType", "targetChemblId", "targetName", "targetOrganism", "refs"],
+        "additionalProperties": false,
+        "properties": {
+          "recordChemblId": { "type": "string", "description": "Record the mechanism is stored on (may be a salt)." },
+          "mechanism": { "type": ["string", "null"] },
+          "actionType": { "type": ["string", "null"] },
+          "targetChemblId": { "type": ["string", "null"] },
+          "targetName": { "type": ["string", "null"] },
+          "targetOrganism": { "type": ["string", "null"] },
+          "refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["type", "id", "url"],
+              "additionalProperties": false,
+              "properties": { "type": { "type": ["string", "null"] }, "id": { "type": ["string", "null"] }, "url": { "type": ["string", "null"] } }
+            }
+          }
+        }
+      },
+      "ActivityRow": {
+        "type": "object",
+        "required": ["activityId", "targetChemblId", "targetName", "targetOrganism", "type", "relation", "value", "units", "pchembl", "assayChemblId", "assayType", "documentChemblId"],
+        "additionalProperties": false,
+        "properties": {
+          "activityId": { "type": "integer" },
+          "targetChemblId": { "type": ["string", "null"] },
+          "targetName": { "type": ["string", "null"] },
+          "targetOrganism": { "type": ["string", "null"] },
+          "type": { "type": ["string", "null"], "description": "Standard type, e.g. IC50." },
+          "relation": { "type": ["string", "null"] },
+          "value": { "type": ["string", "null"] },
+          "units": { "type": ["string", "null"] },
+          "pchembl": { "type": ["string", "null"] },
+          "assayChemblId": { "type": ["string", "null"] },
+          "assayType": { "type": ["string", "null"] },
+          "documentChemblId": { "type": ["string", "null"] }
+        }
+      },
+      "CompoundResponse": {
+        "type": "object",
+        "required": ["chemblId", "parentChemblId", "mechanisms", "activities", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "chemblId": { "type": "string" },
+          "parentChemblId": { "type": "string" },
+          "mechanisms": {
+            "type": "object",
+            "required": ["error", "rows"],
+            "additionalProperties": false,
+            "properties": { "error": { "type": ["string", "null"] }, "rows": { "type": "array", "items": { "$ref": "#/components/schemas/MechanismRow" } } }
+          },
+          "activities": {
+            "type": "object",
+            "required": ["error", "rows"],
+            "additionalProperties": false,
+            "properties": {
+              "error": { "type": ["string", "null"] },
+              "total": { "type": ["integer", "null"] },
+              "shown": { "type": "integer" },
+              "flaggedExcluded": { "type": ["integer", "null"] },
+              "selection": { "type": "string" },
+              "fullRecordUrl": { "type": "string" },
+              "rows": { "type": "array", "items": { "$ref": "#/components/schemas/ActivityRow" } }
+            }
+          },
+          "source": { "$ref": "#/components/schemas/Provenance" }
+        }
+      },
+      "TrialQuery": {
+        "type": "object",
+        "required": ["term", "condition", "intervention", "location", "phase", "status", "disambiguate", "fieldsGeneOnly"],
+        "additionalProperties": false,
+        "properties": {
+          "term": { "type": "string" },
+          "condition": { "type": "string" },
+          "intervention": { "type": "string" },
+          "location": { "type": "string" },
+          "phase": { "type": "string" },
+          "status": { "type": "string" },
+          "disambiguate": { "type": "boolean" },
+          "fieldsGeneOnly": { "type": "boolean" }
+        }
+      },
+      "Disambiguation": {
+        "type": ["object", "null"],
+        "required": ["symbol", "exclude", "reason", "applied", "queryTerm"],
+        "additionalProperties": false,
+        "properties": {
+          "symbol": { "type": "string" },
+          "exclude": { "type": "string" },
+          "reason": { "type": "string" },
+          "applied": { "type": "boolean" },
+          "queryTerm": { "type": "string", "description": "Exact query.term sent to ClinicalTrials.gov." }
+        }
+      },
+      "Trial": {
+        "type": "object",
+        "required": ["nctId", "url", "title", "phases", "status", "sponsor", "conditions", "keywords", "interventions", "interventionDetails", "startDate", "lastUpdate", "enrollment", "symbolMatch"],
+        "additionalProperties": false,
+        "properties": {
+          "nctId": { "type": "string" },
+          "url": { "type": ["string", "null"] },
+          "title": { "type": "string" },
+          "phases": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string" },
+          "sponsor": { "type": "string" },
+          "conditions": { "type": "array", "items": { "type": "string" } },
+          "keywords": { "type": "array", "items": { "type": "string" } },
+          "interventions": { "type": "array", "items": { "type": "string" } },
+          "interventionDetails": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "type"],
+              "additionalProperties": false,
+              "properties": { "name": { "type": "string" }, "type": { "type": "string" } }
+            }
+          },
+          "startDate": { "type": "string" },
+          "lastUpdate": { "type": "string", "description": "ClinicalTrials.gov last-update post date." },
+          "enrollment": { "type": ["integer", "null"] },
+          "symbolMatch": { "type": ["string", "null"], "enum": ["direct", "eligibility_or_outcome_only", null] }
+        }
+      },
+      "TrialsResponse": {
+        "type": "object",
+        "required": ["query", "view", "disambiguation", "excludedCount", "results", "total", "nextPageToken", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "query": { "$ref": "#/components/schemas/TrialQuery" },
+          "view": { "type": "string", "enum": ["results", "excluded"] },
+          "disambiguation": { "$ref": "#/components/schemas/Disambiguation" },
+          "excludedCount": { "type": ["integer", "null"], "description": "Only when withExcludedCount=true and a disambiguation was applied; otherwise null." },
+          "results": { "type": "array", "items": { "$ref": "#/components/schemas/Trial" } },
+          "total": { "type": "integer" },
+          "nextPageToken": { "type": ["string", "null"] },
+          "source": { "$ref": "#/components/schemas/Provenance" }
+        }
+      },
+      "FacetCount": {
+        "type": "object",
+        "required": ["label", "n"],
+        "additionalProperties": false,
+        "properties": { "label": { "type": "string" }, "n": { "type": "integer" } }
+      },
+      "TrialSummaryResponse": {
+        "type": "object",
+        "required": ["query", "disambiguation", "total", "counted", "exact", "note", "byPhase", "byStatus", "bySponsor", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "query": { "$ref": "#/components/schemas/TrialQuery" },
+          "disambiguation": { "$ref": "#/components/schemas/Disambiguation" },
+          "total": { "type": "integer" },
+          "counted": { "type": "integer" },
+          "exact": { "type": "boolean", "description": "False when only the first trials by relevance were counted." },
+          "note": { "type": "string" },
+          "byPhase": { "type": "array", "items": { "$ref": "#/components/schemas/FacetCount" } },
+          "byStatus": { "type": "array", "items": { "$ref": "#/components/schemas/FacetCount" } },
+          "bySponsor": { "type": "array", "items": { "$ref": "#/components/schemas/FacetCount" } },
+          "source": { "$ref": "#/components/schemas/Provenance" }
+        }
+      }
+    }
+  }
+}

@@ -24,6 +24,8 @@ Server-side secrets (GitHub token, Anthropic key) are never returned in any resp
 
 `GET /api/search`, `GET /api/compound/{chemblId}` and `GET /api/trials` proxy public sources (ChEMBL and ClinicalTrials.gov). They need no sign-in, write nothing, and never return demo data. **Unauthenticated; may change.**
 
+**Machine-readable contract:** [`/openapi.json`](https://studio.smartdrugdiscovery.org/openapi.json) (OpenAPI 3.1, file `public/openapi.json`) documents every parameter, response field, error shape and the provenance schema. `scripts/contract-test.mjs` checks the live API against it: on every PR that touches the API (against the PR's own build) and nightly against production (`.github/workflows/api-contract.yml`). A response field or parameter that isn't in the spec fails the test, so update the spec in the same PR as the handler.
+
 ### Common behaviour
 
 | Behaviour | Detail |
@@ -119,13 +121,33 @@ ClinicalTrials.gov API v2 search, 25 studies per page. Provide `term`, `conditio
 
 | Parameter | Description |
 |---|---|
-| `term` | Free-text search (e.g. a gene or drug). Gene symbols can collide with other terms — `EGFR` also matches kidney trials measuring eGFR, so pair gene searches with a condition |
+| `term` | Free-text search (e.g. a gene or drug). Ambiguous gene symbols are disambiguated by default (`EGFR` excludes trials mentioning "glomerular", the eGFR kidney-function measure); the exact query sent is in `disambiguation.queryTerm` |
 | `condition` | Condition search, e.g. `non-small cell lung cancer` |
+| `intervention`, `location` | Intervention (`query.intr`) and free-text location (`query.locn`) searches |
+| `disambiguate` | `false` turns the ambiguous-symbol exclusion off (default `true`) |
+| `fieldsGeneOnly` | Opt-in: match a single gene symbol only in title, condition, keyword and intervention fields (lower recall) |
+| `withExcludedCount` | `true` also returns `excludedCount`, the number of trials the disambiguation hid |
+| `view` | `results` (default), `excluded` (the hidden trials) or `summary` (counts by phase, status, sponsor) |
 | `phase` | One of `EARLY_PHASE1`, `PHASE1`, `PHASE2`, `PHASE3`, `PHASE4`, `NA` (case-insensitive). ClinicalTrials.gov counts combined phases, so `PHASE3` includes Phase 2/3 trials |
 | `status` | One of `RECRUITING`, `NOT_YET_RECRUITING`, `ACTIVE_NOT_RECRUITING`, `ENROLLING_BY_INVITATION`, `COMPLETED`, `TERMINATED`, `WITHDRAWN`, `SUSPENDED` (case-insensitive) |
 | `pageToken` | The `nextPageToken` from the previous page |
 
-The response has `results` (NCT ID, title, phases, status, sponsor, conditions, interventions, start date, enrollment), `total`, `nextPageToken` and `source`. Parameters added by later releases are listed in the route itself (`src/app/api/trials/route.ts`) and returned in the `400` message for unknown parameters.
+Provide at least one of `term`, `condition`, `intervention` or `location`. The full response schema, including `symbolMatch` per row and the `summary` view, is in `/openapi.json`. `source.release` carries the ClinicalTrials.gov API version and data timestamp when available.
+
+### Agent and MCP access
+
+- **This API:** point agent frameworks at `/openapi.json`; every tool call gets provenance and stable IDs (ChEMBL ID, NCT ID).
+- **MCP endpoint (this site):** `POST https://studio.smartdrugdiscovery.org/api/mcp`, Streamable HTTP in stateless JSON-response mode (no sessions, no SSE; GET/DELETE return 405). It is read-only and unauthenticated, rate-limited per IP (20 burst, 20/min) and runs with a 15 s budget. Each tool calls the same handler as its REST route, so it applies the same validation, caching and provenance and never returns demo data:
+
+  | Tool | Same as | Limits |
+  |---|---|---|
+  | `search_compounds` | `GET /api/search` | Name, synonym or ChEMBL ID, or `ids` batch (≤ 50); no SMILES; ≤ 100 rows per call |
+  | `get_compound` | `GET /api/compound/{chemblId}` | Mechanisms via the parent molecule; ≤ 50 activity rows (a subset, not a potency ranking) |
+  | `search_trials` | `GET /api/trials` | 25 per page; gene-symbol disambiguation on by default (`disambiguate`, `fieldsGeneOnly`, `withExcludedCount`); not medical advice |
+  | `structure_search` | `GET /api/structure` | SMILES ≤ 200; similarity 70–100 or substructure ≥ 7 heavy atoms; slow substructure queries can exceed the 15 s budget |
+
+  Claude Code: `claude mcp add --transport http sdd-studio https://studio.smartdrugdiscovery.org/api/mcp`. The tool results carry `structuredContent` as well as the JSON text, and errors come back with `isError: true` and the REST error message. Per the #73 consensus, usage is reviewed 90 days after the endpoint is publicly listed: fewer than 50 tool calls from distinct non-panel clients means removal is recommended, and the PI decides. It is not registered in any external MCP registry yet; listing it there is the PI's call.
+- **Upstream MCP servers for data this site doesn't cover:** Claude's **bio-research** plugin bundles a **ChEMBL** MCP server (tools such as `compound_search`, `target_search`, `get_bioactivity`, `get_mechanism`, `drug_search`, `get_admet`) and a **ClinicalTrials.gov** MCP server (`search_trials`, `get_trial_details`, `search_by_sponsor`, `search_by_eligibility`, `search_investigators`, `analyze_endpoints`), plus Open Targets, PubMed and bioRxiv servers. Use them directly for full target-centric bioactivity, eligibility matching and literature search.
 
 ---
 
