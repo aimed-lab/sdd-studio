@@ -21,7 +21,8 @@ interface TrialRow {
   startDate: string;
   lastUpdate: string;
   enrollment: number | null;
-  symbolMatch: "direct" | "eligibility_or_outcome_only" | null;
+  symbolMatch: "direct" | "via_drug" | "eligibility_or_outcome_only" | null;
+  viaDrug?: string[] | null;
 }
 
 interface Source {
@@ -37,6 +38,17 @@ interface Disambiguation {
   reason: string;
   applied: boolean;
   queryTerm: string;
+}
+
+interface DrugAware {
+  applied: boolean;
+  note: string | null;
+  queryTerm: string;
+  targets: { chemblId: string; name: string }[];
+  drugs: { name: string; chemblId: string; firstApproval: number | null }[];
+  omitted: string[];
+  selection: string;
+  source: Source & { release?: { version: string; date: string | null } };
 }
 
 interface Summary {
@@ -58,6 +70,8 @@ export interface TrialFilters {
   status: string;
   disambiguate: boolean;
   fieldsGeneOnly: boolean;
+  /** Opt-in (#57 option c): also search approved drugs acting on the gene, per ChEMBL. */
+  drugAware?: boolean;
 }
 
 const PHASE_OPTIONS: [string, string][] = [
@@ -108,6 +122,7 @@ export function filtersToParams(f: TrialFilters): URLSearchParams {
   if (f.status) p.set("status", f.status);
   if (!f.disambiguate) p.set("disambiguate", "false");
   if (f.fieldsGeneOnly) p.set("fieldsGeneOnly", "true");
+  if (f.drugAware && !f.fieldsGeneOnly && SINGLE_TOKEN.test(f.term.trim())) p.set("mode", "drug-aware");
   return p;
 }
 
@@ -138,7 +153,22 @@ function Interventions({ items }: { items: { name: string; type: string }[] }) {
 }
 
 function MatchNote({ row, term, ambiguous }: { row: TrialRow; term: string; ambiguous: Disambiguation | null }) {
+  if (row.symbolMatch === "via_drug" && row.viaDrug?.length) {
+    return (
+      <p className="mt-1 text-xs text-sky-700 dark:text-sky-400">
+        Added by drug name: {row.viaDrug.join(", ")} (approved drug acting on {term}, per ChEMBL).
+      </p>
+    );
+  }
   if (row.symbolMatch !== "eligibility_or_outcome_only") return null;
+  if (row.viaDrug === null) {
+    return (
+      <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+        Neither &ldquo;{term}&rdquo; nor an added drug name appears in the title, conditions or interventions; the match is in
+        other text (e.g. eligibility, outcomes or a brand-name synonym).
+      </p>
+    );
+  }
   return (
     <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
       &ldquo;{term}&rdquo; appears only in eligibility or outcome text
@@ -237,7 +267,7 @@ function TrialTable({ rows, term, ambiguous }: { rows: TrialRow[]; term: string;
   );
 }
 
-function csvRows(rows: TrialRow[], f: TrialFilters, total: number, disambiguation: Disambiguation | null) {
+function csvRows(rows: TrialRow[], f: TrialFilters, total: number, disambiguation: Disambiguation | null, drugAware: DrugAware | null) {
   const span = `rows 1-${rows.length} of ${total}${rows.length < total ? " (partial export)" : ""}`;
   return rows.map((r) => ({
     query_term: f.term,
@@ -246,7 +276,8 @@ function csvRows(rows: TrialRow[], f: TrialFilters, total: number, disambiguatio
     query_location: f.location,
     query_phase: f.phase,
     query_status: f.status,
-    query_sent: disambiguation?.queryTerm ?? f.term,
+    query_mode: drugAware ? "drug-aware" : "default",
+    query_sent: drugAware?.queryTerm ?? disambiguation?.queryTerm ?? f.term,
     export_rows: span,
     nctId: r.nctId,
     url: r.url ?? "",
@@ -260,6 +291,7 @@ function csvRows(rows: TrialRow[], f: TrialFilters, total: number, disambiguatio
     lastUpdate: r.lastUpdate,
     enrollment: r.enrollment ?? "",
     symbolMatch: r.symbolMatch ?? "",
+    viaDrug: r.viaDrug?.join("; ") ?? "",
   }));
 }
 
@@ -277,6 +309,7 @@ export function TrialLandscape({
   const [nextToken, setNextToken] = useState<string | null>(null);
   const [source, setSource] = useState<Source | null>(null);
   const [disambiguation, setDisambiguation] = useState<Disambiguation | null>(null);
+  const [drugAware, setDrugAware] = useState<DrugAware | null>(null);
   const [excludedCount, setExcludedCount] = useState<number | null | "counting">(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -326,6 +359,7 @@ export function TrialLandscape({
       setNextToken(data.nextPageToken);
       setSource(data.source);
       setDisambiguation(data.disambiguation);
+      setDrugAware(data.drugAware ?? null);
       if (!append && data.disambiguation?.applied) {
         // Counted only after the results render, as one cached count-only request.
         const side = new AbortController();
@@ -351,7 +385,7 @@ export function TrialLandscape({
     setHiddenOpen(true);
     setHiddenLoading(true);
     setHiddenError(null);
-    const params = filtersToParams(active);
+    const params = filtersToParams({ ...active, drugAware: false });
     params.set("view", "excluded");
     if (append) params.set("pageToken", append);
     try {
@@ -449,6 +483,20 @@ export function TrialLandscape({
                   Gene in title, condition, keyword or intervention only
                 </label>
               )}
+              {termIsSymbol && (
+                <label
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                  title="Adds approved drugs whose ChEMBL mechanism of action targets this gene (at most 10), so trials that name only the drug are found too."
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!draft.drugAware && !draft.fieldsGeneOnly}
+                    disabled={draft.fieldsGeneOnly}
+                    onChange={set("drugAware")}
+                  />
+                  Also search approved drugs for this target
+                </label>
+              )}
               <button
                 type="submit"
                 disabled={loading || !hasQuery(draft)}
@@ -498,6 +546,38 @@ export function TrialLandscape({
         </div>
       )}
 
+      {!error && drugAware && (
+        <div role="status" className="rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-200">
+          {drugAware.applied ? (
+            <>
+              <strong>Drug-aware search:</strong> also matching {drugAware.drugs.length} approved drug
+              {drugAware.drugs.length === 1 ? "" : "s"} acting on {active.term.trim()} (ChEMBL{" "}
+              {drugAware.targets.map((t) => t.chemblId).join(", ")}):{" "}
+              {drugAware.drugs.map((d, i) => (
+                <span key={d.chemblId}>
+                  {i > 0 && ", "}
+                  <Link href={`/search?q=${d.chemblId}`} className="underline">
+                    {d.name}
+                  </Link>
+                </span>
+              ))}
+              .{" "}
+              {drugAware.omitted.length > 0 && <>Not included (cap of 10): {drugAware.omitted.join(", ")}. </>}
+              Trials found only through a drug are marked &ldquo;Added by drug name&rdquo;.{" "}
+            </>
+          ) : (
+            <>{drugAware.note} </>
+          )}
+          <button type="button" onClick={() => submit({ ...active, drugAware: false })} className="underline">
+            Turn off
+          </button>
+          <span className="block text-xs mt-1 opacity-80">
+            {drugAware.selection}
+            {drugAware.source.release ? ` ${drugAware.source.release.version}.` : ""}
+          </span>
+        </div>
+      )}
+
       {!error && hiddenOpen && (
         <Card>
           <CardHeader>
@@ -542,7 +622,7 @@ export function TrialLandscape({
                   {summaryLoading ? "Summarising…" : "Landscape summary"}
                 </button>
                 <ExportCsvButton
-                  rows={csvRows(rows, active, total, disambiguation)}
+                  rows={csvRows(rows, active, total, disambiguation, drugAware)}
                   filename={`ctgov-${active.term.trim() || active.condition.trim() || "trials"}`}
                   source={{ name: source.name, retrieved: source.retrieved }}
                 />
@@ -589,9 +669,9 @@ export function TrialLandscape({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="space-y-1">
                 <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />
-                {disambiguation?.applied && (
-                  <p className="text-xs text-muted-foreground">
-                    Query sent: <code className="font-mono">{disambiguation.queryTerm}</code>
+                {(drugAware?.applied || disambiguation?.applied) && (
+                  <p className="text-xs text-muted-foreground break-all">
+                    Query sent: <code className="font-mono">{drugAware?.queryTerm ?? disambiguation?.queryTerm}</code>
                   </p>
                 )}
               </div>

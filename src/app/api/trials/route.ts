@@ -5,6 +5,7 @@ import {
   MAX_QUERY_LENGTH, PUBLIC_CACHE_HEADERS, type Provenance, UpstreamError, badRequest, ctgovRelease, fetchUpstream,
   rejectUnknownParams, upstreamErrorResponse,
 } from "@/lib/upstream";
+import { type TargetDrugs, approvedDrugsForTarget, drugsQuery } from "@/lib/target-drugs";
 
 export const maxDuration = 25;
 
@@ -23,9 +24,10 @@ const TRIAL_STATUSES = [
   "SUSPENDED",
 ] as const;
 const VIEWS = ["results", "excluded", "summary"] as const;
+const MODES = ["default", "drug-aware"] as const;
 const ALLOWED_PARAMS = [
   "term", "condition", "intervention", "location", "phase", "status", "pageToken",
-  "disambiguate", "fieldsGeneOnly", "withExcludedCount", "view",
+  "disambiguate", "fieldsGeneOnly", "withExcludedCount", "view", "mode",
 ] as const;
 
 const FIELDS = [
@@ -104,6 +106,7 @@ export async function GET(request: NextRequest) {
   const status = (sp.get("status") ?? "").trim().toUpperCase();
   const pageToken = sp.get("pageToken") ?? "";
   const view = (sp.get("view") ?? "results").trim().toLowerCase();
+  const mode = (sp.get("mode") ?? "default").trim().toLowerCase();
   const disambiguate = flag(sp, "disambiguate", true);
   const fieldsGeneOnly = flag(sp, "fieldsGeneOnly", false);
   const withExcludedCount = flag(sp, "withExcludedCount", false);
@@ -123,6 +126,12 @@ export async function GET(request: NextRequest) {
   if (pageToken && !/^[A-Za-z0-9_-]{1,200}$/.test(pageToken)) return badRequest("Invalid page token");
   if (fieldsGeneOnly && !SINGLE_TOKEN.test(term))
     return badRequest("'fieldsGeneOnly' needs 'term' to be a single gene symbol (letters, digits, hyphen)");
+  if (!(MODES as readonly string[]).includes(mode)) return badRequest(`Unknown mode '${mode}'. Allowed: ${MODES.join(", ")}`);
+  const drugMode = mode === "drug-aware";
+  if (drugMode && !SINGLE_TOKEN.test(term))
+    return badRequest("'mode=drug-aware' needs 'term' to be a single gene symbol (letters, digits, hyphen)");
+  if (drugMode && fieldsGeneOnly) return badRequest("'mode=drug-aware' cannot be combined with 'fieldsGeneOnly'");
+  if (drugMode && view === "excluded") return badRequest("'view=excluded' is not available with 'mode=drug-aware'");
 
   // Disambiguation (#57): applied by default, never together with the field restriction.
   const ambiguous = term && !fieldsGeneOnly ? findAmbiguousSymbol(term) : null;
@@ -138,6 +147,33 @@ export async function GET(request: NextRequest) {
     queryTerm = view === "excluded" ? `(${term}) AND ${ambiguous.exclude}` : `(${term}) NOT ${ambiguous.exclude}`;
   }
 
+  // Drug-aware mode (#57 option c): OR the gene query with approved drugs that act on it, per ChEMBL.
+  // The default query is kept intact inside the OR, so this mode can only add trials, never lose them.
+  let drugAware: (Omit<TargetDrugs, "symbol"> & { applied: boolean; note: string | null; queryTerm: string }) | null = null;
+  if (drugMode) {
+    let found: TargetDrugs | null = null;
+    let note: string | null = null;
+    try {
+      found = await approvedDrugsForTarget(term);
+      if (!found.targets.length) note = `ChEMBL has no human single-protein target named ${term}; searched the gene term only.`;
+      else if (!found.drugs.length) note = `ChEMBL lists no approved drugs acting on ${term}; searched the gene term only.`;
+    } catch {
+      note = "ChEMBL could not be reached, so drug names were not added; searched the gene term only.";
+    }
+    const drugs = found?.drugs ?? [];
+    if (drugs.length) queryTerm = `(${queryTerm}) OR (${drugsQuery(drugs)})`;
+    drugAware = {
+      applied: drugs.length > 0,
+      note,
+      queryTerm,
+      targets: found?.targets ?? [],
+      drugs,
+      omitted: found?.omitted ?? [],
+      selection: found?.selection ?? "",
+      source: found?.source ?? { name: "ChEMBL", url: "https://www.ebi.ac.uk/chembl/", queryUrl: "", retrieved: new Date().toISOString(), cacheTtlSeconds: 0 },
+    };
+  }
+
   const base = new URLSearchParams({ countTotal: "true" });
   if (queryTerm) base.set("query.term", queryTerm);
   if (condition) base.set("query.cond", condition);
@@ -146,7 +182,7 @@ export async function GET(request: NextRequest) {
   if (status) base.set("filter.overallStatus", status);
   if (phase) base.set("filter.advanced", `AREA[Phase]${phase}`);
 
-  const query = { term, condition, intervention, location, phase, status, disambiguate, fieldsGeneOnly };
+  const query = { term, condition, intervention, location, phase, status, disambiguate, fieldsGeneOnly, mode };
   const disambiguation = ambiguous
     ? { symbol: ambiguous.symbol, exclude: ambiguous.exclude, reason: ambiguous.reason, applied, queryTerm }
     : null;
@@ -181,6 +217,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       query,
       disambiguation,
+      drugAware,
       total,
       counted: studies.length,
       exact: studies.length >= total,
@@ -226,8 +263,14 @@ export async function GET(request: NextRequest) {
     const title = p.identificationModule?.briefTitle ?? "";
     const officialTitle = p.identificationModule?.officialTitle ?? "";
     const names = [term, ...(ambiguous?.synonyms ?? findAmbiguousSymbol(term)?.synonyms ?? [])];
-    const direct = [title, officialTitle, ...conditions, ...keywords, ...interventionDetails.map((i) => i.name)]
-      .some((text) => names.some((name) => mentionsToken(text, name)));
+    const texts = [title, officialTitle, ...conditions, ...keywords, ...interventionDetails.map((i) => i.name)];
+    const direct = texts.some((text) => names.some((name) => mentionsToken(text, name)));
+    // Trials without a direct gene mention are tagged with the added drug(s) named in their record.
+    const viaDrug = drugAware?.applied && !direct
+      ? drugAware.drugs.map((d) => d.name).filter((name) => texts.some((text) => mentionsToken(text, name)))
+      : [];
+    let symbolMatch: "direct" | "via_drug" | "eligibility_or_outcome_only" | null = null;
+    if (annotate) symbolMatch = direct ? "direct" : viaDrug.length ? "via_drug" : "eligibility_or_outcome_only";
     return {
       nctId,
       url: NCT_ID.test(nctId) ? `https://clinicaltrials.gov/study/${nctId}` : null,
@@ -242,7 +285,8 @@ export async function GET(request: NextRequest) {
       startDate: p.statusModule?.startDateStruct?.date ?? "",
       lastUpdate: p.statusModule?.lastUpdatePostDateStruct?.date ?? "",
       enrollment: p.designModule?.enrollmentInfo?.count ?? null,
-      symbolMatch: annotate ? (direct ? "direct" : "eligibility_or_outcome_only") : null,
+      symbolMatch,
+      viaDrug: drugAware ? (viaDrug.length ? viaDrug : null) : undefined,
     };
   });
   // Indirect matches sort after direct ones, within this page only.
@@ -269,6 +313,7 @@ export async function GET(request: NextRequest) {
     query,
     view,
     disambiguation,
+    drugAware,
     excludedCount,
     results,
     total: data.totalCount ?? results.length,

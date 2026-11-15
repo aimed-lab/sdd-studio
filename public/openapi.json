@@ -91,7 +91,8 @@
           { "name": "disambiguate", "in": "query", "schema": { "type": "boolean", "default": true }, "description": "Apply the ambiguous-symbol exclusion (default true).", "example": false },
           { "name": "fieldsGeneOnly", "in": "query", "schema": { "type": "boolean", "default": false }, "description": "Opt-in: match the gene symbol only in title, condition, keyword and intervention fields. Requires `term` to be a single symbol. Lowers recall.", "example": true },
           { "name": "withExcludedCount", "in": "query", "schema": { "type": "boolean", "default": false }, "description": "Also return how many trials the disambiguation hid (one extra cached upstream count).", "example": true },
-          { "name": "view", "in": "query", "schema": { "type": "string", "enum": ["results", "excluded", "summary"], "default": "results" }, "example": "summary" }
+          { "name": "view", "in": "query", "schema": { "type": "string", "enum": ["results", "excluded", "summary"], "default": "results" }, "example": "summary" },
+          { "name": "mode", "in": "query", "schema": { "type": "string", "enum": ["default", "drug-aware"], "default": "default" }, "description": "Opt-in `drug-aware` (#57 option c): needs `term` to be a single gene symbol. ORs the query with up to 10 approved drugs (ChEMBL max_phase 4) whose ChEMBL mechanism of action targets the gene, oldest approval first; the list is cached for 24 h. The default query stays inside the OR, so this mode only adds trials. Not combinable with `fieldsGeneOnly` or `view=excluded`.", "example": "drug-aware" }
         ],
         "responses": {
           "200": { "description": "Trial rows or a summary", "content": { "application/json": { "schema": { "oneOf": [{ "$ref": "#/components/schemas/TrialsResponse" }, { "$ref": "#/components/schemas/TrialSummaryResponse" }] } } } },
@@ -258,7 +259,7 @@
       },
       "TrialQuery": {
         "type": "object",
-        "required": ["term", "condition", "intervention", "location", "phase", "status", "disambiguate", "fieldsGeneOnly"],
+        "required": ["term", "condition", "intervention", "location", "phase", "status", "disambiguate", "fieldsGeneOnly", "mode"],
         "additionalProperties": false,
         "properties": {
           "term": { "type": "string" },
@@ -268,7 +269,8 @@
           "phase": { "type": "string" },
           "status": { "type": "string" },
           "disambiguate": { "type": "boolean" },
-          "fieldsGeneOnly": { "type": "boolean" }
+          "fieldsGeneOnly": { "type": "boolean" },
+          "mode": { "type": "string", "enum": ["default", "drug-aware"] }
         }
       },
       "Disambiguation": {
@@ -309,17 +311,52 @@
           "startDate": { "type": "string" },
           "lastUpdate": { "type": "string", "description": "ClinicalTrials.gov last-update post date." },
           "enrollment": { "type": ["integer", "null"] },
-          "symbolMatch": { "type": ["string", "null"], "enum": ["direct", "eligibility_or_outcome_only", null] }
+          "symbolMatch": { "type": ["string", "null"], "enum": ["direct", "via_drug", "eligibility_or_outcome_only", null], "description": "via_drug (drug-aware mode only): the gene is not named in title, conditions, keywords or interventions, but an added drug is." },
+          "viaDrug": { "type": ["array", "null"], "items": { "type": "string" }, "description": "Drug-aware mode only: added drug names found in a trial that does not name the gene directly; null when none. Absent in default mode." }
+        }
+      },
+      "DrugAware": {
+        "type": ["object", "null"],
+        "description": "Null unless mode=drug-aware.",
+        "required": ["applied", "note", "queryTerm", "targets", "drugs", "omitted", "selection", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "applied": { "type": "boolean", "description": "False when ChEMBL had no target or approved drug, or could not be reached; the gene query then runs alone." },
+          "note": { "type": ["string", "null"] },
+          "queryTerm": { "type": "string", "description": "Exact query.term sent to ClinicalTrials.gov." },
+          "targets": {
+            "type": "array",
+            "items": { "type": "object", "required": ["chemblId", "name"], "additionalProperties": false, "properties": { "chemblId": { "type": "string" }, "name": { "type": "string" } } }
+          },
+          "drugs": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": ["name", "chemblId", "firstApproval", "moleculeType"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string" },
+                "chemblId": { "type": "string" },
+                "firstApproval": { "type": ["integer", "null"] },
+                "moleculeType": { "type": ["string", "null"] }
+              }
+            }
+          },
+          "omitted": { "type": "array", "items": { "type": "string" }, "description": "Approved drugs left out by the cap of 10." },
+          "selection": { "type": "string", "description": "How the drug list was chosen." },
+          "source": { "$ref": "#/components/schemas/Provenance" }
         }
       },
       "TrialsResponse": {
         "type": "object",
-        "required": ["query", "view", "disambiguation", "excludedCount", "results", "total", "nextPageToken", "source"],
+        "required": ["query", "view", "disambiguation", "drugAware", "excludedCount", "results", "total", "nextPageToken", "source"],
         "additionalProperties": false,
         "properties": {
           "query": { "$ref": "#/components/schemas/TrialQuery" },
           "view": { "type": "string", "enum": ["results", "excluded"] },
           "disambiguation": { "$ref": "#/components/schemas/Disambiguation" },
+          "drugAware": { "$ref": "#/components/schemas/DrugAware" },
           "excludedCount": { "type": ["integer", "null"], "description": "Only when withExcludedCount=true and a disambiguation was applied; otherwise null." },
           "results": { "type": "array", "items": { "$ref": "#/components/schemas/Trial" } },
           "total": { "type": "integer" },
@@ -335,11 +372,12 @@
       },
       "TrialSummaryResponse": {
         "type": "object",
-        "required": ["query", "disambiguation", "total", "counted", "exact", "note", "byPhase", "byStatus", "bySponsor", "source"],
+        "required": ["query", "disambiguation", "drugAware", "total", "counted", "exact", "note", "byPhase", "byStatus", "bySponsor", "source"],
         "additionalProperties": false,
         "properties": {
           "query": { "$ref": "#/components/schemas/TrialQuery" },
           "disambiguation": { "$ref": "#/components/schemas/Disambiguation" },
+          "drugAware": { "$ref": "#/components/schemas/DrugAware" },
           "total": { "type": "integer" },
           "counted": { "type": "integer" },
           "exact": { "type": "boolean", "description": "False when only the first trials by relevance were counted." },

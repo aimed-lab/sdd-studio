@@ -142,6 +142,7 @@ function TrialsContent() {
           status: (searchParams.get("status") ?? "").toUpperCase(),
           disambiguate: searchParams.get("disambiguate") !== "false",
           fieldsGeneOnly: searchParams.get("fieldsGeneOnly") === "true",
+          drugAware: searchParams.get("mode") === "drug-aware",
         }
       : EXAMPLE
   );
