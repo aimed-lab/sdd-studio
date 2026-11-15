@@ -12,6 +12,8 @@ import {
   Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert,
 } from "lucide-react";
 import { FeedbackWidget } from "@/components/feedback-widget";
+import { DataClassBadge, PageClassStrip } from "@/components/data-provenance";
+import { pageClassFor } from "@/data/page-classes";
 import { RoleAvatar } from "@/components/role-avatar";
 import { PLATFORM_CONFIG } from "@/lib/platform-config";
 import { type AppRole, hasRole } from "@/lib/roles";
@@ -30,6 +32,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 function AuthSwitch({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading, user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center" />;
@@ -80,7 +83,10 @@ function AuthSwitch({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-auto">
+            <PageClassStrip pageClass={pageClassFor(pathname)} />
+            {children}
+          </main>
         </div>
       </div>
     </AccountStatusGate>
@@ -448,6 +454,7 @@ function NavItem({ href, label, sub, icon: Icon, onNavigate, locked }: {
     >
       {Icon && <Icon className={cn("h-3.5 w-3.5 shrink-0", isActive && !locked && "text-primary")} />}
       <span className="flex-1">{label}</span>
+      {pageClassFor(href) && <DataClassBadge kind={pageClassFor(href)!.kind} size="sm" />}
       {locked && <Lock className="h-3 w-3 shrink-0 opacity-40" />}
     </Link>
   );

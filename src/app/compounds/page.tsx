@@ -1,49 +1,63 @@
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { MoleculeViewer } from "@/components/molecule-viewer";
-import { cn } from "@/lib/utils";
-import { DemoDataNotice } from "@/components/data-provenance";
+import { GlossaryTerm } from "@/components/glossary-term";
+import type { GlossaryKey } from "@/data/glossary";
+import {
+  CHEMBL_RELEASE,
+  CHEMBL_RETRIEVED,
+  referenceCompounds,
+  type ReferenceCompound,
+} from "@/data/curated/chembl-reference-compounds";
 
-interface Compound {
-  id: string;
-  name: string;
-  smiles: string;
-  mw: number;
-  logP: number;
-  qed: number;
-  status: "screening" | "hit" | "lead" | "preclinical";
-  target: string;
-}
-
-const compounds: Compound[] = [
-  { id: "SDD-0012", name: "Vemurafenib", smiles: "CCCS(=O)(=O)Nc1ccc(F)c(C(=O)c2cc[nH]c2C)c1F", mw: 489.92, logP: 3.6, qed: 0.72, status: "preclinical", target: "BRAF V600E" },
-  { id: "SDD-0034", name: "Erlotinib", smiles: "COCCOc1cc2ncnc(Nc3cccc(C#C)c3)c2cc1OCCOC", mw: 393.44, logP: 2.7, qed: 0.81, status: "lead", target: "EGFR" },
-  { id: "SDD-0056", name: "Imatinib", smiles: "Cc1ccc(NC(=O)c2ccc(CN3CCN(C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1", mw: 493.60, logP: 2.5, qed: 0.77, status: "preclinical", target: "BCR-ABL" },
-  { id: "SDD-0078", name: "Sorafenib", smiles: "CNC(=O)c1cc(Oc2ccc(NC(=O)Nc3ccc(Cl)c(C(F)(F)F)c3)cc2)ccn1", mw: 464.83, logP: 3.8, qed: 0.68, status: "lead", target: "BRAF/VEGFR" },
-  { id: "SDD-0091", name: "Gefitinib", smiles: "COc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1OCCCN1CCOCC1", mw: 446.90, logP: 3.2, qed: 0.75, status: "hit", target: "EGFR" },
-  { id: "SDD-0103", name: "Lapatinib", smiles: "CS(=O)(=O)CCNCc1ccc(-c2ccc3ncnc(Nc4ccc(OCc5cccc(F)c5)c(Cl)c4)c3c2)o1", mw: 581.06, logP: 4.6, qed: 0.54, status: "screening", target: "HER2/EGFR" },
-  { id: "SDD-0127", name: "Crizotinib", smiles: "CC(Oc1cc(-c2cnn(C3CCNCC3)c2)cnc1N)c1c(Cl)ccc(F)c1Cl", mw: 450.34, logP: 3.7, qed: 0.70, status: "hit", target: "ALK" },
-  { id: "SDD-0145", name: "Dabrafenib", smiles: "CC(C)(C)c1nc(-c2cccc(NS(=O)(=O)c3c(F)cccc3F)c2F)c(-c2ccnc(N)n2)s1", mw: 519.56, logP: 3.1, qed: 0.66, status: "lead", target: "BRAF V600E" },
-  { id: "SDD-0168", name: "Osimertinib", smiles: "COc1cc(N(C)CCN(C)C)c(NC(=O)C=C)cc1Nc1nccc(-c2cn(C)c3ccccc23)n1", mw: 499.62, logP: 3.4, qed: 0.73, status: "preclinical", target: "EGFR T790M" },
-  { id: "SDD-0190", name: "Trametinib", smiles: "CC(=O)Nc1cccc(-n2c(=O)c3c(Nc4ccc(I)cc4F)n(C)c(=O)n3c2=O)c1", mw: 615.40, logP: 2.9, qed: 0.61, status: "screening", target: "MEK1/2" },
-];
-
-const statusConfig: Record<Compound["status"], { label: string; className: string }> = {
-  screening: { label: "Screening", className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" },
-  hit: { label: "Hit", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" },
-  lead: { label: "Lead", className: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300" },
-  preclinical: { label: "Preclinical", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" },
-};
-
-type SortKey = keyof Compound;
+type SortKey = "name" | "mw" | "alogp" | "qed";
 type SortDir = "asc" | "desc";
 
-const targetOptions = Array.from(new Set(compounds.map((c) => c.target))).sort();
+const targetOptions = Array.from(new Set(referenceCompounds.flatMap((c) => c.mechanismTargets))).sort();
+
+const phaseLabel = (p: number) => (p >= 4 ? "Approved (ChEMBL max phase 4)" : `ChEMBL max phase ${p}`);
+
+function SortHeader({
+  field,
+  label,
+  term,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  field: SortKey;
+  label: string;
+  term?: GlossaryKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (key: SortKey) => void;
+}) {
+  return (
+    <th
+      aria-sort={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+      className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+    >
+      <span className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onSort(field)}
+          className="inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground transition-colors"
+        >
+          {label}
+          {sortKey === field && (
+            <span className="text-foreground" aria-hidden="true">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>
+          )}
+        </button>
+        {term && <GlossaryTerm k={term} iconOnly />}
+      </span>
+    </th>
+  );
+}
 
 export default function CompoundsPage() {
   return (
@@ -57,99 +71,83 @@ function CompoundsContent() {
   const initialTarget = (useSearchParams().get("target") ?? "").toUpperCase();
   const [search, setSearch] = useState("");
   const [targetFilter, setTargetFilter] = useState<string>(initialTarget || "all");
-  const [sortKey, setSortKey] = useState<SortKey>("id");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
       setSortKey(key);
       setSortDir("asc");
     }
   };
 
   const filtered = useMemo(() => {
-    let result = compounds.filter((c) => {
+    const q = search.toLowerCase();
+    const result = referenceCompounds.filter((c) => {
       const matchSearch =
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.target.toLowerCase().includes(search.toLowerCase()) ||
-        c.id.toLowerCase().includes(search.toLowerCase()) ||
-        c.smiles.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "all" || c.status === statusFilter;
-      const matchTarget = targetFilter === "all" || c.target.toUpperCase().includes(targetFilter.toUpperCase());
-      return matchSearch && matchStatus && matchTarget;
+        c.name.toLowerCase().includes(q) ||
+        c.chemblId.toLowerCase().includes(q) ||
+        c.mechanismTargets.some((t) => t.toLowerCase().includes(q));
+      const matchTarget = targetFilter === "all" || c.mechanismTargets.some((t) => t.toUpperCase() === targetFilter.toUpperCase());
+      return matchSearch && matchTarget;
     });
-
-    result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       const aVal = a[sortKey];
       const bVal = b[sortKey];
       const cmp = typeof aVal === "number" ? aVal - (bVal as number) : String(aVal).localeCompare(String(bVal));
       return sortDir === "asc" ? cmp : -cmp;
     });
+  }, [search, sortKey, sortDir, targetFilter]);
 
-    return result;
-  }, [search, sortKey, sortDir, statusFilter, targetFilter]);
+  const csvRows = filtered.map((c: ReferenceCompound) => ({
+    name: c.name,
+    chembl_id: c.chemblId,
+    smiles: c.smiles,
+    mw: c.mw,
+    alogp: c.alogp,
+    qed: c.qed,
+    max_phase: c.maxPhase,
+    mechanism_targets: c.mechanismTargets,
+    action_types: c.actionTypes,
+    data_status: "curated from ChEMBL",
+    chembl_release: CHEMBL_RELEASE,
+  }));
 
-  const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
-    <th
-      aria-sort={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-      className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-    >
-      <button
-        type="button"
-        onClick={() => handleSort(field)}
-        className="inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground transition-colors"
-      >
-        {label}
-        {sortKey === field && (
-          <span className="text-foreground" aria-hidden="true">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>
-        )}
-      </button>
-    </th>
-  );
 
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Compounds</h1>
+        <h1 className="text-3xl font-bold">Reference compounds</h1>
         <p className="text-muted-foreground mt-1">
-          Browse and filter your compound library
+          Approved drugs used as reference points across the site. Structures, properties and mechanism targets are
+          copied from ChEMBL parent records. Search all of ChEMBL on{" "}
+          <Link href="/search" className="text-primary hover:underline">
+            Compound search
+          </Link>
+          .
         </p>
       </div>
-
-      <DemoDataNotice />
 
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <input
               type="text"
-              placeholder="Search compounds by name, ID, target, or SMILES..."
+              placeholder="Filter by name, ChEMBL ID or target..."
+              aria-label="Filter reference compounds"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="all">All Statuses</option>
-              <option value="screening">Screening</option>
-              <option value="hit">Hit</option>
-              <option value="lead">Lead</option>
-              <option value="preclinical">Preclinical</option>
-            </select>
-            <select
               value={targetFilter}
               onChange={(e) => setTargetFilter(e.target.value)}
-              aria-label="Filter by target"
+              aria-label="Filter by mechanism target"
               className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="all">All Targets</option>
-              {initialTarget && !targetOptions.includes(initialTarget) && (
+              <option value="all">All mechanism targets</option>
+              {initialTarget && !targetOptions.some((t) => t.toUpperCase() === initialTarget) && (
                 <option value={initialTarget}>{initialTarget}</option>
               )}
               {targetOptions.map((t) => (
@@ -158,7 +156,7 @@ function CompoundsContent() {
                 </option>
               ))}
             </select>
-            <ExportCsvButton demo rows={filtered} filename="compounds" />
+            <ExportCsvButton rows={csvRows} filename="reference-compounds" source={{ name: `ChEMBL ${CHEMBL_RELEASE.replace("ChEMBL_", "")}`, retrieved: CHEMBL_RETRIEVED }} />
           </div>
         </CardHeader>
         <CardContent>
@@ -166,43 +164,63 @@ function CompoundsContent() {
             <table className="w-full">
               <thead className="border-b">
                 <tr>
-                  <SortHeader label="ID" field="id" />
-                  <SortHeader label="Name" field="name" />
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Structure</th>
-                  <SortHeader label="MW" field="mw" />
-                  <SortHeader label="LogP" field="logP" />
-                  <SortHeader label="QED" field="qed" />
-                  <SortHeader label="Status" field="status" />
-                  <SortHeader label="Target" field="target" />
+                  <SortHeader field="name" label="Name" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">ChEMBL ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <GlossaryTerm k="smiles">Structure</GlossaryTerm>
+                  </th>
+                  <SortHeader field="mw" label="MW" term="mw" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <SortHeader field="alogp" label="ALogP" term="alogp" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <SortHeader field="qed" label="QED" term="qed" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <GlossaryTerm k="maxPhase">Status</GlossaryTerm>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Mechanism targets (ChEMBL)
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map((compound) => (
-                  <tr key={compound.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{compound.id}</td>
-                    <td className="px-4 py-3 text-sm font-medium">{compound.name}</td>
-                    <td className="px-4 py-2" title={compound.smiles}>
-                      <MoleculeViewer smiles={compound.smiles} name={compound.name} width={130} height={85} />
+                {filtered.map((c) => (
+                  <tr key={c.chemblId} className="hover:bg-muted/50 transition-colors align-top">
+                    <td className="px-4 py-3 text-sm font-medium">{c.name}</td>
+                    <td className="px-4 py-3 text-sm font-mono">
+                      <a
+                        href={`https://www.ebi.ac.uk/chembl/compound_report_card/${c.chemblId}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {c.chemblId}
+                      </a>
                     </td>
-                    <td className="px-4 py-3 text-sm tabular-nums">{compound.mw.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm tabular-nums">{compound.logP.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-sm tabular-nums">{compound.qed.toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", statusConfig[compound.status].className)}>
-                        {statusConfig[compound.status].label}
-                      </span>
+                    <td className="px-4 py-2" title={c.smiles}>
+                      <MoleculeViewer smiles={c.smiles} name={c.name} width={130} height={85} />
                     </td>
+                    <td className="px-4 py-3 text-sm tabular-nums">{c.mw.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm tabular-nums">{c.alogp.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm tabular-nums">{c.qed.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm">{phaseLabel(c.maxPhase)}</td>
                     <td className="px-4 py-3 text-sm">
-                      <Link href={`/targets?q=${encodeURIComponent(compound.target.split(/[ /]/)[0])}`} className="text-primary hover:underline">
-                        {compound.target}
-                      </Link>
+                      <span className="flex flex-wrap gap-x-2 gap-y-1">
+                        {c.mechanismTargets.map((t) =>
+                          /^[A-Z0-9-]+$/.test(t) ? (
+                            <Link key={t} href={`/targets?q=${encodeURIComponent(t)}`} className="text-primary hover:underline">
+                              {t}
+                            </Link>
+                          ) : (
+                            <span key={t}>{t}</span>
+                          )
+                        )}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">{c.actionTypes.join(", ")}</span>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                      No compounds in the program library match your criteria.
+                      No reference compound matches.
                       {targetFilter !== "all" && (
                         <>
                           {" "}
@@ -226,9 +244,13 @@ function CompoundsContent() {
               </tbody>
             </table>
           </div>
-          <div className="mt-4 text-xs text-muted-foreground">
-            Showing {filtered.length} of {compounds.length} compounds
-          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Showing {filtered.length} of {referenceCompounds.length} reference compounds. Source:{" "}
+            <a href="https://www.ebi.ac.uk/chembl/" target="_blank" rel="noopener noreferrer" className="underline">
+              ChEMBL
+            </a>{" "}
+            release {CHEMBL_RELEASE.replace("ChEMBL_", "")}, parent molecule records and mechanism data, retrieved {CHEMBL_RETRIEVED}.
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -22,15 +22,15 @@ interface Compound {
 }
 
 const compounds: Compound[] = [
-  { id: "SDD-0012", name: "Vemurafenib analog", program: "BRAF", stage: "Lead", mw: "510.4", logP: "3.6", target: "BRAF V600E", ic50: "12 nM", selectivity: ">100x", admetFlag: "Phototoxicity" },
+  { id: "SDD-0012", name: "BRAF-cmpd-A", program: "BRAF", stage: "Lead", mw: "510.4", logP: "3.6", target: "BRAF V600E", ic50: "12 nM", selectivity: ">100x", admetFlag: "Phototoxicity" },
   { id: "SDD-0034", name: "Tau-Phos-1", program: "Alzheimer's", stage: "Hit", mw: "385.2", logP: "2.1", target: "GSK-3\u03B2", ic50: "45 nM", selectivity: "15x", admetFlag: "Clean" },
   { id: "SDD-0056", name: "JAK2-Sel-7", program: "JAK2", stage: "Lead", mw: "442.8", logP: "2.8", target: "JAK2", ic50: "8 nM", selectivity: ">50x", admetFlag: "CYP2D6" },
-  { id: "SDD-0078", name: "Osimertinib-R", program: "EGFR", stage: "Preclinical", mw: "499.6", logP: "3.2", target: "EGFR T790M", ic50: "3 nM", selectivity: ">200x", admetFlag: "Clean" },
+  { id: "SDD-0078", name: "EGFR-cmpd-T", program: "EGFR", stage: "Preclinical", mw: "499.6", logP: "3.2", target: "EGFR T790M", ic50: "3 nM", selectivity: ">200x", admetFlag: "Clean" },
   { id: "SDD-0089", name: "BRAF-Aza-3", program: "BRAF", stage: "Hit", mw: "465.3", logP: "3.1", target: "BRAF V600E", ic50: "8 nM", selectivity: "85x", admetFlag: "Clean" },
   { id: "SDD-0102", name: "Tau-Frag-12", program: "Alzheimer's", stage: "Hit", mw: "298.4", logP: "1.8", target: "Tau aggregation", ic50: "120 nM", selectivity: "N/A", admetFlag: "BBB low" },
   { id: "SDD-0115", name: "TAU-ASO-1", program: "Alzheimer's", stage: "Hit", mw: "N/A", logP: "N/A", target: "MAPT mRNA", ic50: "IC50 N/A", selectivity: "N/A", admetFlag: "Delivery" },
   { id: "SDD-0127", name: "JAK2-Opt-2", program: "JAK2", stage: "Lead", mw: "458.1", logP: "2.5", target: "JAK2", ic50: "5 nM", selectivity: ">80x", admetFlag: "Clean" },
-  { id: "SDD-0139", name: "EGFR-4G-1", program: "EGFR", stage: "Hit", mw: "525.7", logP: "3.8", target: "EGFR C797S", ic50: "22 nM", selectivity: "40x", admetFlag: "hERG moderate" },
+  { id: "SDD-0139", name: "EGFR-cmpd-C", program: "EGFR", stage: "Hit", mw: "525.7", logP: "3.8", target: "EGFR C797S", ic50: "22 nM", selectivity: "40x", admetFlag: "hERG moderate" },
   { id: "SDD-0151", name: "RAS-pep-1", program: "KRAS", stage: "Hit", mw: "1850", logP: "N/A", target: "KRAS G12C", ic50: "180 nM", selectivity: "12x", admetFlag: "Stability" },
 ];
 
