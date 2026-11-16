@@ -6,3 +6,10 @@ export type ProjectView = (typeof PROJECT_VIEWS)[number];
 
 export const parseProjectView = (v: string | undefined): ProjectView =>
   (PROJECT_VIEWS as readonly string[]).includes(v ?? "") ? (v as ProjectView) : "overview";
+
+// Views of a project stored in Studio's database (today the developer sandbox).
+export const LIVE_VIEWS = ["overview", "tables", "iterations", "artifacts", "tokens"] as const;
+export type LiveView = (typeof LIVE_VIEWS)[number];
+
+export const parseLiveView = (v: string | undefined): LiveView =>
+  (LIVE_VIEWS as readonly string[]).includes(v ?? "") ? (v as LiveView) : "overview";

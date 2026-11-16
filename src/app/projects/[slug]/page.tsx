@@ -1,8 +1,8 @@
-import { notFound } from "next/navigation";
 import "@/styles/vault.css";
 import { DemoDataNotice } from "@/components/data-provenance";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { parseProjectView } from "@/components/projects/views";
+import { LiveProjectWorkspace } from "@/components/projects/live-projects";
+import { parseLiveView, parseProjectView } from "@/components/projects/views";
 import { DEMO_PROJECTS, demoProject } from "@/data/projects-demo";
 
 export function generateStaticParams() {
@@ -19,17 +19,28 @@ export default function ProjectPage({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { view?: string };
+  searchParams: { view?: string; table?: string };
 }) {
-  const project = demoProject(params.slug);
-  if (!project) notFound();
-  const view = parseProjectView(searchParams.view);
+  const demo = demoProject(params.slug);
+  if (!demo) {
+    // Projects stored in Studio's database (today: the developer sandbox, test data only).
+    const view = parseLiveView(searchParams.view);
+    const table = /^[a-z][a-z0-9_]{0,39}$/.test(searchParams.table ?? "") ? searchParams.table! : null;
+    return (
+      <div className="vault">
+        <div className="px-4 pt-3 md:px-5">
+          <DemoDataNotice />
+        </div>
+        <LiveProjectWorkspace slug={params.slug} view={view} table={table} />
+      </div>
+    );
+  }
   return (
     <div className="vault">
       <div className="px-4 pt-3 md:px-5">
         <DemoDataNotice />
       </div>
-      <ProjectWorkspace project={project} view={view} />
+      <ProjectWorkspace project={demo} view={parseProjectView(searchParams.view)} />
     </div>
   );
 }

@@ -156,7 +156,12 @@ export function DataTable<T>({
     setSort((s) => (s?.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
 
   const exportCsv = () => {
-    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    // Quote every cell; a text cell starting with = + - @ (or a tab or return) gets a leading
+    // apostrophe so a spreadsheet does not run it as a formula.
+    const esc = (v: string | number) => {
+      const t = typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? `'${v}` : String(v);
+      return `"${t.replace(/"/g, '""')}"`;
+    };
     const csv = [columns.map((c) => esc(c.label)).join(",")]
       .concat(sorted.map((r) => columns.map((c) => esc(c.value(r))).join(",")))
       .join("\n");

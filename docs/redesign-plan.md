@@ -115,6 +115,7 @@ The theme is scoped to `/projects` and `/p`, so the live-data pages keep their c
 0. **SSO on** (owner): configure the Keycloak client and the deployment environment for #35, then merge it.
 1. **Plan, Projects shell and design**: this document, a draft agent SKILL, and the Projects pages rendered from a labelled demo fixture. Members only; no database writes.
 2. **Schema and authorisation**: tables, project authorisation, membership administration, audit log.
+   - **Brought forward (2026-11-15, owner's decision):** a developer **sandbox** (test data only) with the project tables, hashed push tokens, the audit log, the push API and `tools/sdd-cli/sdd.mjs`, before single sign-on. Real campaigns stay closed until SSO, then are adapted. See [projects-api.md](projects-api.md).
 3. **Ingestion API v1**: tokens, the `sdd` CLI, the SKILL, OpenAPI and contract tests, and a pilot push from the cluster. Security review.
 4. **Connectors**: Box (upload sessions, folder index, webhook) and Notion status sync.
 5. **MCP**: project tools for authenticated agents.
