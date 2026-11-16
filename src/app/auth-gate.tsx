@@ -122,7 +122,8 @@ const navGroups: NavGroup[] = [
     label: "Projects",
     icon: FolderOpen,
     items: [
-      { href: "/projects", label: "Directory" },
+      { href: "/projects", label: "Campaigns" },
+      { href: "/projects/demo", label: "Demo directory" },
       { href: "/projects/team", label: "Team" },
       { href: "/projects/performance", label: "Performance" },
       { href: "/projects/reports", label: "Reports" },
@@ -171,6 +172,8 @@ const navGroups: NavGroup[] = [
     ],
   },
 ];
+
+const NAV_HREFS = navGroups.flatMap((g) => g.items.map((i) => i.href));
 
 function Sidebar({
   user,
@@ -309,7 +312,8 @@ function Sidebar({
                 <div className="ml-2 border-l border-border pl-1 space-y-0.5 mt-0.5">
                   {group.items.map((item) => {
                     // Build sub-key: e.g. "biology/target-board" from href "/disease-biology/target-board"
-                    const hrefParts  = item.href.replace("/disease-biology", "/biology").split("/").filter(Boolean);
+                    // "/projects/demo" keeps the access key of the old "/projects" directory page it replaced.
+                    const hrefParts  = item.href.replace("/disease-biology", "/biology").replace("/projects/demo", "/projects/directory").split("/").filter(Boolean);
                     const subKey = hrefParts.length >= 2
                       ? (`${groupKey}/${hrefParts[hrefParts.length - 1]}` as ModuleKey)
                       : groupKey;
@@ -443,7 +447,10 @@ function NavItem({ href, label, sub, icon: Icon, onNavigate, locked }: {
   locked?: boolean;
 }) {
   const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(href + "/");
+  // Only the most specific matching sidebar link is active, so "/projects" is not lit on "/projects/team".
+  const matches = (h: string) => pathname === h || pathname.startsWith(h + "/");
+  const longer = NAV_HREFS.some((h) => h.length > href.length && h.startsWith(href + "/") && matches(h));
+  const isActive = matches(href) && !longer;
 
   return (
     <Link
