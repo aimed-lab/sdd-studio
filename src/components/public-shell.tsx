@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PageClassStrip } from "@/components/data-provenance";
-import { PUBLIC_ROUTES } from "@/data/public-routes";
+import { PUBLIC_DOCS, PUBLIC_ROUTES } from "@/data/public-routes";
 import { PublicModeProvider } from "@/lib/public-mode";
 import { cn } from "@/lib/utils";
 
@@ -42,8 +42,20 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
             <Link
+              href={PUBLIC_DOCS.href}
+              aria-current={pathname.startsWith(PUBLIC_DOCS.href) ? "page" : undefined}
+              className={cn(
+                "ml-auto rounded-md px-3 py-1.5 text-sm transition-colors",
+                pathname.startsWith(PUBLIC_DOCS.href)
+                  ? "bg-accent font-medium text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              {PUBLIC_DOCS.label}
+            </Link>
+            <Link
               href="/login"
-              className="ml-auto rounded-md border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              className="rounded-md border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted"
             >
               Sign in
             </Link>
@@ -75,6 +87,10 @@ export function PublicToolsBanner() {
           </Link>
         </span>
       ))}
+      <span className="text-muted-foreground"> · </span>
+      <Link href={PUBLIC_DOCS.href} className="font-medium text-primary hover:underline">
+        How to join and use Studio
+      </Link>
     </div>
   );
 }
