@@ -5,20 +5,27 @@
 //   sdd push   --label r012-polar-bioisostere [--dir Results/r012-polar-bioisostere] [--summary "…"]
 //              [--git <sha>] [--agent] [--dry-run]
 //   sdd status
+//   sdd admin create-project --slug phgdh-npa --title "…" [--description "…"] [--studio URL]
+//   sdd admin key --project phgdh-npa --scope read|push [--label "…"] [--days 90] [--studio URL]
+//   sdd admin keys --project phgdh-npa [--studio URL]
+//   sdd admin revoke --project phgdh-npa --id <key id> [--studio URL]
 //
-// Reads sdd.project.json in the current folder (or a parent). The push token comes from the
-// SDD_PROJECT_TOKEN environment variable and is never written to disk. File contents are not
+// Reads sdd.project.json in the current folder (or a parent). The push key comes from the
+// SDD_PROJECT_TOKEN environment variable, or from a file given with --token-file; it is never printed.
+// Admin commands need SDD_ADMIN_TOKEN (the ADMIN_API_TOKEN set in Vercel). A new key is written to a
+// private file under ~/.sdd/keys (mode 600) and only its file name and prefix are printed. File contents are not
 // uploaded: Studio receives each file's path, SHA-256, size, kind and sensitivity, plus the summary
 // tables the config declares (CSV or TSV). Node 18 or later; no dependencies.
 
 import { createHash } from "node:crypto";
-import { createReadStream, existsSync, lstatSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { chmodSync, createReadStream, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 
 const CONFIG = "sdd.project.json";
 const DEFAULT_STUDIO = "https://studio.smartdrugdiscovery.org";
 const MAX_BODY = 3_900_000;
+const CHUNK_BYTES = 800_000; // table rows per request when a table is sent in chunks
 
 // Always skipped, whatever sdd.project.json says: secrets must never be indexed (names and checksums are visible).
 const ALWAYS_EXCLUDE = [
@@ -155,21 +162,55 @@ function parseDelimited(text, delim) {
   });
 }
 
+let TOKEN_FILE = null;
+let STUDIO_FLAG = null;
+function pushToken() {
+  if (TOKEN_FILE) {
+    const t = readFileSync(TOKEN_FILE, "utf8").trim();
+    if (!t.startsWith("sdd_pt_")) die(`${TOKEN_FILE} does not contain a key.`);
+    return t;
+  }
+  return process.env.SDD_PROJECT_TOKEN;
+}
+
+function studioOrigin(studio) {
+  let url;
+  try { url = new URL(studio); } catch { die(`"studio" is not a URL: ${studio}`); }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !local) die(`refusing to send a key over ${url.protocol}//; "studio" must be https.`);
+  if (url.origin !== DEFAULT_STUDIO && !local) console.warn(`sdd: note: sending to ${url.origin}, not ${DEFAULT_STUDIO}.`);
+  return url.origin;
+}
+
 async function api(cfg, method, path, body) {
   let url;
   try { url = new URL(cfg.studio); } catch { die(`"studio" in ${CONFIG} is not a URL: ${cfg.studio}`); }
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !local) die(`refusing to send your token over ${url.protocol}//; "studio" must be https.`);
-  if (url.origin !== DEFAULT_STUDIO && !local) console.warn(`sdd: note: sending to ${url.origin}, not ${DEFAULT_STUDIO}.`);
-  const token = process.env.SDD_PROJECT_TOKEN;
-  if (!token && method !== "GET") die("set SDD_PROJECT_TOKEN to your push token (Studio → Projects → Developer sandbox → Push tokens).");
-  const res = await fetch(`${cfg.studio.replace(/\/+$/, "")}/api/v1/projects/${cfg.project}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  return { status: res.status, data };
+  // A config file can be edited by anyone with access to the folder: a key goes to another address only when
+  // that address is also given on the command line.
+  if (url.origin !== DEFAULT_STUDIO && !local && STUDIO_FLAG !== cfg.studio) {
+    die(`${CONFIG} sends to ${url.origin}, not ${DEFAULT_STUDIO}. If that is intended, add --studio ${cfg.studio}`);
+  }
+  const token = pushToken();
+  if (!token && method !== "GET") die("set SDD_PROJECT_TOKEN to your push key, or pass --token-file (Studio → Projects → Developer sandbox → Push tokens).");
+  if (!/^[a-z0-9][a-z0-9-]{0,47}$/.test(String(cfg.project))) die(`"project" in ${CONFIG} must be a lowercase slug.`);
+  // Rate-limited requests are retried after the time Studio asks for.
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`${cfg.studio.replace(/\/+$/, "")}/api/v1/projects/${cfg.project}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.status === 429 && attempt < 20) {
+      const wait = Math.min(120, Number(res.headers.get("retry-after")) || 10);
+      process.stdout.write(`\n  rate limited; waiting ${wait} s…`);
+      await new Promise((r) => setTimeout(r, wait * 1000));
+      continue;
+    }
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, data };
+  }
 }
 
 // ── commands ──────────────────────────────────────────────────────────────────
@@ -211,8 +252,18 @@ async function push(args) {
     if (!rule || !/\.(csv|tsv|txt)$/i.test(p)) continue;
     if (tables.some((t) => t.name === rule[1])) { console.warn(`sdd: skipping ${p}: table "${rule[1]}" already taken by an earlier file in this push.`); continue; }
     const rows = parseDelimited(readFileSync(join(root, p), "utf8"), /\.tsv$/i.test(p) ? "\t" : ",");
-    if (rows.length > 5000) die(`${p} has ${rows.length} rows; at most 5000. Write a summary table (top rows or aggregates) for Studio.`);
     tables.push({ name: rule[1], file: p, rows });
+  }
+
+  // Tables too big for one request go in chunks: the push carries the first chunk and the row count,
+  // the rest is appended afterwards. Studio checks its own row limits per project.
+  const chunkRest = new Map();
+  for (const t of tables) {
+    if (Buffer.byteLength(JSON.stringify(t.rows)) <= CHUNK_BYTES && t.rows.length <= 5000) continue;
+    // The push only declares the table; every row goes in chunks, so several big tables fit in one push.
+    chunkRest.set(t.name, { all: t.rows, first: 0 });
+    t.expectedRows = t.rows.length;
+    t.rows = [];
   }
 
   const body = {
@@ -224,8 +275,8 @@ async function push(args) {
     tables,
   };
   const size = Buffer.byteLength(JSON.stringify(body));
-  console.log(`Project ${cfg.project} · ${files.length} files · ${tables.length} tables (${tables.map((t) => `${t.name}: ${t.rows.length} rows`).join(", ") || "none"}) · ${(size / 1e6).toFixed(2)} MB`);
-  if (size > MAX_BODY) die("this push is over the 4 MB limit. Push summary tables with fewer rows.");
+  console.log(`Project ${cfg.project} · ${files.length} files · ${tables.length} tables (${tables.map((t) => `${t.name}: ${t.expectedRows ?? t.rows.length} rows${t.expectedRows ? " in chunks" : ""}`).join(", ") || "none"}) · ${(size / 1e6).toFixed(2)} MB`);
+  if (size > MAX_BODY) die("this push is over the 4 MB limit even with chunked tables. Push fewer files or smaller tables.");
   if (args["dry-run"]) {
     for (const f of files) console.log(`  ${f.kind.padEnd(14)} ${f.sha256.slice(0, 12)}  ${f.path}`);
     console.log("Dry run: nothing sent.");
@@ -234,11 +285,91 @@ async function push(args) {
 
   const { status, data } = await api(cfg, "POST", "/iterations", body);
   if (!data.ok) die(`Studio refused the push (HTTP ${status}): ${data.error || "unknown error"}`);
+  // Where each chunked table stands: a new push starts after the first chunk; a retried push resumes.
+  const have = new Map();
   if (data.duplicate) {
-    console.log(`Already in Studio as iteration ${data.iteration} (${data.label}); nothing new to push.`);
+    for (const t of data.incomplete ?? []) have.set(t.name, t.have);
+    if (!have.size) {
+      console.log(`Already in Studio as iteration ${data.iteration} (${data.label}); nothing new to push.`);
+      return;
+    }
+    console.log(`Iteration ${data.iteration} (${data.label}) exists; finishing ${have.size} table(s) that did not finish last time.`);
   } else {
+    for (const [name, c] of chunkRest) have.set(name, c.first);
     console.log(`Iteration ${data.iteration} (${data.label}): ${data.newFiles} new, ${data.unchanged} unchanged.`);
-    console.log(data.url);
+  }
+  for (const [name, start] of have) {
+    const c = chunkRest.get(name);
+    if (!c) continue;
+    let offset = start;
+    for (const chunk of splitRows(c.all.slice(offset))) {
+      const r = await api(cfg, "POST", `/iterations/${data.iteration}/rows`, { table: name, offset, rows: chunk });
+      if (!r.data.ok) die(`Studio refused rows ${offset}–${offset + chunk.length} of ${name} (HTTP ${r.status}): ${r.data.error || "unknown error"}. Run the same push again to resume.`);
+      offset = r.data.have;
+      process.stdout.write(`\r  ${name}: ${offset} / ${c.all.length} rows`);
+    }
+    process.stdout.write("\n");
+  }
+  if (data.url) console.log(data.url);
+}
+
+/** Splits rows into chunks of at most CHUNK_BYTES of JSON and 5,000 rows. */
+function splitRows(rows) {
+  const out = [];
+  let cur = [], bytes = 2;
+  for (const r of rows) {
+    const b = Buffer.byteLength(JSON.stringify(r)) + 1;
+    if (cur.length && (bytes + b > CHUNK_BYTES || cur.length >= 5000)) { out.push(cur); cur = []; bytes = 2; }
+    cur.push(r); bytes += b;
+  }
+  if (cur.length || !out.length) out.push(cur);
+  return out;
+}
+
+// ── admin (platform owner) ────────────────────────────────────────────────────
+
+async function admin(args) {
+  const sub = args._[1];
+  const adminToken = process.env.SDD_ADMIN_TOKEN;
+  if (!adminToken) die("set SDD_ADMIN_TOKEN to the admin key (the ADMIN_API_TOKEN value set in Vercel).");
+  const origin = studioOrigin(typeof args.studio === "string" ? args.studio : DEFAULT_STUDIO);
+  const call = async (method, path, body) => {
+    const res = await fetch(`${origin}/api/v1/admin${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", "X-Admin-Token": adminToken },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) die(`HTTP ${res.status}: ${data.error || "admin key missing or not accepted"}`);
+    return data;
+  };
+  const project = typeof args.project === "string" ? args.project : "";
+  if (project && !/^[a-z0-9][a-z0-9-]{0,47}$/.test(project)) die("--project must be a lowercase slug.");
+  if (sub === "create-project") {
+    if (typeof args.slug !== "string" || typeof args.title !== "string") die('usage: sdd admin create-project --slug <slug> --title "<title>" [--description "<text>"]');
+    const d = await call("POST", "/projects", { slug: args.slug, title: args.title, description: typeof args.description === "string" ? args.description : undefined });
+    console.log(`Created project ${d.project.slug} (${d.project.title}).`);
+  } else if (sub === "key") {
+    if (!project || (args.scope !== "read" && args.scope !== "push")) die("usage: sdd admin key --project <slug> --scope read|push [--label <text>] [--days 90]");
+    const d = await call("POST", `/projects/${project}/keys`, { scope: args.scope, label: typeof args.label === "string" ? args.label : undefined, days: args.days ? Number(args.days) : undefined });
+    const dir = join(homedir(), ".sdd", "keys");
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const file = join(dir, `${project}.${d.scope}.${d.id}.key`);
+    writeFileSync(file, d.key + "\n", { mode: 0o600 });
+    chmodSync(file, 0o600);
+    console.log(`Issued a ${d.scope} key for ${project} (${d.prefix}…, id ${d.id}, expires ${d.expiresAt.slice(0, 10)}).`);
+    console.log(`Saved to ${file} (readable only by you). It is not shown here; share it privately.`);
+  } else if (sub === "keys") {
+    if (!project) die("usage: sdd admin keys --project <slug>");
+    const d = await call("GET", `/projects/${project}/keys`);
+    for (const k of d.keys) console.log(`  ${k.id}  ${k.prefix}…  ${k.scope.padEnd(4)}  ${(k.label ?? "").padEnd(24)}  ${k.revokedAt ? "revoked " + k.revokedAt.slice(0, 10) : "expires " + k.expiresAt.slice(0, 10)}  last used ${k.lastUsedAt ? k.lastUsedAt.slice(0, 10) : "never"}`);
+    if (!d.keys.length) console.log("  no keys");
+  } else if (sub === "revoke") {
+    if (!project || typeof args.id !== "string") die("usage: sdd admin revoke --project <slug> --id <key id>");
+    await call("DELETE", `/projects/${project}/keys`, { id: args.id });
+    console.log(`Revoked key ${args.id}.`);
+  } else {
+    die("usage: sdd admin create-project | key | keys | revoke (see the top of sdd.mjs)");
   }
 }
 
@@ -255,10 +386,13 @@ async function status() {
 
 const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0];
+if (typeof args["token-file"] === "string") TOKEN_FILE = args["token-file"];
+if (typeof args.studio === "string") STUDIO_FLAG = args.studio;
 if (cmd === "init") init(args);
+else if (cmd === "admin") await admin(args);
 else if (cmd === "push") await push(args);
 else if (cmd === "status") await status();
 else {
-  console.log("Usage: sdd init | sdd push --label <label> [--dir <folder>] [--summary <text>] [--git <sha>] [--agent] [--dry-run] | sdd status");
+  console.log("Usage: sdd init | sdd push --label <label> [--dir <folder>] [--summary <text>] [--git <sha>] [--agent] [--dry-run] [--token-file <file>] | sdd status | sdd admin …");
   process.exit(cmd ? 1 : 0);
 }

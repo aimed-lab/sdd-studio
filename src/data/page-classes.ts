@@ -1,4 +1,4 @@
-export type DataClass = "live" | "curated" | "demo" | "mixed" | "planned" | "app";
+export type DataClass = "live" | "curated" | "demo" | "mixed" | "planned" | "app" | "project";
 
 export interface PageClass {
   kind: DataClass;
@@ -45,8 +45,20 @@ export const pageClasses: Record<string, PageClass> = {
   "/regulatory/business": { kind: "demo" },
   "/regulatory/transactions": { kind: "demo" },
   "/regulatory/decisions": { kind: "demo" },
-  "/projects": { kind: "demo" },
-  "/projects/[slug]": { kind: "demo" },
+  "/projects": {
+    kind: "mixed",
+    sections: [
+      { label: "Example campaigns (invented) and the developer sandbox (test data)", kind: "demo" },
+      { label: "Campaign titles; their data needs the project key", kind: "project" },
+    ],
+  },
+  "/projects/[slug]": {
+    kind: "mixed",
+    sections: [
+      { label: "Example campaigns and the developer sandbox (test data)", kind: "demo" },
+      { label: "Campaigns: the lab's own unpublished results, shown to holders of the project key", kind: "project" },
+    ],
+  },
   "/projects/demo": { kind: "demo" },
   "/projects/performance": { kind: "demo" },
   "/projects/reports": { kind: "demo" },

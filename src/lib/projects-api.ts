@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { LIMITS, type ManifestFile, type ProjectRow, type PushTable } from "@/lib/projects-db";
+import { LIMITS, limitsFor, verifyToken, type ManifestFile, type ProjectRow, type PushTable } from "@/lib/projects-db";
 
 export const ARTIFACT_KINDS = [
   "decision-sheet", "data", "figure", "structure", "manuscript", "report", "app", "harness", "log",
@@ -13,12 +13,10 @@ export const fail = (status: number, error: string) => json({ ok: false, error }
 
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
 
-/** Until single sign-on (#32) is on, only the sandbox (test data) is open. */
+/** Member-managed push tokens exist only for the sandbox (test data). */
 export function sandboxOnly(project: ProjectRow | null): NextResponse | null {
   if (!project) return fail(404, "Project not found.");
-  if (project.kind !== "sandbox") {
-    return fail(401, "This project opens once single sign-on is enabled. Use the sandbox to try the workflow.");
-  }
+  if (project.kind !== "sandbox") return fail(403, "Keys for this project are issued by the platform owner.");
   return null;
 }
 
@@ -26,6 +24,28 @@ export function bearer(header: string | null): string | null {
   const m = header?.match(/^Bearer\s+(\S+)$/i);
   return m ? m[1] : null;
 }
+
+/** The project key a reader sends: `X-SDD-Project-Key: sdd_pt_…` (or a Bearer token). */
+export const projectKey = (req: Request) => req.headers.get("x-sdd-project-key") ?? bearer(req.headers.get("authorization"));
+
+/**
+ * Reads: the sandbox is open; a campaign needs a read or push key for that project, checked on the
+ * server on every request (single sign-on is not on yet, so a signed-in email is not enough).
+ */
+export async function readGate(project: ProjectRow | null, req: Request): Promise<NextResponse | null> {
+  return (await readAccess(project, req)).denied;
+}
+
+/** Like readGate, and also says which kind of key opened a campaign ("read" or "push"). */
+export async function readAccess(project: ProjectRow | null, req: Request): Promise<{ denied: NextResponse | null; scope: string | null }> {
+  if (!project) return { denied: fail(404, "Project not found."), scope: null };
+  if (project.kind === "sandbox") return { denied: null, scope: null };
+  const key = projectKey(req);
+  const tok = key ? await verifyToken(project.slug, key, "read") : null;
+  if (tok) return { denied: null, scope: tok.scope ?? "push" };
+  return { denied: json({ ok: false, needsKey: true, error: "This project needs a project key. Ask the platform owner for one." }, 401), scope: null };
+}
+
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -43,6 +63,38 @@ function safePath(p: unknown): p is string {
     !p.startsWith("/") && !p.includes("\\") &&
     !p.split("/").some((seg) => seg === ".." || seg === "." || seg === "")
   );
+}
+
+/** Validates table rows (used for pushes and for appended chunks). */
+export function parseRows(
+  raw: unknown,
+  where: string,
+  maxColumns: number,
+): { rows: PushTable["rows"] } | { error: string } {
+  if (!Array.isArray(raw)) return { error: `${where}.rows must be a list.` };
+  const rows: PushTable["rows"] = [];
+  for (let r = 0; r < raw.length; r++) {
+    const row: unknown = raw[r];
+    if (!isPlainObject(row)) return { error: `${where}.rows[${r}] must be an object.` };
+    const keys = Object.keys(row);
+    if (keys.length > maxColumns) return { error: `${where}.rows[${r}]: at most ${maxColumns} columns.` };
+    const clean: PushTable["rows"][number] = {};
+    for (const k of keys) {
+      if (k.length === 0 || k.length > 60 || k === "__proto__" || !cleanText(k) || SPOOF_CHARS.test(k)) return { error: `${where}.rows[${r}]: column names must be 1–60 characters of plain text.` };
+      const v = row[k];
+      if (v === null || typeof v === "boolean") clean[k] = v;
+      else if (typeof v === "number") {
+        if (!Number.isFinite(v)) return { error: `${where}.rows[${r}].${k}: numbers must be finite.` };
+        clean[k] = v;
+      } else if (typeof v === "string") {
+        if (v.length > LIMITS.maxCellChars) return { error: `${where}.rows[${r}].${k}: at most ${LIMITS.maxCellChars} characters.` };
+        if (!cleanText(v)) return { error: `${where}.rows[${r}].${k}: contains characters that cannot be stored.` };
+        clean[k] = v;
+      } else return { error: `${where}.rows[${r}].${k}: only text, numbers, true/false or null.` };
+    }
+    rows.push(clean);
+  }
+  return { rows };
 }
 
 export interface PushInput {
@@ -108,32 +160,25 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
     if (file !== null && (typeof file !== "string" || !paths.has(file))) return { error: `tables[${i}].file must be one of the pushed files.` };
     // In the sandbox every table must come from a pushed (test) file, so its sensitivity is known.
     if (project.kind === "sandbox" && file === null) return { error: `tables[${i}].file is required in the sandbox.` };
-    if (!Array.isArray(t.rows)) return { error: `tables[${i}].rows must be a list.` };
-    if (t.rows.length > LIMITS.maxRowsPerTable) return { error: `tables[${i}]: at most ${LIMITS.maxRowsPerTable} rows. Push a summary table instead.` };
-    const rows: PushTable["rows"] = [];
-    for (let r = 0; r < t.rows.length; r++) {
-      const row: unknown = t.rows[r];
-      if (!isPlainObject(row)) return { error: `tables[${i}].rows[${r}] must be an object.` };
-      const keys = Object.keys(row);
-      if (keys.length > LIMITS.maxColumns) return { error: `tables[${i}].rows[${r}]: at most ${LIMITS.maxColumns} columns.` };
-      const clean: PushTable["rows"][number] = {};
-      for (const k of keys) {
-        if (k.length === 0 || k.length > 60 || k === "__proto__" || !cleanText(k) || SPOOF_CHARS.test(k)) return { error: `tables[${i}].rows[${r}]: column names must be 1–60 characters of plain text.` };
-        const v = row[k];
-        if (v === null || typeof v === "boolean") clean[k] = v;
-        else if (typeof v === "number") {
-          if (!Number.isFinite(v)) return { error: `tables[${i}].rows[${r}].${k}: numbers must be finite.` };
-          clean[k] = v;
-        } else if (typeof v === "string") {
-          if (v.length > LIMITS.maxCellChars) return { error: `tables[${i}].rows[${r}].${k}: at most ${LIMITS.maxCellChars} characters.` };
-          if (!cleanText(v)) return { error: `tables[${i}].rows[${r}].${k}: contains characters that cannot be stored.` };
-          clean[k] = v;
-        } else return { error: `tables[${i}].rows[${r}].${k}: only text, numbers, true/false or null.` };
+    const lim = limitsFor(project.kind);
+    const parsed = parseRows(t.rows, `tables[${i}]`, lim.maxColumns);
+    if ("error" in parsed) return parsed;
+    const rows = parsed.rows;
+    let expectedRows: number | undefined;
+    if (t.expectedRows != null) {
+      // A large table arrives in chunks: this push carries the first rows, the rest are appended.
+      if (project.kind === "sandbox") return { error: `tables[${i}]: the sandbox does not take tables in chunks.` };
+      if (typeof t.expectedRows !== "number" || !Number.isInteger(t.expectedRows) || t.expectedRows < rows.length) {
+        return { error: `tables[${i}].expectedRows must be a whole number at least the rows sent.` };
       }
-      rows.push(clean);
+      if (file === null) return { error: `tables[${i}].file is required for a table sent in chunks.` };
+      expectedRows = t.expectedRows;
+    }
+    if ((expectedRows ?? rows.length) > lim.maxRowsPerTable) {
+      return { error: `tables[${i}]: at most ${lim.maxRowsPerTable} rows in this project. Push a summary table instead.` };
     }
     names.add(t.name);
-    tables.push({ name: t.name, file, rows });
+    tables.push({ name: t.name, file, rows, ...(expectedRows != null ? { expectedRows } : {}) });
   }
 
   const tableBytes = Buffer.byteLength(JSON.stringify(tables));
@@ -145,7 +190,10 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
   const canonical = JSON.stringify({
     label,
     files: files.map((f) => [f.path, f.sha256]).sort(),
-    tables: tables.map((t) => [t.name, t.file, createHash("sha256").update(JSON.stringify(t.rows)).digest("hex")]).sort(),
+    // A chunked table is identified by its file (whose checksum is in `files`) and row count.
+    tables: tables
+      .map((t) => [t.name, t.file, t.expectedRows != null ? `chunked:${t.expectedRows}` : createHash("sha256").update(JSON.stringify(t.rows)).digest("hex")])
+      .sort(),
   });
   const manifestSha = createHash("sha256").update(canonical).digest("hex");
   return { label, source, gitSha, summary, files, tables, manifestSha };

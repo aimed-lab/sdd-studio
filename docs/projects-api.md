@@ -4,8 +4,25 @@ Stages 2–3 of [redesign-plan.md](redesign-plan.md), delivered first for a **de
 
 ## What is open today
 - **Sandbox only.** The `sandbox` project accepts pushes and is readable by any signed-in member. It accepts files marked `test` only, keeps the latest 20 iterations, and holds at most 100,000 table rows in total.
-- **Other projects** (kind `campaign`) return 401 until single sign-on is on. Real campaigns move in then.
+- **Campaigns** (kind `campaign`) hold the lab's own unpublished data. They are opened only with a **project key**: Studio checks it on the server for every request, so knowing a member's email address is not enough. The platform owner creates campaigns and issues keys with the admin key (below).
 - **No file bytes.** Studio stores each file's path, SHA-256, size, kind and sensitivity, plus up to 10 summary tables per push. The files themselves stay in the project's Box folder; Box upload sessions arrive in Stage 4.
+
+## Campaign keys
+- **Admin key:** the platform owner sets `ADMIN_API_TOKEN` (a long random value) in the Vercel project. Admin requests send it as `X-Admin-Token`; without the variable the admin endpoints answer 404.
+- **Read key:** opens the campaign in Studio (pasted once per browser, kept in that browser's storage) and its read API.
+- **Push key:** writes iterations (and can read). Use it from a script, a cluster job or an agent with `--token-file`.
+- **Lifetime:** keys expire after 1–365 days (default 90), can be revoked at any time, and up to 50 can be active per campaign. Only their SHA-256 hash is stored. Creating and revoking keys is written to `project_audit`.
+
+```bash
+export SDD_ADMIN_TOKEN=…   # the ADMIN_API_TOKEN value, typed into your own terminal
+node sdd.mjs admin create-project --slug phgdh-npa --title "PHGDH-NPA: natural-product analogs"
+node sdd.mjs admin key --project phgdh-npa --scope read --label "Jake, browser"
+node sdd.mjs admin key --project phgdh-npa --scope push --label "import"
+node sdd.mjs admin keys --project phgdh-npa
+node sdd.mjs admin revoke --project phgdh-npa --id <key id>
+```
+
+`admin key` writes the new key to `~/.sdd/keys/<project>.<scope>.<id>.key` (readable only by you) and prints only its file name and prefix. Share a read key privately (for example in a password manager), never in email or chat.
 
 ## Push tokens
 - **Creating:** a signed-in member creates a token under **Projects → Developer sandbox → Push tokens**. It is shown once. Store it in the `SDD_PROJECT_TOKEN` environment variable, never in the project folder or a repository.
@@ -19,11 +36,16 @@ All endpoints live under `/api/v1/projects`. They are JSON, `Cache-Control: no-s
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/api/v1/projects` | none | List projects (title, kind, iteration count) |
-| GET | `/api/v1/projects/{slug}` | none (sandbox) | Iterations, file index, tables |
-| GET | `/api/v1/projects/{slug}/iterations` | none (sandbox) | Iterations, newest first |
-| POST | `/api/v1/projects/{slug}/iterations` | `Bearer sdd_pt_…` | Push one iteration |
-| GET | `/api/v1/projects/{slug}/records?table=&iteration=&limit=&offset=` | none (sandbox) | Rows of one table (latest iteration by default; up to 1,000 per page) |
-| GET / POST / DELETE | `/api/v1/projects/{slug}/tokens` | active member email | List, create or revoke your push tokens |
+| GET | `/api/v1/projects/{slug}` | none (sandbox); read key (campaign) | Iterations, file index, tables |
+| GET | `/api/v1/projects/{slug}/iterations` | none (sandbox); read key (campaign) | Iterations, newest first |
+| POST | `/api/v1/projects/{slug}/iterations` | push key | Push one iteration |
+| POST | `/api/v1/projects/{slug}/iterations/{n}/rows` | the push key of iteration n | Append one chunk of a large table |
+| GET | `/api/v1/projects/{slug}/records?table=&iteration=&limit=&offset=&q=&sort=&dir=` | none (sandbox); read key (campaign) | Rows of one table: latest iteration by default, up to 1,000 per page, text search `q`, sort by a column `sort` with `dir=asc|desc` |
+| GET / POST / DELETE | `/api/v1/projects/{slug}/tokens` | active member email | Sandbox only: list, create or revoke your push tokens |
+| POST | `/api/v1/admin/projects` | admin key | Create a campaign |
+| GET / POST / DELETE | `/api/v1/admin/projects/{slug}/keys` | admin key | List, issue or revoke a campaign's keys |
+
+A read key is sent as `X-SDD-Project-Key: sdd_pt_…` (or `Authorization: Bearer sdd_pt_…`).
 
 ### Push body
 ```json
@@ -66,6 +88,8 @@ All endpoints live under `/api/v1/projects`. They are JSON, `Cache-Control: no-s
 
 **Superseding:** a new version of a path marks earlier draft or internal versions `superseded`.
 
+**Large tables (campaigns):** a table may hold up to 50,000 rows and 300 columns in a campaign. A push declares it with `"expectedRows": <total>` and carries the first chunk; the rest is sent to `/iterations/{n}/rows` as `{ "table", "offset", "rows" }`, at most 1 MB of rows per request. Chunks are idempotent by offset, and re-running the same push resumes an unfinished table. `sdd.mjs push` does all of this automatically.
+
 ## The `sdd` tool
 `tools/sdd-cli/sdd.mjs` is a single file that needs Node 18 or later and nothing else.
 
@@ -95,11 +119,26 @@ node sdd.mjs push --label "r$(printf %03d $ROUND)" --dir "Results/r$(printf %03d
 
 Agents follow [skills/sdd-studio-push/SKILL.md](../skills/sdd-studio-push/SKILL.md).
 
+## Importing a PharmElixir campaign
+`tools/pharmelixir-export/pharmelixir-export.mjs` turns one campaign from PharmElixir's generated data layer (`webapp/data.js`) into a folder `sdd.mjs push` can send. Tables:
+- compounds, with scores, tiers, properties, ADMET flags and SMILES;
+- rounds, tiers and funnel counts, secondary targets, scorecard, and summary.
+
+Optionally, with the campaign's SQLite file (Node 22.5+), it adds the synthesis shortlist and confirmed flags. With a running PharmElixir server, it adds the decision sheet and the connectivity matrix as the app computes them.
+
+```bash
+node pharmelixir-export.mjs --data PharmElixir/webapp/data.js --campaign phgdh-npa --out phgdh-npa \
+     --campaign-db PharmElixir/data/campaign_db/phgdh-npa.sqlite3 --pharmelixir http://127.0.0.1:8056
+cd phgdh-npa && node sdd.mjs push --label r018-pharmelixir --token-file ~/.sdd/keys/phgdh-npa.push.<id>.key
+```
+
+Every computed value stays labelled as an in-silico result; `pred_*` values are docking-derived surrogates, not measured affinity.
+
 ## Tables
 | Table | Holds |
 |---|---|
 | `projects` | Project slug, title, kind (`sandbox` or `campaign`) |
-| `project_tokens` | Hashed push tokens, owner email, expiry, revocation, last use |
+| `project_tokens` | Hashed push tokens and campaign keys: scope (`read` or `push`), owner, expiry, revocation, last use |
 | `project_iterations` | One row per push; unique per project and manifest |
 | `project_artifacts` | File index per iteration |
 | `project_tables` | Each pushed table's column order and row count per iteration |

@@ -16,7 +16,6 @@ export default function ProjectsPage() {
         <span className="vx-topbar-sub">Campaign workspaces backed by each team&apos;s Box folder</span>
       </div>
       <div className="vx-wrap space-y-5">
-        <DemoDataNotice />
         <div>
           <h1 className="vx-h1">Campaigns</h1>
           <p className="vx-lede">
@@ -32,6 +31,7 @@ export default function ProjectsPage() {
         </section>
 
         <div className="vx-nav-label" style={{ padding: 0 }}>Examples (invented data, to show the layout)</div>
+        <DemoDataNotice />
 
         <div className="grid gap-4 md:grid-cols-2">
           {DEMO_PROJECTS.map((p) => {

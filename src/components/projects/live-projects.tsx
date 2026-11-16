@@ -1,25 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ProjectDataNotice } from "@/components/data-provenance";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ActorBadge, Badge, DataTable, Panel, ReleaseBadge, Stats, type Column } from "@/components/projects/vault-ui";
 import type { ReleaseState } from "@/data/projects-demo";
 import type { LiveView } from "@/components/projects/views";
+import { LiveTable } from "@/components/projects/live-table";
+import { clearProjectKey, getProjectKey, keyHeaders, setProjectKey } from "@/components/projects/project-key";
 
 // ── API shapes (GET /api/v1/projects/…) ──────────────────────────────────────
 
-interface LiveProjectSummary { slug: string; title: string; description: string | null; kind: string; open: boolean; iterations: number; latestAt: string | null }
+interface LiveProjectSummary { slug: string; title: string; description: string | null; kind: string; open: boolean; iterations: number | null; latestAt: string | null }
 interface LiveIteration { n: number; label: string; source: string; actorType: string; gitSha: string | null; summary: string | null; files: number; newFiles: number; status: string; createdAt: string }
 interface LiveArtifact { iteration: number; path: string; kind: string; sha256: string; size: number; sensitivity: string; release: string; actorType: string }
-interface LiveTable { name: string; iteration: number; rows: number }
+interface LiveTable { name: string; iteration: number; rows: number; expectedRows: number | null }
 interface LiveProject {
   project: { slug: string; title: string; description: string | null; kind: string };
   iterations: LiveIteration[];
   artifacts: LiveArtifact[];
   tables: LiveTable[];
 }
-type Row = Record<string, string | number | boolean | null>;
 
 
 const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "—");
@@ -52,14 +54,16 @@ export function LiveProjectCards() {
             <strong style={{ fontSize: 14.5 }}>{p.title}</strong>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {p.kind === "sandbox" ? <Badge tone="yellow">sandbox · test data only</Badge> : <Badge tone="accent">campaign</Badge>}
-              {!p.open && <Badge>opens with single sign-on</Badge>}
+              {!p.open && <Badge title="Ask the platform owner for this project's key">needs a project key</Badge>}
             </div>
             {p.description && <p className="vx-muted" style={{ fontSize: 12.5 }}>{p.description}</p>}
           </div>
-          <div className="vx-mini" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-            <div><strong>{p.iterations}</strong><span>iterations</span></div>
-            <div><strong style={{ fontSize: 13 }}>{day(p.latestAt)}</strong><span>latest push</span></div>
-          </div>
+          {p.open && (
+            <div className="vx-mini" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+              <div><strong>{p.iterations}</strong><span>iterations</span></div>
+              <div><strong style={{ fontSize: 13 }}>{day(p.latestAt)}</strong><span>latest push</span></div>
+            </div>
+          )}
         </Link>
       ))}
     </div>
@@ -71,14 +75,19 @@ export function LiveProjectCards() {
 export function LiveProjectWorkspace({ slug, view, table }: { slug: string; view: LiveView; table: string | null }) {
   const [data, setData] = useState<LiveProject | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [needsKey, setNeedsKey] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [hasKey, setHasKey] = useState(false);
 
   useEffect(() => {
     setError(null);
-    fetch(`/api/v1/projects/${encodeURIComponent(slug)}`)
+    setNeedsKey(false);
+    setHasKey(!!getProjectKey(slug));
+    fetch(`/api/v1/projects/${encodeURIComponent(slug)}`, { headers: keyHeaders(slug) })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
-        if (!d.ok) setError(d.error || `HTTP ${r.status}`);
+        if (d.needsKey) setNeedsKey(true);
+        else if (!d.ok) setError(d.error || `HTTP ${r.status}`);
         else setData(d);
       })
       .catch(() => setError("Could not reach Studio."));
@@ -89,6 +98,15 @@ export function LiveProjectWorkspace({ slug, view, table }: { slug: string; view
     navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [view, table, data]);
 
+  if (needsKey) {
+    return (
+      <KeyGate
+        slug={slug}
+        hadKey={hasKey}
+        onSaved={() => setReloadKey((k) => k + 1)}
+      />
+    );
+  }
   if (error) {
     return (
       <div className="vx-wrap">
@@ -106,13 +124,20 @@ export function LiveProjectWorkspace({ slug, view, table }: { slug: string; view
 
   return (
     <div className="flex min-h-full flex-col">
+      <div className="px-4 pt-3 md:px-5">{p.kind === "sandbox" ? <SandboxNotice /> : <ProjectDataNotice />}</div>
       <div className="vx-topbar">
         <Link href="/projects" className="vx-topbar-sub" style={{ color: "var(--vx-text-faint)" }}>Projects</Link>
         <span className="vx-topbar-sub" aria-hidden>/</span>
         <span className="vx-topbar-title">{p.title}</span>
         <span style={{ flex: 1 }} />
         {p.kind === "sandbox" && <Badge tone="yellow" title="Developers push test data here. Nothing on this page is a result.">Sandbox · test data</Badge>}
+        {p.kind !== "sandbox" && <Badge tone="violet" title="Unpublished project data. Do not share outside the team.">Campaign · unpublished</Badge>}
         <button type="button" className="vx-btn" onClick={() => setReloadKey((k) => k + 1)}>Refresh</button>
+        {hasKey && p.kind !== "sandbox" && (
+          <button type="button" className="vx-btn" title="Remove this project's key from this browser" onClick={() => { clearProjectKey(slug); setData(null); setReloadKey((k) => k + 1); }}>
+            Forget key
+          </button>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col md:flex-row">
@@ -123,7 +148,7 @@ export function LiveProjectWorkspace({ slug, view, table }: { slug: string; view
           {data.tables.length === 0 && <span className="vx-nav-item" aria-disabled="true">No tables yet</span>}
           {data.tables.map((t) => (
             <Link key={t.name} href={href("tables", t.name)} className="vx-nav-item" aria-current={current("tables", t.name)}>
-              {t.name}<span className="vx-nav-badge">{t.rows}</span>
+              {t.name}<span className="vx-nav-badge" title={t.expectedRows != null && t.rows < t.expectedRows ? "Upload not finished" : undefined}>{t.expectedRows != null && t.rows < t.expectedRows ? `${t.rows}/${t.expectedRows}` : t.rows}</span>
             </Link>
           ))}
           <div className="vx-nav-label">Data</div>
@@ -133,16 +158,24 @@ export function LiveProjectWorkspace({ slug, view, table }: { slug: string; view
           <Link href={href("artifacts")} className="vx-nav-item" aria-current={current("artifacts")}>
             Artifacts<span className="vx-nav-badge">{data.artifacts.length}</span>
           </Link>
-          <div className="vx-nav-label">Developers</div>
-          <Link href={href("tokens")} className="vx-nav-item" aria-current={current("tokens")}>Push tokens</Link>
+          <div className="vx-nav-label">{p.kind === "sandbox" ? "Developers" : "Access"}</div>
+          <Link href={href("tokens")} className="vx-nav-item" aria-current={current("tokens")}>{p.kind === "sandbox" ? "Push tokens" : "Keys and pushing"}</Link>
         </nav>
 
         <div className="vx-wrap min-w-0 flex-1">
           {view === "overview" && <LiveOverview data={data} />}
-          {view === "tables" && <LiveTableView slug={slug} table={table ?? data.tables[0]?.name ?? null} tables={data.tables} />}
+          {view === "tables" && (table ?? data.tables[0]?.name) && (
+            <LiveTable
+              key={table ?? data.tables[0]?.name}
+              slug={slug}
+              table={(table ?? data.tables[0]?.name)!}
+              note={p.kind === "sandbox" ? "Values are test data." : "Computed values are in-silico results."}
+            />
+          )}
+          {view === "tables" && !data.tables.length && <p className="vx-faint">No tables pushed yet.</p>}
           {view === "iterations" && <LiveIterations data={data} />}
           {view === "artifacts" && <LiveArtifacts data={data} />}
-          {view === "tokens" && <PushTokens slug={slug} />}
+          {view === "tokens" && (p.kind === "sandbox" ? <PushTokens slug={slug} /> : <CampaignAccess slug={slug} />)}
         </div>
       </div>
     </div>
@@ -178,6 +211,22 @@ function LiveOverview({ data }: { data: LiveProject }) {
             <span className="vx-faint">Nothing pushed yet. See Push tokens to send the first iteration.</span>
           )}
         </Panel>
+        {data.project.kind !== "sandbox" ? (
+          <Panel title="Tables">
+            <ul className="space-y-1" style={{ fontSize: 12.5 }}>
+              {data.tables.map((t) => (
+                <li key={t.name}>
+                  <Link href={`/projects/${data.project.slug}?view=tables&table=${t.name}`}>{t.name}</Link>{" "}
+                  <span className="vx-faint">
+                    {t.rows.toLocaleString()} rows · iteration {t.iteration}
+                    {t.expectedRows != null && t.rows < t.expectedRows ? ` · upload not finished (${t.expectedRows.toLocaleString()} expected)` : ""}
+                  </span>
+                </li>
+              ))}
+              {!data.tables.length && <li className="vx-faint">No tables yet.</li>}
+            </ul>
+          </Panel>
+        ) : (
         <Panel title="Push from a folder">
           <ol className="list-decimal space-y-1 pl-5" style={{ fontSize: 12.5 }}>
             <li>Create a push token under <strong>Push tokens</strong>.</li>
@@ -190,55 +239,8 @@ function LiveOverview({ data }: { data: LiveProject }) {
             The sandbox accepts files marked <span className="vx-mono">test</span> only and keeps the latest 20 iterations.
           </p>
         </Panel>
+        )}
       </div>
-    </>
-  );
-}
-
-function LiveTableView({ slug, table, tables }: { slug: string; table: string | null; tables: LiveTable[] }) {
-  const [state, setState] = useState<{ rows: Row[]; columns: string[]; total: number; iteration: number | null } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    if (!table) return;
-    setState(null);
-    setError(null);
-    fetch(`/api/v1/projects/${encodeURIComponent(slug)}/records?table=${encodeURIComponent(table)}&limit=1000`)
-      .then((r) => r.json())
-      .then((d) => (d.ok ? setState({ rows: d.rows, columns: d.columns ?? [], total: d.total, iteration: d.iteration }) : setError(d.error)))
-      .catch(() => setError("Could not load the table."));
-  }, [slug, table]);
-
-  const columns: Column<Row>[] = useMemo(() => {
-    // Column order as pushed; fall back to the keys seen in the rows.
-    const keys: string[] = [...(state?.columns ?? [])];
-    for (const r of state?.rows.slice(0, 200) ?? []) for (const k of Object.keys(r)) if (!keys.includes(k)) keys.push(k);
-    return keys.map((k) => {
-      const numeric = (state?.rows ?? []).every((r) => r[k] == null || typeof r[k] === "number");
-      return {
-        key: k,
-        label: k,
-        align: numeric ? "right" : "left",
-        render: (r: Row) => (r[k] == null ? <span className="vx-faint">—</span> : numeric ? <span className="vx-num">{String(r[k])}</span> : String(r[k])),
-        value: (r: Row) => (r[k] == null ? (numeric ? -Infinity : "") : typeof r[k] === "number" ? (r[k] as number) : String(r[k])),
-      } satisfies Column<Row>;
-    });
-  }, [state]);
-
-  if (!table) return <p className="vx-faint">No tables pushed yet.</p>;
-  const meta = tables.find((t) => t.name === table);
-  return (
-    <>
-      <div className="vx-step-label">Table</div>
-      <h1 className="vx-h1">{table}</h1>
-      <p className="vx-lede">
-        From iteration {state?.iteration ?? meta?.iteration ?? "—"}
-        {state ? `, ${state.total} row${state.total === 1 ? "" : "s"}${state.total > state.rows.length ? ` (first ${state.rows.length} shown)` : ""}` : ""}. Columns are as pushed; values are test data.
-      </p>
-      {error && <p className="vx-faint">{error}</p>}
-      {!state && !error && <p className="vx-faint">Loading…</p>}
-      {state && state.rows.length > 0 && (
-        <DataTable rows={state.rows} columns={columns} csvName={`${slug}_${table}_it${state.iteration}.csv`} caption={table} />
-      )}
     </>
   );
 }
@@ -397,5 +399,88 @@ node sdd.mjs push --label r001-test`}
         </Panel>
       </div>
     </>
+  );
+}
+
+// ── Campaign access ───────────────────────────────────────────────────────────
+
+function KeyGate({ slug, hadKey, onSaved }: { slug: string; hadKey: boolean; onSaved: () => void }) {
+  const [value, setValue] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState("");
+  async function save() {
+    const key = value.trim();
+    if (!key.startsWith("sdd_pt_")) { setError("A project key starts with sdd_pt_."); return; }
+    setChecking(true); setError("");
+    const r = await fetch(`/api/v1/projects/${encodeURIComponent(slug)}`, { headers: { "X-SDD-Project-Key": key } }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    setChecking(false);
+    if (!d.ok) { setError(d.error || "That key was not accepted."); return; }
+    // A push key can write; it belongs in a script's environment, not in a browser.
+    if (d.access !== "read") { setError("That is a push key. In the browser, use a read key; keep push keys for scripts."); return; }
+    setProjectKey(slug, key);
+    onSaved();
+  }
+  return (
+    <div className="vx-wrap" style={{ maxWidth: 560 }}>
+      <div className="vx-step-label">Campaign</div>
+      <h1 className="vx-h1">This project needs a key</h1>
+      <p className="vx-lede">
+        {hadKey ? "The key saved in this browser is no longer accepted (revoked or expired). " : ""}
+        Campaigns hold unpublished data, so Studio asks for a project key from the platform owner. It is checked on the
+        server for every request and is kept only in this browser.
+      </p>
+      <label className="block" style={{ fontSize: 12.5 }}>
+        <span className="vx-faint">Project key</span>
+        <input
+          type="password"
+          autoComplete="off"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+          placeholder="sdd_pt_…"
+          className="mt-1 w-full rounded-md border px-2 py-1 vx-mono"
+          style={{ background: "var(--vx-surface)", borderColor: "var(--vx-border)" }}
+        />
+      </label>
+      <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}>
+        <button type="button" className="vx-btn" disabled={checking || !value.trim()} onClick={save}>{checking ? "Checking…" : "Open project"}</button>
+        <Link href="/projects" className="vx-faint" style={{ fontSize: 12 }}>Back to projects</Link>
+      </div>
+      {error && <p style={{ color: "var(--vx-error)", fontSize: 12.5, marginTop: 8 }}>{error}</p>}
+    </div>
+  );
+}
+
+function CampaignAccess({ slug }: { slug: string }) {
+  return (
+    <>
+      <h1 className="vx-h1">Keys and pushing</h1>
+      <p className="vx-lede">
+        This campaign is opened with a project key issued by the platform owner. A <strong>read</strong> key opens it in
+        Studio; a <strong>push</strong> key also lets a script or agent write iterations with{" "}
+        <span className="vx-mono">sdd.mjs push --token-file …</span>. Keys are checked on the server, expire, and can be
+        revoked at any time.
+      </p>
+      <Panel title="On this browser">
+        <p style={{ fontSize: 12.5 }}>
+          The key for this project is saved in this browser only. Use <strong>Forget key</strong> at the top on shared
+          computers.
+        </p>
+      </Panel>
+      <p className="vx-faint" style={{ fontSize: 11.5, marginTop: 10 }}>
+        How keys are issued and revoked: <a href="/docs/projects-api">Projects API</a>. Project: <span className="vx-mono">{slug}</span>.
+      </p>
+    </>
+  );
+}
+
+/** The sandbox's own notice (kept here so this file stays under the page-label wording check). */
+function SandboxNotice() {
+  return (
+    <div role="note" className="vx-badge vx-badge-yellow" style={{ display: "block", whiteSpace: "normal", padding: "8px 12px", fontSize: 12 }}>
+      <strong>Test data.</strong> Developers push test iterations here to try the workflow. Nothing in the sandbox is a
+      result; do not cite or use it for decisions.
+    </div>
   );
 }
