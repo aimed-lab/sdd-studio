@@ -129,9 +129,11 @@ https://smartdrugdiscovery.org/login?invite=TOKEN
 
 Recipients can click this link to land on the login page with the token pre-filled.
 
-### Legacy Bootstrap Token
+### Personal invitations
 
-The token **SPARC2026** is preserved for initial platform bootstrapping. It assigns the **Developer** role with **auto-approve** enabled, meaning SPARC staff can sign in immediately without waiting for admin approval. This token does not expire and can be used by multiple users.
+Admins and the Owner invite people under **Settings → Member Management → Invite people by email**. Paste one or more addresses and pick a role; each person gets their own 8-character code that works only with their email address, expires after 14 days and activates the account immediately. Unused codes can be revoked in the invitation list; people who joined can be suspended or have their access revoked in the member list.
+
+The shared bootstrap code `SPARC2026` was retired on 2026-11-15 because it was published in this public repository. Accounts created with it are unaffected.
 
 ---
 

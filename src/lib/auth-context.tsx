@@ -265,18 +265,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (status === "suspended")
         return "Your account has been suspended. Contact your administrator.";
 
-      // Server knows this user — reconstruct locally and log in
-      const u = buildUserFromServer(trimmedEmail, serverUser, localUser);
-      saveUserToDB(u);
-      setUser(u);
-      setIsAuthenticated(true);
-      localStorage.setItem(AUTH_KEY, trimmedEmail);
-      return null;
+      // An invited person has an account placeholder but must redeem their code (step 2) to activate it.
+      if (status === "invited") {
+        if (!trimmedCode) return "Enter the invitation code from your invitation to finish setting up your account.";
+      } else {
+        // Server knows this user — reconstruct locally and log in
+        const u = buildUserFromServer(trimmedEmail, serverUser, localUser);
+        saveUserToDB(u);
+        setUser(u);
+        setIsAuthenticated(true);
+        localStorage.setItem(AUTH_KEY, trimmedEmail);
+        return null;
+      }
     }
 
     // Local user exists but not on server — still let them in
     // (covers offline/server-down scenarios)
-    if (localUser && localUser.accountStatus !== "rejected" && localUser.accountStatus !== "suspended") {
+    const mustRedeem = serverUser?.accountStatus === "invited";
+    if (!mustRedeem && localUser && localUser.accountStatus !== "rejected" && localUser.accountStatus !== "suspended") {
       setUser(localUser);
       setIsAuthenticated(true);
       localStorage.setItem(AUTH_KEY, trimmedEmail);

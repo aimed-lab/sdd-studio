@@ -3,7 +3,7 @@ import { ELEVATED_LOCK_MESSAGE, isElevatedRole } from "@/lib/elevated-roles";
 import {
   getAllInvitations, getInvitationsByCreator, getInvitationByToken,
   createInvitation, redeemInvitation, revokeInvitation,
-  countPendingInvitations,
+  countPendingInvitations, getUserByEmail, updateUserFields,
 } from "@/lib/db";
 
 /**
@@ -160,8 +160,15 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    const ok = await revokeInvitation(id);
-    return NextResponse.json({ ok });
+    const revoked = await revokeInvitation(id);
+    // An email invitation creates an "invited" placeholder account. Block it too, so the
+    // address cannot sign in to the waiting screen; an account already in use is untouched.
+    const recipient = revoked?.recipient_hint?.includes("@") ? revoked.recipient_hint.toLowerCase() : null;
+    if (recipient) {
+      const existing = await getUserByEmail(recipient);
+      if (existing?.account_status === "invited") await updateUserFields(recipient, { account_status: "rejected" });
+    }
+    return NextResponse.json({ ok: !!revoked });
   } catch (err) {
     console.error("[/api/invitations] DELETE error:", err);
     return NextResponse.json({ ok: false, error: "Database error" }, { status: 500 });
