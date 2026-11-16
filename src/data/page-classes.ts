@@ -46,6 +46,8 @@ export const pageClasses: Record<string, PageClass> = {
   "/regulatory/transactions": { kind: "demo" },
   "/regulatory/decisions": { kind: "demo" },
   "/projects": { kind: "demo" },
+  "/projects/[slug]": { kind: "demo" },
+  "/projects/demo": { kind: "demo" },
   "/projects/performance": { kind: "demo" },
   "/projects/reports": { kind: "demo" },
   "/business": { kind: "demo" },
