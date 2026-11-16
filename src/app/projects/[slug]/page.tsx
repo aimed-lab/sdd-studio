@@ -1,8 +1,8 @@
 import "@/styles/vault.css";
 import { DemoDataNotice } from "@/components/data-provenance";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { LiveProjectWorkspace, LIVE_VIEWS, type LiveView } from "@/components/projects/live-projects";
-import { parseProjectView } from "@/components/projects/views";
+import { LiveProjectWorkspace } from "@/components/projects/live-projects";
+import { parseLiveView, parseProjectView } from "@/components/projects/views";
 import { DEMO_PROJECTS, demoProject } from "@/data/projects-demo";
 
 export function generateStaticParams() {
@@ -24,7 +24,7 @@ export default function ProjectPage({
   const demo = demoProject(params.slug);
   if (!demo) {
     // Projects stored in Studio's database (today: the developer sandbox, test data only).
-    const view = ((LIVE_VIEWS as readonly string[]).includes(searchParams.view ?? "") ? searchParams.view : "overview") as LiveView;
+    const view = parseLiveView(searchParams.view);
     const table = /^[a-z][a-z0-9_]{0,39}$/.test(searchParams.table ?? "") ? searchParams.table! : null;
     return (
       <div className="vault">

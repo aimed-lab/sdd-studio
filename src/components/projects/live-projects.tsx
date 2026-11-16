@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ActorBadge, Badge, DataTable, Panel, ReleaseBadge, Stats, type Column } from "@/components/projects/vault-ui";
 import type { ReleaseState } from "@/data/projects-demo";
+import type { LiveView } from "@/components/projects/views";
 
 // ── API shapes (GET /api/v1/projects/…) ──────────────────────────────────────
 
@@ -20,8 +21,6 @@ interface LiveProject {
 }
 type Row = Record<string, string | number | boolean | null>;
 
-export const LIVE_VIEWS = ["overview", "tables", "iterations", "artifacts", "tokens"] as const;
-export type LiveView = (typeof LIVE_VIEWS)[number];
 
 const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "—");
 const sizeText = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${Math.round(b / 1024)} KB` : `${b} B`);
