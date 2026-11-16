@@ -169,27 +169,70 @@ export function createInvitation(
 }
 
 /**
+ * Like createInvitation, but waits for the server to store the invitation and returns an
+ * error if it did not. Use it when the code is shown to an admin to hand out, so a code that
+ * the server never saw is never shown.
+ */
+export async function createInvitationOnServer(
+  inviterEmail: string,
+  inviterRole: AppRole,
+  assignedRole: AppRole,
+  recipientEmail: string,
+): Promise<Invitation | { error: string }> {
+  if (isElevatedRole(assignedRole)) return { error: ELEVATED_LOCK_MESSAGE };
+  if (roleRank(assignedRole) < roleRank(inviterRole)) {
+    return { error: "You cannot invite someone to a higher role than your own." };
+  }
+  if (getRemainingQuota(inviterEmail, inviterRole) <= 0) {
+    return { error: `Invite limit reached (${INVITE_QUOTAS[inviterRole]} max). Revoke or wait for expiry.` };
+  }
+
+  const now = new Date();
+  const invitation: Invitation = {
+    id: nanoid(),
+    token: generateToken(),
+    createdBy: inviterEmail,
+    assignedRole,
+    recipientHint: recipientEmail.trim().toLowerCase(),
+    autoApprove: true, // addressed to one person, so no approval queue
+    status: "pending",
+    acceptedBy: null,
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    acceptedAt: null,
+  };
+
+  try {
+    const res = await fetch("/api/invitations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: invitation.id,
+        token: invitation.token,
+        createdBy: invitation.createdBy,
+        assignedRole: invitation.assignedRole,
+        recipientHint: invitation.recipientHint,
+        autoApprove: invitation.autoApprove,
+        expiresAt: invitation.expiresAt,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) return { error: data.error || "The server could not save the invitation." };
+  } catch {
+    return { error: "Could not reach the server. Nothing was created." };
+  }
+
+  const all = loadInvitations();
+  all.push(invitation);
+  saveInvitations(all);
+  return invitation;
+}
+
+/**
  * Validate a token. Returns the invitation if it's pending and not expired.
- * Also handles the legacy SPARC2026 code by returning a synthetic invitation.
  */
 export function validateToken(token: string): Invitation | null {
   const trimmed = token.trim().toUpperCase();
-
-  // Legacy seed token — always valid for Owner bootstrap
-  if (trimmed === "SPARC2026") {
-    return {
-      id: "seed-sparc2026",
-      token: "SPARC2026",
-      createdBy: "system",
-      assignedRole: "Developer",
-      autoApprove: true,
-      status: "pending",
-      acceptedBy: null,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      expiresAt: "2099-12-31T23:59:59.999Z",
-      acceptedAt: null,
-    };
-  }
 
   const all = loadInvitations();
   const inv = all.find((i) => i.token.toUpperCase() === trimmed);
@@ -213,22 +256,6 @@ export function validateToken(token: string): Invitation | null {
  */
 export function redeemInvitation(token: string, redeemerEmail: string): Invitation | null {
   const trimmed = token.trim().toUpperCase();
-
-  // Legacy seed token — don't persist, just return it
-  if (trimmed === "SPARC2026") {
-    return {
-      id: "seed-sparc2026",
-      token: "SPARC2026",
-      createdBy: "system",
-      assignedRole: "Developer",
-      autoApprove: true,
-      status: "accepted",
-      acceptedBy: redeemerEmail,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      expiresAt: "2099-12-31T23:59:59.999Z",
-      acceptedAt: new Date().toISOString(),
-    };
-  }
 
   const all = loadInvitations();
   const inv = all.find((i) => i.token.toUpperCase() === trimmed && i.status === "pending");
@@ -369,9 +396,6 @@ export function importInvitationFromParams(params: URLSearchParams): void {
 
   // Need at minimum: token + role + expiry + id + createdBy
   if (!token || !role || !exp || !id || !by) return;
-
-  // Don't import SPARC2026 — it's handled as a synthetic invitation
-  if (token === "SPARC2026") return;
 
   const all = loadInvitations();
 

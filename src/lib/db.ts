@@ -263,12 +263,14 @@ export async function redeemInvitation(token: string, acceptedBy: string): Promi
   return rows[0] ?? null;
 }
 
-export async function revokeInvitation(id: string): Promise<boolean> {
+/** Revokes a pending invitation and returns it, or null if it was not pending. */
+export async function revokeInvitation(id: string): Promise<DBInvitation | null> {
   await ensureSchema();
-  const { rowCount } = await sql`
+  const { rows } = await sql<DBInvitation>`
     UPDATE invitations SET status = 'revoked' WHERE id = ${id} AND status = 'pending'
+    RETURNING *
   `;
-  return (rowCount ?? 0) > 0;
+  return rows[0] ?? null;
 }
 
 export async function countPendingInvitations(email: string): Promise<number> {

@@ -7,8 +7,8 @@ import {
 } from "@/lib/roles";
 import {
   type Invitation,
-  createInvitation, getAllInvitations, getInvitationsByUser,
-  revokeInvitation, getRemainingQuota, buildInviteLink, buildInviteMailto,
+  createInvitation, createInvitationOnServer, getAllInvitations, getInvitationsByUser,
+  revokeInvitation, getRemainingQuota, buildInviteLink,
   INVITE_QUOTAS, getPlatformSettings, savePlatformSettings,
   DEFAULT_MAX_ACTIVE_USERS,
 } from "@/lib/invitations";
@@ -408,10 +408,10 @@ export function MembersPanel() {
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Send className="h-4 w-4 text-blue-500" />
-            <CardTitle className="text-base">Invite by Email</CardTitle>
+            <CardTitle className="text-base">Invite people by email</CardTitle>
           </div>
           <CardDescription>
-            Send a direct invitation — recipient is auto-approved, no code needed
+            One personal code per person, usable only with their email address. They are active as soon as they sign in with it.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -576,41 +576,49 @@ function RoleSelector({ currentRole, maxRole, onChange }: {
   );
 }
 
-/** ── Invite by Email: direct invitation, auto-approved, no code needed ─── */
+/** ── Invite by email: one personal code per address, bound to that address ── */
+type InviteResult = { email: string; token?: string; link?: string; emailSent?: boolean; error?: string };
+
+function parseEmails(text: string): { valid: string[]; invalid: string[] } {
+  const parts = text.split(/[\s,;]+/).map((p) => p.trim().toLowerCase()).filter(Boolean);
+  const unique = Array.from(new Set(parts));
+  const ok = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
+  return { valid: unique.filter(ok), invalid: unique.filter((e) => !ok(e)) };
+}
+
 function EmailInviteForm({ onCreated }: { onCreated: () => void }) {
   const { user } = useAuth();
   const [role, setRole] = useState<AppRole>("Developer");
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState<{ email: string; link: string; emailSent: boolean } | null>(null);
+  const [emailsText, setEmailsText] = useState("");
+  const [sendEmails, setSendEmails] = useState(true);
+  const [working, setWorking] = useState(false);
+  const [results, setResults] = useState<InviteResult[]>([]);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   if (!user) return null;
 
   const maxIdx = ROLE_ORDER.indexOf(user.role);
-  const assignableRoles = ROLE_ORDER.filter((_, i) => i >= maxIdx);
+  // Owner, Admin and TechSupport cannot be granted until single sign-on is on (#32).
+  const assignableRoles = ROLE_ORDER.filter((r, i) => i >= maxIdx && !["Owner", "Admin", "TechSupport"].includes(r));
   const remaining = getRemainingQuota(user.email, user.role);
+  const { valid, invalid } = parseEmails(emailsText);
 
-  async function handleSendInvite() {
+  async function handleCreate() {
     setError("");
-    setSent(null);
-    setSending(true);
-    const email = recipientEmail.trim().toLowerCase();
-    if (!email || !email.includes("@")) {
-      setError("Please enter a valid email address.");
-      setSending(false);
-      return;
-    }
+    setResults([]);
+    if (invalid.length) { setError(`Not an email address: ${invalid.join(", ")}`); return; }
+    if (!valid.length) { setError("Enter at least one email address."); return; }
+    if (valid.length > remaining) { setError(`You can create ${remaining} more invitation(s) right now.`); return; }
 
-    try {
-      // 1. Create invitation with autoApprove=true
-      const inv = createInvitation(user!.email, user!.role, role, email, true);
-      if ("error" in inv) { setError(inv.error); setSending(false); return; }
-
+    setWorking(true);
+    const out: InviteResult[] = [];
+    for (const email of valid) {
+      const inv = await createInvitationOnServer(user!.email, user!.role, role, email);
+      if ("error" in inv) { out.push({ email, error: inv.error }); setResults([...out]); continue; }
       const link = buildInviteLink(inv.token);
 
-      // 2. Create placeholder "invited" user in database (await to ensure it's saved)
+      // Placeholder account so the person shows under Members as "invited" until they redeem the code.
       await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -622,124 +630,154 @@ function EmailInviteForm({ onCreated }: { onCreated: () => void }) {
           invitedBy: user!.email,
           invitedAt: new Date().toISOString(),
         }),
-      });
+      }).catch(() => undefined);
 
-      // 3. Send email via server API (Resend)
       let emailSent = false;
-      try {
-        const emailRes = await fetch("/api/send-invite", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: email,
-            inviteLink: link,
-            role,
-            inviterName: user!.name,
-          }),
-        });
-        const emailData = await emailRes.json();
-        emailSent = emailData.ok === true;
-        if (!emailSent) {
-          console.warn("[SDD] Email send failed:", emailData.error);
-          // Fall back to mailto
-          const mailto = buildInviteMailto(email, link, role, user!.name);
-          window.open(mailto, "_blank");
-        }
-      } catch {
-        // Email API not available — fall back to mailto
-        const mailto = buildInviteMailto(email, link, role, user!.name);
-        window.open(mailto, "_blank");
+      if (sendEmails) {
+        try {
+          const r = await fetch("/api/send-invite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to: email, inviteLink: link, role, inviterName: user!.name }),
+          });
+          emailSent = (await r.json().catch(() => ({}))).ok === true;
+        } catch { /* shown as "share it yourself" */ }
       }
-
-      setSent({ email, link, emailSent });
-      setRecipientEmail("");
-      onCreated();
-    } catch (err) {
-      setError("Failed to create invitation. Please try again.");
-      console.error("[SDD] Email invite error:", err);
-    } finally {
-      setSending(false);
+      out.push({ email, token: inv.token, link, emailSent });
+      setResults([...out]);
     }
+    setWorking(false);
+    if (out.some((r) => r.token)) { setEmailsText(""); onCreated(); }
   }
 
-  function copyLink() {
-    if (!sent) return;
-    navigator.clipboard.writeText(sent.link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  function copy(text: string, key: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
   }
+
+  const created = results.filter((r) => r.token);
+  const allText = created.map((r) => `${r.email}\t${r.token}\t${r.link}`).join("\n");
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_180px]">
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Recipient Email</label>
-          <input
-            type="email"
-            value={recipientEmail}
-            onChange={e => setRecipientEmail(e.target.value)}
-            placeholder="colleague@institution.edu"
+          <label htmlFor="invite-emails" className="text-xs font-medium text-muted-foreground">
+            Email addresses (one per line, or separated by commas)
+          </label>
+          <textarea
+            id="invite-emails"
+            value={emailsText}
+            onChange={(e) => setEmailsText(e.target.value)}
+            rows={3}
+            placeholder={"dev1@uab.edu\ndev2@uab.edu"}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        <div>
-          <label className="text-xs font-medium text-muted-foreground">Assign Role</label>
-          <select
-            value={role}
-            onChange={e => setRole(e.target.value as AppRole)}
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {assignableRoles.map(r => (
-              <option key={r} value={r}>{ROLE_META[r].label}</option>
-            ))}
-          </select>
+        <div className="space-y-2">
+          <div>
+            <label htmlFor="invite-role" className="text-xs font-medium text-muted-foreground">Role</label>
+            <select
+              id="invite-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as AppRole)}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {assignableRoles.map((r) => (
+                <option key={r} value={r}>{ROLE_META[r].label}</option>
+              ))}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={sendEmails} onChange={(e) => setSendEmails(e.target.checked)} />
+            Email each person their link
+          </label>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
-          onClick={handleSendInvite}
-          disabled={remaining <= 0 || !recipientEmail.trim() || sending}
+          onClick={handleCreate}
+          disabled={remaining <= 0 || valid.length === 0 || working}
           className="inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Send className="h-3.5 w-3.5" />
-          {sending ? "Sending..." : "Send Invitation"}
+          {working
+            ? `Creating ${results.length + 1} of ${valid.length}…`
+            : valid.length > 1 ? `Create ${valid.length} invitations` : "Create invitation"}
         </button>
         <span className="text-xs text-muted-foreground">
           {remaining} / {INVITE_QUOTAS[user.role]} remaining
         </span>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Each person gets their own code. It works only with their email address and expires in 14 days.
+        Revoke an unused code under Invitations below; remove someone later from Members (Suspend or Revoke access).
+      </p>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
-      {sent && (
-        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Check className="h-4 w-4 text-green-600" />
-            <span className="text-sm font-medium text-green-800 dark:text-green-300">
-              {sent.emailSent
-                ? `Invitation email sent to ${sent.email}`
-                : `Invitation created for ${sent.email}`}
+      {results.length > 0 && (
+        <div className="rounded-lg border p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-medium">
+              {created.length} of {results.length} invitation{results.length === 1 ? "" : "s"} created
             </span>
+            {created.length > 0 && (
+              <button
+                onClick={() => copy(allText, "all")}
+                className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium border border-input bg-background hover:bg-accent transition-colors"
+              >
+                {copied === "all" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copied === "all" ? "Copied" : "Copy all (email, code, link)"}
+              </button>
+            )}
           </div>
-          {!sent.emailSent && (
-            <p className="text-xs text-amber-700 dark:text-amber-300">
-              Your email client was opened. Please send the email to complete the invitation.
-              To enable automatic email delivery, add RESEND_API_KEY to your Vercel environment variables.
-            </p>
-          )}
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs bg-white dark:bg-gray-900 rounded px-2 py-1 border truncate">
-              {sent.link}
-            </code>
-            <button
-              onClick={copyLink}
-              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium border border-input bg-background hover:bg-accent transition-colors shrink-0"
-            >
-              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              {copied ? "Copied!" : "Copy Link"}
-            </button>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="py-1 pr-3 font-medium">Email</th>
+                  <th className="py-1 pr-3 font-medium">Code</th>
+                  <th className="py-1 pr-3 font-medium">Status</th>
+                  <th className="py-1 font-medium"><span className="sr-only">Copy</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r) => (
+                  <tr key={r.email} className="border-t">
+                    <td className="py-1.5 pr-3">{r.email}</td>
+                    <td className="py-1.5 pr-3 font-mono font-semibold tracking-wider">{r.token ?? "—"}</td>
+                    <td className="py-1.5 pr-3">
+                      {r.error ? (
+                        <span className="text-destructive">{r.error}</span>
+                      ) : r.emailSent ? (
+                        <span className="text-green-700 dark:text-green-400">Emailed</span>
+                      ) : (
+                        <span className="text-amber-700 dark:text-amber-300">Not emailed: share the code or link yourself</span>
+                      )}
+                    </td>
+                    <td className="py-1.5">
+                      {r.link && (
+                        <button
+                          onClick={() => copy(r.link!, r.email)}
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 border border-input bg-background hover:bg-accent"
+                          title="Copy invite link"
+                        >
+                          {copied === r.email ? <Check className="h-3 w-3" /> : <Link2 className="h-3 w-3" />}
+                          {copied === r.email ? "Copied" : "Link"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+          <p className="text-xs text-muted-foreground">
+            They sign in at {typeof window !== "undefined" ? window.location.origin : ""}/login with their email and code.
+          </p>
         </div>
       )}
     </div>

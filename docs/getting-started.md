@@ -19,15 +19,15 @@ New users need an invitation to join the platform:
 
 1. Receive an **invite link** from a team member (e.g., `https://smartdrugdiscovery.org/login?invite=ABCD1234`). Clicking the link opens the login page with the code pre-filled. Alternatively, your inviter may share a code directly.
 2. Enter your **email address**.
-3. Enter the **invitation code** (8-character token, or `SPARC2026` for SPARC staff).
+3. Enter your **invitation code** (8 characters). A code sent to your email address works only with that address.
 4. Click **Sign In**.
 
 **What happens next depends on the invitation type:**
 
-- **Auto-approved invitations** (created by Admin/Owner with the auto-approve flag, or the `SPARC2026` bootstrap token): You gain immediate platform access.
+- **Personal (email) invitations and auto-approved codes**: You gain immediate platform access.
 - **Standard invitations**: Your account is created in **pending approval** status. You'll see an "Awaiting Approval" screen until an administrator approves your registration. Click **Check Status** to refresh.
 
-> **SPARC staff:** Use invite code `SPARC2026` to register as a Developer with immediate access. Contact your administrator if you need a different role or if sign-in fails.
+> **SPARC staff:** Ask the platform owner for a personal invitation code. The shared `SPARC2026` code was retired on 2026-11-15.
 
 ---
 
