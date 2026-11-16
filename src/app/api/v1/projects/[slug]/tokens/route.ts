@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server";
 import { fail, json, sandboxOnly, SLUG_RE } from "@/lib/projects-api";
 import { getUserByEmail } from "@/lib/db";
-import {
-  LIMITS, audit, countActiveTokens, createToken, getProject, listTokens, revokeToken,
-} from "@/lib/projects-db";
+import { LIMITS, LimitError, audit, createToken, getProject, listTokens, revokeToken } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +13,15 @@ export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$/;
 const NOT_MEMBER = "Only active Studio members can manage sandbox push tokens.";
+
+async function readBody(req: NextRequest): Promise<Record<string, unknown> | null> {
+  try {
+    const b = await req.json();
+    return typeof b === "object" && b !== null && !Array.isArray(b) ? b : null;
+  } catch {
+    return null;
+  }
+}
 
 async function activeMember(email: string): Promise<boolean> {
   if (!EMAIL_RE.test(email)) return false;
@@ -47,12 +54,8 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
 /** POST { email, label?, days? } — creates a token and returns it once. */
 export async function POST(req: NextRequest, { params }: { params: { slug: string } }) {
   if (!SLUG_RE.test(params.slug)) return fail(404, "Project not found.");
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return fail(400, "Body must be JSON.");
-  }
+  const body = await readBody(req);
+  if (!body) return fail(400, "Body must be a JSON object.");
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const label = typeof body.label === "string" && body.label.trim() ? body.label.trim().slice(0, 60) : null;
   const days = body.days == null ? 90 : Number(body.days);
@@ -61,13 +64,10 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     const denied = sandboxOnly(await getProject(params.slug));
     if (denied) return denied;
     if (!(await activeMember(email))) return fail(403, NOT_MEMBER);
-    if ((await countActiveTokens(params.slug, email)) >= LIMITS.maxTokensPerPerson) {
-      return fail(409, `You already have ${LIMITS.maxTokensPerPerson} active tokens. Revoke one first.`);
-    }
     const t = await createToken(params.slug, email, label, days);
-    await audit(params.slug, email, "human", "create_token", t.prefix, { label, days });
     return json({ ok: true, id: t.id, token: t.token, prefix: t.prefix, expiresAt: t.expiresAt }, 201);
   } catch (err) {
+    if (err instanceof LimitError) return fail(err.status, err.message);
     console.error("[/api/v1/projects/:slug/tokens] POST", err);
     return fail(503, "Database unavailable.");
   }
@@ -76,12 +76,8 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
 /** DELETE { id, email } — revokes one of that member's tokens. */
 export async function DELETE(req: NextRequest, { params }: { params: { slug: string } }) {
   if (!SLUG_RE.test(params.slug)) return fail(404, "Project not found.");
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return fail(400, "Body must be JSON.");
-  }
+  const body = await readBody(req);
+  if (!body) return fail(400, "Body must be a JSON object.");
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const id = typeof body.id === "string" ? body.id : "";
   if (!id || id.length > 30) return fail(400, "id is required.");

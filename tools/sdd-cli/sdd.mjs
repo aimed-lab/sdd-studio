@@ -12,18 +12,26 @@
 // tables the config declares (CSV or TSV). Node 18 or later; no dependencies.
 
 import { createHash } from "node:crypto";
-import { createReadStream, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, lstatSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import { homedir } from "node:os";
 
 const CONFIG = "sdd.project.json";
 const DEFAULT_STUDIO = "https://studio.smartdrugdiscovery.org";
 const MAX_BODY = 3_900_000;
 
+// Always skipped, whatever sdd.project.json says: secrets must never be indexed (names and checksums are visible).
+const ALWAYS_EXCLUDE = [
+  "**/.git/**", "**/*.env", "**/.env*", "**/.ssh/**", "**/.aws/**", "**/.gnupg/**", "**/*.pem", "**/*.key", "**/*.p12",
+  "**/*.pfx", "**/id_rsa*", "**/id_ecdsa*", "**/id_ed25519*", "**/*credentials*.json", "**/secrets/**", "**/*.secret",
+  "**/.netrc", "**/.npmrc", "**/.pypirc", "**/sdd.project.json",
+];
+
 const DEFAULT_CONFIG = {
   project: "sandbox",
   studio: DEFAULT_STUDIO,
   include: ["Results/**", "Plan/**", "Reviews/**", "*_HARNESS.md", "HARNESS.md"],
-  exclude: ["**/.DS_Store", "**/.git/**", "**/node_modules/**", "**/.venv/**", "**/__pycache__/**", "**/*.env", "**/.env*"],
+  exclude: ["**/.DS_Store", "**/.git/**", "**/node_modules/**", "**/.venv/**", "**/__pycache__/**"],
   sensitivity: "test",
   tables: {
     "Results/*/tables/decision_sheet.*": "decision_sheet",
@@ -67,9 +75,12 @@ function globRe(glob) {
   return new RegExp(`^${re}$`);
 }
 
+/** The nearest folder with sdd.project.json, never the home folder or the filesystem root. */
 function findConfig(start) {
+  const stop = new Set([resolve(homedir()), resolve("/")]);
   let dir = resolve(start);
   for (;;) {
+    if (stop.has(dir)) return null;
     if (existsSync(join(dir, CONFIG))) return dir;
     const up = dirname(dir);
     if (up === dir) return null;
@@ -77,12 +88,16 @@ function findConfig(start) {
   }
 }
 
-function walk(root, dir, out = []) {
+/** Regular files under root. Symbolic links are skipped, and excluded folders are not entered. */
+function walk(root, dir, exclude, out = []) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
-    const st = statSync(p);
-    if (st.isDirectory()) walk(root, p, out);
-    else if (st.isFile()) out.push(relative(root, p).split(sep).join("/"));
+    const rel = relative(root, p).split(sep).join("/");
+    const st = lstatSync(p);
+    if (st.isSymbolicLink()) continue;
+    if (st.isDirectory()) {
+      if (!exclude.some((r) => r.test(`${rel}/x`))) walk(root, p, exclude, out);
+    } else if (st.isFile()) out.push(rel);
   }
   return out;
 }
@@ -141,6 +156,11 @@ function parseDelimited(text, delim) {
 }
 
 async function api(cfg, method, path, body) {
+  let url;
+  try { url = new URL(cfg.studio); } catch { die(`"studio" in ${CONFIG} is not a URL: ${cfg.studio}`); }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !local) die(`refusing to send your token over ${url.protocol}//; "studio" must be https.`);
+  if (url.origin !== DEFAULT_STUDIO && !local) console.warn(`sdd: note: sending to ${url.origin}, not ${DEFAULT_STUDIO}.`);
   const token = process.env.SDD_PROJECT_TOKEN;
   if (!token && method !== "GET") die("set SDD_PROJECT_TOKEN to your push token (Studio → Projects → Developer sandbox → Push tokens).");
   const res = await fetch(`${cfg.studio.replace(/\/+$/, "")}/api/v1/projects/${cfg.project}${path}`, {
@@ -170,11 +190,11 @@ async function push(args) {
   if (!label) die('--label is required, e.g. --label r012-polar-bioisostere');
 
   const include = cfg.include.map(globRe);
-  const exclude = cfg.exclude.map(globRe);
+  const exclude = [...ALWAYS_EXCLUDE, ...(cfg.exclude || [])].map(globRe);
   const tableRules = Object.entries(cfg.tables || {}).map(([g, name]) => [globRe(g), name]);
   const scope = typeof args.dir === "string" ? args.dir.replace(/\\/g, "/").replace(/\/+$/, "") + "/" : "";
 
-  const all = walk(root, root).filter(
+  const all = walk(root, root, exclude).filter(
     (p) => p !== CONFIG && (!scope || p.startsWith(scope)) && include.some((r) => r.test(p)) && !exclude.some((r) => r.test(p)),
   );
   if (all.length === 0) die(`no files matched include ${JSON.stringify(cfg.include)}${scope ? ` under ${scope}` : ""}.`);
@@ -182,7 +202,7 @@ async function push(args) {
 
   const files = [];
   for (const p of all) {
-    files.push({ path: p, sha256: await sha256(join(root, p)), size: statSync(join(root, p)).size, kind: kindOf(p), sensitivity: cfg.sensitivity });
+    files.push({ path: p, sha256: await sha256(join(root, p)), size: lstatSync(join(root, p)).size, kind: kindOf(p), sensitivity: cfg.sensitivity });
   }
 
   const tables = [];

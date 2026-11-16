@@ -188,7 +188,7 @@ function LiveOverview({ data }: { data: LiveProject }) {
           <p className="vx-faint" style={{ fontSize: 11.5, marginTop: 8 }}>
             Get <a href="https://github.com/aimed-lab/sdd-studio/blob/main/tools/sdd-cli/sdd.mjs" target="_blank" rel="noreferrer">sdd.mjs</a> and the{" "}
             <a href="https://github.com/aimed-lab/sdd-studio/blob/main/skills/sdd-studio-push/SKILL.md" target="_blank" rel="noreferrer">agent skill</a>.
-            The sandbox accepts files marked <span className="vx-mono">test</span> only and keeps the latest 50 iterations.
+            The sandbox accepts files marked <span className="vx-mono">test</span> only and keeps the latest 20 iterations.
           </p>
         </Panel>
       </div>
@@ -197,7 +197,7 @@ function LiveOverview({ data }: { data: LiveProject }) {
 }
 
 function LiveTableView({ slug, table, tables }: { slug: string; table: string | null; tables: LiveTable[] }) {
-  const [state, setState] = useState<{ rows: Row[]; total: number; iteration: number | null } | null>(null);
+  const [state, setState] = useState<{ rows: Row[]; columns: string[]; total: number; iteration: number | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!table) return;
@@ -205,12 +205,13 @@ function LiveTableView({ slug, table, tables }: { slug: string; table: string | 
     setError(null);
     fetch(`/api/v1/projects/${encodeURIComponent(slug)}/records?table=${encodeURIComponent(table)}&limit=1000`)
       .then((r) => r.json())
-      .then((d) => (d.ok ? setState({ rows: d.rows, total: d.total, iteration: d.iteration }) : setError(d.error)))
+      .then((d) => (d.ok ? setState({ rows: d.rows, columns: d.columns ?? [], total: d.total, iteration: d.iteration }) : setError(d.error)))
       .catch(() => setError("Could not load the table."));
   }, [slug, table]);
 
   const columns: Column<Row>[] = useMemo(() => {
-    const keys: string[] = [];
+    // Column order as pushed; fall back to the keys seen in the rows.
+    const keys: string[] = [...(state?.columns ?? [])];
     for (const r of state?.rows.slice(0, 200) ?? []) for (const k of Object.keys(r)) if (!keys.includes(k)) keys.push(k);
     return keys.map((k) => {
       const numeric = (state?.rows ?? []).every((r) => r[k] == null || typeof r[k] === "number");

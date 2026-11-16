@@ -30,11 +30,18 @@ export function bearer(header: string | null): string | null {
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
+// Text Postgres cannot store (NUL, unpaired surrogates).
+const BROKEN_TEXT = /\u0000|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+// Control characters and bidirectional overrides that could disguise a file name.
+const SPOOF_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069]/;
+const cleanText = (v: string) => !BROKEN_TEXT.test(v);
+
 function safePath(p: unknown): p is string {
   return (
     typeof p === "string" && p.length > 0 && p.length <= 300 &&
-    !p.startsWith("/") && !p.includes("\\") && !p.includes("\0") &&
-    !p.split("/").some((seg) => seg === ".." || seg === "")
+    cleanText(p) && !SPOOF_CHARS.test(p) &&
+    !p.startsWith("/") && !p.includes("\\") &&
+    !p.split("/").some((seg) => seg === ".." || seg === "." || seg === "")
   );
 }
 
@@ -63,8 +70,8 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
     return { error: "gitSha must be 7–40 hex characters." };
   }
   const summary = body.summary == null || body.summary === "" ? null : body.summary;
-  if (summary !== null && (typeof summary !== "string" || summary.length > 500)) {
-    return { error: "summary: at most 500 characters." };
+  if (summary !== null && (typeof summary !== "string" || summary.length > 500 || !cleanText(summary) || SPOOF_CHARS.test(summary.replace(/[\n\t]/g, " ")))) {
+    return { error: "summary: at most 500 characters of plain text." };
   }
 
   if (!Array.isArray(body.files) || body.files.length === 0) return { error: "files: a non-empty list is required." };
@@ -99,6 +106,8 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
     if (names.has(t.name)) return { error: `tables[${i}].name is used twice: ${t.name}` };
     const file = t.file == null ? null : t.file;
     if (file !== null && (typeof file !== "string" || !paths.has(file))) return { error: `tables[${i}].file must be one of the pushed files.` };
+    // In the sandbox every table must come from a pushed (test) file, so its sensitivity is known.
+    if (project.kind === "sandbox" && file === null) return { error: `tables[${i}].file is required in the sandbox.` };
     if (!Array.isArray(t.rows)) return { error: `tables[${i}].rows must be a list.` };
     if (t.rows.length > LIMITS.maxRowsPerTable) return { error: `tables[${i}]: at most ${LIMITS.maxRowsPerTable} rows. Push a summary table instead.` };
     const rows: PushTable["rows"] = [];
@@ -109,7 +118,7 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
       if (keys.length > LIMITS.maxColumns) return { error: `tables[${i}].rows[${r}]: at most ${LIMITS.maxColumns} columns.` };
       const clean: PushTable["rows"][number] = {};
       for (const k of keys) {
-        if (k.length === 0 || k.length > 60) return { error: `tables[${i}].rows[${r}]: column names must be 1–60 characters.` };
+        if (k.length === 0 || k.length > 60 || k === "__proto__" || !cleanText(k) || SPOOF_CHARS.test(k)) return { error: `tables[${i}].rows[${r}]: column names must be 1–60 characters of plain text.` };
         const v = row[k];
         if (v === null || typeof v === "boolean") clean[k] = v;
         else if (typeof v === "number") {
@@ -117,6 +126,7 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
           clean[k] = v;
         } else if (typeof v === "string") {
           if (v.length > LIMITS.maxCellChars) return { error: `tables[${i}].rows[${r}].${k}: at most ${LIMITS.maxCellChars} characters.` };
+          if (!cleanText(v)) return { error: `tables[${i}].rows[${r}].${k}: contains characters that cannot be stored.` };
           clean[k] = v;
         } else return { error: `tables[${i}].rows[${r}].${k}: only text, numbers, true/false or null.` };
       }
@@ -126,8 +136,17 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
     tables.push({ name: t.name, file, rows });
   }
 
-  // Same label and same file contents → same iteration (re-running a push is a no-op).
-  const canonical = JSON.stringify({ label, files: files.map((f) => [f.path, f.sha256]).sort() });
+  const tableBytes = Buffer.byteLength(JSON.stringify(tables));
+  if (tableBytes > LIMITS.maxTableBytes) {
+    return { error: `Table rows total ${(tableBytes / 1e6).toFixed(1)} MB; at most ${LIMITS.maxTableBytes / 1e6} MB per push. Push summary tables.` };
+  }
+
+  // Same label, file contents and table rows → same iteration (re-running a push is a no-op).
+  const canonical = JSON.stringify({
+    label,
+    files: files.map((f) => [f.path, f.sha256]).sort(),
+    tables: tables.map((t) => [t.name, t.file, createHash("sha256").update(JSON.stringify(t.rows)).digest("hex")]).sort(),
+  });
   const manifestSha = createHash("sha256").update(canonical).digest("hex");
   return { label, source, gitSha, summary, files, tables, manifestSha };
 }

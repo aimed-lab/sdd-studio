@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
 import { bearer, fail, json, parsePush, sandboxOnly, SLUG_RE } from "@/lib/projects-api";
-import {
-  LIMITS, commitIteration, findIterationByManifest, getProject, listIterations, pruneSandbox, verifyToken,
-} from "@/lib/projects-db";
+import { LIMITS, LimitError, commitIteration, getProject, listIterations, verifyToken } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +11,15 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
     const project = await getProject(params.slug);
     const denied = sandboxOnly(project);
     if (denied) return denied;
-    return json({ ok: true, iterations: await listIterations(params.slug) });
+    const iterations = await listIterations(params.slug);
+    // Who pushed is not public: the actor (an email) stays in the audit log.
+    return json({
+      ok: true,
+      iterations: iterations.map((i) => ({
+        n: i.n, label: i.label, source: i.source, actorType: i.actor_type, gitSha: i.git_sha, summary: i.summary,
+        files: i.files, newFiles: i.new_files, status: i.status, createdAt: i.created_at,
+      })),
+    });
   } catch (err) {
     console.error("[/api/v1/projects/:slug/iterations] GET", err);
     return fail(503, "Database unavailable.");
@@ -51,14 +57,11 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     const input = parsePush(body, project!);
     if ("error" in input) return fail(400, input.error);
 
-    const existing = await findIterationByManifest(params.slug, input.manifestSha);
-    if (existing) {
-      return json({ ok: true, duplicate: true, iteration: existing.n, label: existing.label, files: existing.files, newFiles: 0 });
-    }
-
     const actor = `${tok.created_by} (token ${tok.prefix}…)`;
-    const { iteration, newFiles } = await commitIteration({
+    const result = await commitIteration({
       slug: params.slug,
+      sandbox: project!.kind === "sandbox",
+      tokenId: tok.id,
       label: input.label,
       manifestSha: input.manifestSha,
       source: input.source,
@@ -69,7 +72,11 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
       files: input.files,
       tables: input.tables,
     });
-    if (project!.kind === "sandbox") await pruneSandbox(params.slug, LIMITS.keepIterations);
+    if (result.duplicate) {
+      const it = result.iteration;
+      return json({ ok: true, duplicate: true, iteration: it.n, label: it.label, files: it.files, newFiles: 0 });
+    }
+    const { iteration, newFiles } = result;
 
     return json({
       ok: true,
@@ -83,6 +90,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
       url: `${req.nextUrl.origin}/projects/${params.slug}?view=iterations`,
     }, 201);
   } catch (err) {
+    if (err instanceof LimitError) return fail(err.status, err.message);
     console.error("[/api/v1/projects/:slug/iterations] POST", err);
     return fail(503, "Database unavailable.");
   }
