@@ -3,6 +3,9 @@ import { bearer, fail, json, parsePush, sandboxOnly, SLUG_RE } from "@/lib/proje
 import { LIMITS, LimitError, commitIteration, getProject, listIterations, verifyToken } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
+// The database driver can send queries over fetch; never let Next.js cache them.
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 /** GET /api/v1/projects/{slug}/iterations — latest iterations, newest first. */
 export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {

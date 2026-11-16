@@ -2,6 +2,9 @@ import { json, fail } from "@/lib/projects-api";
 import { listProjects } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
+// The database driver can send queries over fetch; never let Next.js cache them.
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 /** GET /api/v1/projects — projects Studio knows about (titles and counts only). */
 export async function GET() {

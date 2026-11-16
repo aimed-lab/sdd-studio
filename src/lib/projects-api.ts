@@ -81,7 +81,7 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
   for (let i = 0; i < body.files.length; i++) {
     const f: unknown = body.files[i];
     if (!isPlainObject(f)) return { error: `files[${i}] must be an object.` };
-    if (!safePath(f.path)) return { error: `files[${i}].path must be a relative path without "..".` };
+    if (!safePath(f.path)) return { error: `files[${i}].path must be a relative path (at most 300 characters) without "..", ".", empty segments, control characters or direction overrides.` };
     if (paths.has(f.path)) return { error: `files[${i}].path is listed twice: ${f.path}` };
     if (typeof f.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(f.sha256)) return { error: `files[${i}].sha256 must be 64 lowercase hex characters.` };
     if (typeof f.size !== "number" || !Number.isInteger(f.size) || f.size < 0 || f.size > 1e12) return { error: `files[${i}].size must be a byte count.` };

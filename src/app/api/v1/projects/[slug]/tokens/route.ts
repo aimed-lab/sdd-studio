@@ -4,6 +4,9 @@ import { getUserByEmail } from "@/lib/db";
 import { LIMITS, LimitError, audit, createToken, getProject, listTokens, revokeToken } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
+// The database driver can send queries over fetch; never let Next.js cache them.
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 /*
  * Push tokens for the sandbox. Until single sign-on (#32) the server cannot verify who is calling,

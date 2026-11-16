@@ -3,6 +3,9 @@ import { json, fail, sandboxOnly, SLUG_RE } from "@/lib/projects-api";
 import { getProject, listArtifacts, listIterations, listTables } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
+// The database driver can send queries over fetch; never let Next.js cache them.
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 /** GET /api/v1/projects/{slug} — project summary: iterations, file index and tables. */
 export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
