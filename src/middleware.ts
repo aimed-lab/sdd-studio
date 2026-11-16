@@ -10,6 +10,8 @@ const BUDGETS = {
   evidence: { capacity: 20, refillPerSecond: 1 / 3 }, // /api/target-evidence: 2 Open Targets GraphQL calls, 20 burst, 20/min
   mcp: { capacity: 20, refillPerSecond: 1 / 3 }, // /api/mcp: each tools/call runs one of the routes above, 20 burst, 20/min
   targetPage: { capacity: 30, refillPerSecond: 1 / 2 }, // /targets/[gene]: server-renders HGNC + ChEMBL lookups, 30 burst, 30/min
+  projectsRead: { capacity: 60, refillPerSecond: 1 }, // GET /api/v1/projects/*: 60 burst, 60/min
+  projectsWrite: { capacity: 10, refillPerSecond: 1 / 6 }, // pushes and token changes: 10 burst, 10/min
 } as const;
 
 type BucketName = keyof typeof BUDGETS;
@@ -32,7 +34,9 @@ function take(key: string, budget: { capacity: number; refillPerSecond: number }
 
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  const bucket: BucketName = path.startsWith("/targets/")
+  const bucket: BucketName = path.startsWith("/api/v1/")
+    ? req.method === "GET" ? "projectsRead" : "projectsWrite"
+    : path.startsWith("/targets/")
     ? "targetPage"
     : path.startsWith("/api/mcp")
     ? "mcp"
@@ -63,5 +67,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/target-evidence", "/api/mcp", "/targets/:path+"],
+  matcher: [
+    "/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/target-evidence", "/api/mcp",
+    "/targets/:path+", "/api/v1/:path+",
+  ],
 };

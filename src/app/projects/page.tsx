@@ -3,6 +3,7 @@ import "@/styles/vault.css";
 import { DemoDataNotice } from "@/components/data-provenance";
 import { Badge } from "@/components/projects/vault-ui";
 import { DEMO_PROJECTS } from "@/data/projects-demo";
+import { LiveProjectCards } from "@/components/projects/live-projects";
 
 export const metadata = { title: "Projects · SmartDrugDiscovery" };
 
@@ -21,9 +22,16 @@ export default function ProjectsPage() {
           <p className="vx-lede">
             Each project keeps its files in its Box folder. Developers and their agents push each iteration here; the team
             reviews decision sheets, rounds and property reports, and releases chosen artifacts to smartdrugdiscovery.org.
-            The two campaigns below are invented examples that show the layout.
+            Real campaigns move in once single sign-on is on; until then developers try the workflow in the sandbox.
           </p>
         </div>
+
+        <section className="space-y-2">
+          <div className="vx-nav-label" style={{ padding: 0 }}>In Studio</div>
+          <LiveProjectCards />
+        </section>
+
+        <div className="vx-nav-label" style={{ padding: 0 }}>Examples (invented data, to show the layout)</div>
 
         <div className="grid gap-4 md:grid-cols-2">
           {DEMO_PROJECTS.map((p) => {
@@ -66,7 +74,8 @@ export default function ProjectsPage() {
               <span className="vx-mono">sdd push</span>. Agents draft; only people release.
             </p>
             <p className="vx-faint">
-              The upload API, CLI and real project data arrive in later stages of the{" "}
+              The push command is <a href="https://github.com/aimed-lab/sdd-studio/blob/main/tools/sdd-cli/sdd.mjs" target="_blank" rel="noreferrer">sdd.mjs</a>{" "}
+              (Node 18+, no install). Real project data arrives in later stages of the{" "}
               <a href="https://github.com/aimed-lab/sdd-studio/blob/main/docs/redesign-plan.md" target="_blank" rel="noreferrer">
                 Projects plan
               </a>

@@ -1,15 +1,17 @@
 ---
 name: sdd-studio-push
-description: Write a project's intermediate or final results to SDD Studio (studio.smartdrugdiscovery.org) after each iteration. Use when you finish a meaningful computational run for an SDD project (a docking round, a scoring pass, an autoresearch round, a figure or manuscript revision) and the project folder contains an sdd.project.yaml, or when the user says "push to Studio", "log this iteration", "sync results to SDD". DRAFT — the Studio ingestion API this skill calls ships in Stage 3 of docs/redesign-plan.md; until then, do steps 1–3 and 5 only and report that the push is pending.
+description: Write a project's intermediate or final results to SDD Studio (studio.smartdrugdiscovery.org) after each iteration. Use when you finish a meaningful computational run for an SDD project (a docking round, a scoring pass, an autoresearch round, a figure or manuscript revision) and the project folder contains an sdd.project.json, or when the user says "push to Studio", "log this iteration", "sync results to SDD". Until single sign-on is enabled only the "sandbox" project (test data only) accepts pushes.
 ---
 
 # Push an iteration to SDD Studio
 
-Studio indexes each project's Box folder and loads declared summary tables into its database. Your job is to leave the folder in a clean, documented state and run one command. **You can draft; only people can release.**
+Studio indexes each project's folder (path, SHA-256, size, kind, sensitivity; file contents stay in Box) and loads declared summary tables into its database. Your job is to leave the folder in a clean, documented state and run one command. **You can draft; only people can release.**
+
+The tool is `sdd.mjs` (one file, Node 18+, no install): https://github.com/aimed-lab/sdd-studio/blob/main/tools/sdd-cli/sdd.mjs
 
 ## Before you start
 
-1. Find `sdd.project.yaml` at the project root. If it is missing, stop and ask the user to run `sdd init` (or to tell you the project slug). Do not invent one.
+1. Find `sdd.project.json` at the project root. If it is missing, stop and ask the user to run `node sdd.mjs init --project sandbox` (or to tell you the project slug). Do not invent one.
 2. Read the project's harness file if there is one (for example `<project>_HARNESS.md`): it holds standing facts, constraints and a corrections log that override your assumptions.
 3. Check `SDD_PROJECT_TOKEN` is set in the environment (`test -n "$SDD_PROJECT_TOKEN"`). Never print it, write it to a file, or put it in a command line argument.
 
@@ -20,7 +22,7 @@ Studio indexes each project's Box folder and loads declared summary tables into 
 - **Never release.** Do not pass `--release`, do not change visibility, do not ask the user for an approval code. Release happens in Studio by the project lead and the Studio Owner.
 - **Label predictions.** Every computed score, docking pose, ADMET or property value you describe is an *in-silico prediction*. Say so in `iteration.md`.
 - **No unsourced facts.** Literature claims carry a PMID or DOI; database values carry the database and release.
-- **Sensitivity defaults to `unpublished`.** Only mark something `public` if the user says it is already published.
+- **Sensitivity.** The sandbox accepts `test` only, and rejects a push containing anything else. For real campaigns (after single sign-on) the default is `unpublished`; mark something `public` only if the user says it is already published.
 
 ## Steps
 
@@ -79,12 +81,12 @@ unpublished | confidential | public — <reason>
 
 ## Report-back checklist
 
-- [ ] `sdd.project.yaml` found, slug: …
+- [ ] `sdd.project.json` found, project: …
 - [ ] Harness read (or none present)
 - [ ] Iteration folder: `Results/<label>/` with `iteration.md`
 - [ ] No PHI, credentials or out-of-folder files
 - [ ] Predictions labelled as in-silico
-- [ ] `sdd push` result: N new files, M skipped, Studio URL … (or "pending: API not live yet")
+- [ ] `sdd.mjs push` result: iteration N, X new files, Y unchanged, Studio URL …
 - [ ] Changelog line added
 - [ ] Not released (release is a human step in Studio)
 
@@ -99,4 +101,4 @@ Results/r012-polar-bioisostere/
   structures/top10.sdf
   reports/round12_notes.md
 ```
-`sdd push --label "r012-polar-bioisostere"` → Studio shows round 12 under Iterations, the decision sheet under Outputs, all as **draft**.
+`node sdd.mjs push --label r012-polar-bioisostere --dir Results/r012-polar-bioisostere --agent` → Studio shows the iteration under Iterations and the two tables under Tables, all as **draft**.
