@@ -9,7 +9,7 @@ import { AccountStatusGate } from "@/components/pending-approval-screen";
 import { cn } from "@/lib/utils";
 import {
   Dna, FlaskConical, Stethoscope, ShieldCheck, Database,
-  Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert,
+  Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert, BookOpen,
 } from "lucide-react";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { DataClassBadge, PageClassStrip } from "@/components/data-provenance";
@@ -342,6 +342,7 @@ function Sidebar({
           {access("models")  !== "hidden" && <NavItem href="/models"   label="Foundation Models"  icon={BrainCircuit} onNavigate={onClose} locked={access("models")  === "partial"} />}
           {access("services")!== "hidden" && <NavItem href="/services" label="Add-on Service"     icon={Package}      onNavigate={onClose} locked={access("services")=== "partial"} />}
           {access("plugins") !== "hidden" && <NavItem href="/plugins"  label="Tool Plugins"       icon={Puzzle}       onNavigate={onClose} locked={access("plugins") === "partial"} />}
+          <NavItem href="/docs" label="Docs" icon={BookOpen} onNavigate={onClose} />
           {access("support") !== "hidden" && (
             <NavItem href="/support" label="Support" icon={Headset} onNavigate={onClose} locked={access("support") === "partial"} />
           )}

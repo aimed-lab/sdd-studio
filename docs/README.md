@@ -6,7 +6,20 @@ This `docs/` directory is maintained alongside the codebase. Every file here ref
 
 ---
 
-## Quick Links
+## In Studio
+The pages below are published in Studio's **Documentation** section at [studio.smartdrugdiscovery.org/docs](https://studio.smartdrugdiscovery.org/docs), rendered from these files. The list of published pages is `src/data/docs.ts`.
+
+| Document | What it covers |
+|---|---|
+| [Members and invitations](members-and-invitations.md) | Joining with a personal code, inviting people, roles, removing access |
+| [Developer guide](developer-guide.md) | Pushing iterations to the developer sandbox with `sdd.mjs` |
+| [Agent workflow](../skills/sdd-studio-push/SKILL.md) | The skill an AI agent follows to push results |
+| [Projects API](projects-api.md) | Endpoints, push format, limits and tables |
+| [Data API](api-reference.md#read-only-json-api) | Public read-only API and MCP endpoint |
+| [Projects plan](redesign-plan.md) | The approved Projects plan |
+
+## Older pages
+These are not yet published in Studio because parts of them describe superseded behaviour (for example, browser-only storage). Check them against the code before relying on them.
 
 | Document | What it covers |
 |---|---|

@@ -71,6 +71,8 @@ export const pageClasses: Record<string, PageClass> = {
   "/support": { kind: "app" },
   "/security": { kind: "app" },
   "/login": { kind: "app" },
+  "/docs": { kind: "app" },
+  "/docs/[slug]": { kind: "app" },
 };
 
 /** Exact route first, then dynamic routes such as "/targets/[gene]" (one segment per bracket). */

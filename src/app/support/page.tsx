@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { hasRole } from "@/lib/roles";
+import { DOC_PAGES } from "@/data/docs";
 
 // ── Types (mirrors api/feedback/route.ts) ─────────────────────────────────
 
@@ -81,16 +82,11 @@ const SEED_TICKETS: Ticket[] = [
 
 // ── Docs content ──────────────────────────────────────────────────────────
 
+// The in-app Documentation section (/docs), plus release notes on GitHub.
+const DOC_ICONS: Record<string, string> = { "Start here": "🚀", Developers: "🛠️", Reference: "📡" };
 const DOCS = [
-  { id: "getting-started", category: "Quickstart", icon: "🚀", title: "Getting Started", description: "Set up your account, connect your first MCP tool, and run a compound screen in under 10 minutes.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/getting-started.md", tags: ["beginner"] },
-  { id: "roles", category: "Administration", icon: "🔐", title: "Roles & Permissions", description: "Owner, Admin, TechSupport, Developer, User — understand what each role can and cannot do.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/roles-and-permissions.md", tags: ["admin"] },
-  { id: "ownership", category: "Administration", icon: "🔑", title: "Ownership Transfer", description: "Transfer platform ownership with the 24-hour cooling-off safeguard and how to cancel.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/ownership-transfer.md", tags: ["admin"] },
-  { id: "architecture", category: "Technical", icon: "🏛️", title: "Platform Architecture", description: "Next.js 14, Vercel, React 18, Tailwind CSS, MCP integrations — how it all fits together.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/platform-architecture.md", tags: ["developer"] },
-  { id: "api-ref", category: "Technical", icon: "📡", title: "API Reference", description: "REST endpoints for assistant, feedback, OAuth popups — request/response shapes and examples.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/api-reference.md", tags: ["developer"] },
-  { id: "releases", category: "Updates", icon: "📋", title: "Release Notes", description: "Full changelog — every feature, fix, and architectural change since v1.100.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/RELEASES.md", tags: ["all"] },
-  { id: "plugins", category: "Integrations", icon: "🔌", title: "Plugin & MCP Guide", description: "How to install MCP servers, configure API plugins, and build your own tool integrations.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/plugins.md", tags: ["developer"] },
-  { id: "models", category: "Science", icon: "🧬", title: "A1-A10 Model Hierarchy", description: "The AIDD 2.0 multi-scale framework — from gene targets to whole-population health models.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/model-hierarchy.md", tags: ["science"] },
-  { id: "security", category: "Compliance", icon: "🛡️", title: "Security & HIPAA", description: "Platform security controls, HIPAA compliance checklist, and data handling policies.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/security.md", tags: ["admin"] },
+  ...DOC_PAGES.map((p) => ({ id: p.slug, category: p.section, icon: DOC_ICONS[p.section] ?? "📄", title: p.title, description: p.description, href: `/docs/${p.slug}`, tags: [p.section === "Developers" ? "developer" : "all"] })),
+  { id: "releases", category: "Updates", icon: "📋", title: "Release Notes", description: "Changelog on GitHub.", href: "https://github.com/aimed-lab/sdd-studio/blob/main/RELEASES.md", tags: ["all"] },
 ];
 
 const DOC_CATEGORIES = Array.from(new Set(DOCS.map((d) => d.category)));
@@ -291,7 +287,7 @@ export default function SupportPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filteredDocs.map((doc) => (
-                <a key={doc.id} href={doc.href} target="_blank" rel="noopener noreferrer"
+                <a key={doc.id} href={doc.href} {...(doc.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                   className="rounded-lg border p-4 hover:bg-accent hover:shadow-sm transition-all group space-y-2">
                   <div className="flex items-start gap-3">
                     <span className="text-2xl shrink-0">{doc.icon}</span>

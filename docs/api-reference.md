@@ -4,7 +4,7 @@ This document specifies the internal Next.js API route handlers for SmartDrugDis
 
 Most routes here are **internal**: they serve the platform's own pages and the Admin Agent Console, and they can change between versions.
 
-The exception is the three [read-only data routes](#read-only-json-api): `/api/search`, `/api/compound/{id}` and `/api/trials`. They are a **read-only JSON API, unauthenticated, and may change**. Treat them as a convenience for scripts and agents, not as a versioned, supported API.
+The exception is the [read-only data routes](#read-only-json-api): `/api/search`, `/api/compound/{id}`, `/api/trials`, `/api/target-evidence` and `/api/structure`, and the MCP endpoint that wraps them. They are a **read-only JSON API, unauthenticated, and may change**. Treat them as a convenience for scripts and agents, not as a versioned, supported API.
 
 ---
 

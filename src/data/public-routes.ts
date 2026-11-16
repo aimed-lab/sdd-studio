@@ -9,8 +9,15 @@ export const PUBLIC_ROUTES = [
 
 // Detail pages under these prefixes are public too (#25): /targets/<gene> shows only curated identity and live
 // sections to anonymous visitors; its demo program section is members-only.
-export const PUBLIC_PREFIXES = ["/targets/"] as const;
+export const PUBLIC_PREFIXES = ["/targets/", "/docs/"] as const;
+
+// Documentation is public too, so people can read how to join before they have an account.
+export const PUBLIC_DOCS = { href: "/docs", label: "Docs" } as const;
 
 export function isPublicPath(pathname: string): boolean {
-  return PUBLIC_ROUTES.some((r) => pathname === r.href) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+  return (
+    pathname === PUBLIC_DOCS.href ||
+    PUBLIC_ROUTES.some((r) => pathname === r.href) ||
+    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
+  );
 }
