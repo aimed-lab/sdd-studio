@@ -84,6 +84,7 @@ export const LIMITS = {
 // Campaigns hold real project data, written only with keys the owner issues, so tables can be larger.
 // A single request still stays under 4 MB; large tables arrive in chunks (appendRows).
 export const CAMPAIGN_LIMITS = {
+  maxTables: 30, // a PharmElixir export has 11 tables per round
   maxRowsPerTable: 50_000,
   maxColumns: 300,
   maxRecordRows: 1_000_000, // all table rows in one campaign
@@ -92,8 +93,8 @@ export const CAMPAIGN_LIMITS = {
 
 export const limitsFor = (kind: string) =>
   kind === "sandbox"
-    ? { maxRowsPerTable: LIMITS.maxRowsPerTable, maxColumns: LIMITS.maxColumns, maxRecordRows: LIMITS.maxRecordRows }
-    : { maxRowsPerTable: CAMPAIGN_LIMITS.maxRowsPerTable, maxColumns: CAMPAIGN_LIMITS.maxColumns, maxRecordRows: CAMPAIGN_LIMITS.maxRecordRows };
+    ? { maxTables: LIMITS.maxTables, maxRowsPerTable: LIMITS.maxRowsPerTable, maxColumns: LIMITS.maxColumns, maxRecordRows: LIMITS.maxRecordRows }
+    : { maxTables: CAMPAIGN_LIMITS.maxTables, maxRowsPerTable: CAMPAIGN_LIMITS.maxRowsPerTable, maxColumns: CAMPAIGN_LIMITS.maxColumns, maxRecordRows: CAMPAIGN_LIMITS.maxRecordRows };
 
 /** A request the limits refuse; the route turns it into this HTTP status. */
 export class LimitError extends Error {
