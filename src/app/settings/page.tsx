@@ -15,6 +15,7 @@ import {
   loadModuleAccess, saveModuleAccess,
 } from "@/lib/module-access";
 import { MembersPanel } from "@/components/members-panel";
+import { AiLimitsCard } from "@/components/agents/ai-limits-card";
 
 export default function SettingsPage() {
   const { user, updateUser, initiateOwnerTransfer, cancelOwnerTransfer } = useAuth();
@@ -788,6 +789,8 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
             </Card>
+
+            <AiLimitsCard email={user?.email} />
 
             {/* AI Model Provider Keys */}
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">AI Model Providers</p>

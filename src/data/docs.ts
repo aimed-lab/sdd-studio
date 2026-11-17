@@ -23,6 +23,13 @@ export const DOC_PAGES: DocPage[] = [
     file: "docs/members-and-invitations.md",
   },
   {
+    slug: "ai-agents",
+    title: "AI agents and usage limits",
+    description: "The Literature Mining and Clinical Trial Feasibility agents, run records, the lab budget and using your own Anthropic key.",
+    section: "Start here",
+    file: "docs/ai-agents.md",
+  },
+  {
     slug: "developer-guide",
     title: "Developer guide",
     description: "Push iterations to the developer sandbox with sdd.mjs: tokens, folder layout, commands, limits.",
