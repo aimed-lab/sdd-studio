@@ -148,7 +148,8 @@ export function parsePush(body: unknown, project: ProjectRow): PushInput | { err
 
   const rawTables = body.tables ?? [];
   if (!Array.isArray(rawTables)) return { error: "tables must be a list." };
-  if (rawTables.length > LIMITS.maxTables) return { error: `tables: at most ${LIMITS.maxTables} per push.` };
+  const maxTables = limitsFor(project.kind).maxTables;
+  if (rawTables.length > maxTables) return { error: `tables: at most ${maxTables} per push.` };
   const tables: PushTable[] = [];
   const names = new Set<string>();
   for (let i = 0; i < rawTables.length; i++) {

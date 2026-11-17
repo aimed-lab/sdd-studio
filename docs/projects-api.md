@@ -5,7 +5,7 @@ Stages 2–3 of [redesign-plan.md](redesign-plan.md), delivered first for a **de
 ## What is open today
 - **Sandbox only.** The `sandbox` project accepts pushes and is readable by any signed-in member. It accepts files marked `test` only, keeps the latest 20 iterations, and holds at most 100,000 table rows in total.
 - **Campaigns** (kind `campaign`) hold the lab's own unpublished data. They are opened only with a **project key**: Studio checks it on the server for every request, so knowing a member's email address is not enough. The platform owner creates campaigns and issues keys with the admin key (below).
-- **No file bytes.** Studio stores each file's path, SHA-256, size, kind and sensitivity, plus up to 10 summary tables per push. The files themselves stay in the project's Box folder; Box upload sessions arrive in Stage 4.
+- **No file bytes.** Studio stores each file's path, SHA-256, size, kind and sensitivity, plus summary tables (up to 10 per push in the sandbox, 30 in a campaign). The files themselves stay in the project's Box folder; Box upload sessions arrive in Stage 4.
 
 ## Campaign keys
 - **Admin key:** the platform owner sets `ADMIN_API_TOKEN` (a long random value) in the Vercel project. Admin requests send it as `X-Admin-Token`; without the variable the admin endpoints answer 404.
@@ -75,7 +75,7 @@ A read key is sent as `X-SDD-Project-Key: sdd_pt_…` (or `Authorization: Bearer
 - 4 MB per request, of which table rows at most 1 MB.
 - 30 pushes per token per hour, and 300 pushes per project per day.
 - 2,000 files per push.
-- 10 tables per push.
+- 10 tables per push in the sandbox, 30 in a campaign.
 - 5,000 rows per table.
 - 100 columns per row.
 - 2,000 characters per cell.
