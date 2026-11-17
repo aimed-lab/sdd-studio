@@ -26,11 +26,9 @@ export default function ProjectPage({
     // Projects stored in Studio's database (today: the developer sandbox, test data only).
     const view = parseLiveView(searchParams.view);
     const table = /^[a-z][a-z0-9_]{0,39}$/.test(searchParams.table ?? "") ? searchParams.table! : null;
+    // The workspace shows the demo notice for the sandbox and the project-data notice for a campaign.
     return (
       <div className="vault">
-        <div className="px-4 pt-3 md:px-5">
-          <DemoDataNotice />
-        </div>
         <LiveProjectWorkspace slug={params.slug} view={view} table={table} />
       </div>
     );

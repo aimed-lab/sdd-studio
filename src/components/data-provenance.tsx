@@ -1,4 +1,4 @@
-import { AlertTriangle, BadgeCheck, Layers, Lightbulb, Radio } from "lucide-react";
+import { AlertTriangle, BadgeCheck, FlaskConical, Layers, Lightbulb, Radio } from "lucide-react";
 import type { DataClass, PageClass } from "@/data/page-classes";
 
 export const DEMO_DATA_LABEL = "illustrative demo data (not curated)";
@@ -21,6 +21,22 @@ export function DemoDataNotice({ variant = "demo" }: { variant?: "demo" | "plann
           placeholders, not from a curated source. Do not cite or use them for decisions.
         </span>
       )}
+    </div>
+  );
+}
+
+/** Shown on a campaign: the lab's own data, not demo data and not a curated public source. */
+export function ProjectDataNotice() {
+  return (
+    <div
+      role="note"
+      className="flex items-start gap-2 rounded-md border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200"
+    >
+      <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>
+        <strong>Unpublished project data.</strong> Shown to holders of this project&apos;s key. Computed scores and flags are
+        in-silico results from the campaign, not experimental measurements. Do not share outside the team.
+      </span>
     </div>
   );
 }
@@ -70,6 +86,12 @@ const CLASS_STYLE: Record<Exclude<DataClass, "app">, { label: string; long: stri
     long: "This page mixes live or curated sections with demo sections",
     icon: Layers,
     className: "border-violet-300 bg-violet-50 text-violet-900 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200",
+  },
+  project: {
+    label: "Project",
+    long: "The lab's own project data, shown to holders of the project key",
+    icon: FlaskConical,
+    className: "border-indigo-300 bg-indigo-50 text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200",
   },
   planned: {
     label: "Planned",

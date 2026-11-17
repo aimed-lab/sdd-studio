@@ -58,7 +58,10 @@ export interface TokenRow {
   expires_at: string;
   revoked_at: string | null;
   last_used_at: string | null;
+  scope?: string;
 }
+
+export type TokenScope = "push" | "read";
 
 // Sandbox limits. A push is one request, so it must also stay under Vercel's 4.5 MB body limit.
 // The database is shared with sign-in, so the sandbox is kept small.
@@ -77,6 +80,20 @@ export const LIMITS = {
   maxTokensPerPerson: 5,
   maxTokenDays: 365,
 } as const;
+
+// Campaigns hold real project data, written only with keys the owner issues, so tables can be larger.
+// A single request still stays under 4 MB; large tables arrive in chunks (appendRows).
+export const CAMPAIGN_LIMITS = {
+  maxRowsPerTable: 50_000,
+  maxColumns: 300,
+  maxRecordRows: 1_000_000, // all table rows in one campaign
+  maxKeysPerProject: 50,
+} as const;
+
+export const limitsFor = (kind: string) =>
+  kind === "sandbox"
+    ? { maxRowsPerTable: LIMITS.maxRowsPerTable, maxColumns: LIMITS.maxColumns, maxRecordRows: LIMITS.maxRecordRows }
+    : { maxRowsPerTable: CAMPAIGN_LIMITS.maxRowsPerTable, maxColumns: CAMPAIGN_LIMITS.maxColumns, maxRecordRows: CAMPAIGN_LIMITS.maxRecordRows };
 
 /** A request the limits refuse; the route turns it into this HTTP status. */
 export class LimitError extends Error {
@@ -175,6 +192,8 @@ export async function ensureProjectsSchema(): Promise<void> {
       detail       JSONB
     )`;
   await sql`ALTER TABLE project_iterations ADD COLUMN IF NOT EXISTS token_id TEXT`;
+  await sql`ALTER TABLE project_tokens ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'push'`;
+  await sql`ALTER TABLE project_tables ADD COLUMN IF NOT EXISTS expected_rows INTEGER`;
   await sql`CREATE INDEX IF NOT EXISTS project_iterations_token ON project_iterations (token_id, created_at)`;
   await sql`
     INSERT INTO projects (slug, title, description, kind)
@@ -200,6 +219,17 @@ export async function listProjects() {
 export async function getProject(slug: string): Promise<ProjectRow | null> {
   await ensureProjectsSchema();
   const { rows } = await sql<ProjectRow>`SELECT slug, title, description, kind, created_at FROM projects WHERE slug = ${slug}`;
+  return rows[0] ?? null;
+}
+
+/** Admin only (routes check the admin key): creates a campaign project. */
+export async function createProject(slug: string, title: string, description: string | null): Promise<ProjectRow | null> {
+  await ensureProjectsSchema();
+  const { rows } = await sql<ProjectRow>`
+    INSERT INTO projects (slug, title, description, kind) VALUES (${slug}, ${title}, ${description}, 'campaign')
+    ON CONFLICT (slug) DO NOTHING
+    RETURNING slug, title, description, kind, created_at`;
+  if (rows[0]) await audit(slug, "admin", "admin", "create_project", slug, { title });
   return rows[0] ?? null;
 }
 
@@ -265,15 +295,61 @@ export async function revokeToken(slug: string, id: string, email: string): Prom
   return (rowCount ?? 0) > 0;
 }
 
-/** Resolves a bearer token to its row, or null if unknown, revoked, expired or for another project. */
-export async function verifyToken(slug: string, token: string): Promise<TokenRow | null> {
+/**
+ * Resolves a key to its row, or null if unknown, revoked, expired, for another project, or not allowed
+ * to do `need`. A push key can also read; a read key cannot push.
+ */
+export async function verifyToken(slug: string, token: string, need: TokenScope = "push"): Promise<TokenRow | null> {
   await ensureProjectsSchema();
   if (!token.startsWith("sdd_pt_") || token.length > 100) return null;
+  const scopes = need === "push" ? ["push"] : ["push", "read"];
   const { rows } = await sql<TokenRow>`
     UPDATE project_tokens SET last_used_at = NOW()
     WHERE token_hash = ${hashToken(token)} AND project_slug = ${slug} AND revoked_at IS NULL AND expires_at > NOW()
-    RETURNING id, project_slug, prefix, label, created_by, created_at, expires_at, revoked_at, last_used_at`;
+      AND scope IN (SELECT jsonb_array_elements_text(${JSON.stringify(scopes)}::jsonb))
+    RETURNING id, project_slug, prefix, label, created_by, created_at, expires_at, revoked_at, last_used_at, scope`;
   return rows[0] ?? null;
+}
+
+/** Admin only: issues a read or push key for a project. The key is returned once. */
+export async function createProjectKey(slug: string, scope: TokenScope, label: string | null, days: number) {
+  await ensureProjectsSchema();
+  const token = "sdd_pt_" + randomBytes(32).toString("base64url");
+  const id = randomBytes(9).toString("base64url");
+  const expires = new Date(Date.now() + days * 86_400_000).toISOString();
+  return inTransaction(async (c) => {
+    await c.sql`SELECT pg_advisory_xact_lock(hashtext(${"keys:" + slug}))`;
+    const { rows } = await c.sql`
+      SELECT COUNT(*)::int AS n FROM project_tokens WHERE project_slug = ${slug} AND revoked_at IS NULL AND expires_at > NOW()`;
+    if (Number(rows[0]?.n ?? 0) >= CAMPAIGN_LIMITS.maxKeysPerProject) {
+      throw new LimitError(409, `This project already has ${CAMPAIGN_LIMITS.maxKeysPerProject} active keys. Revoke some first.`);
+    }
+    await c.sql`
+      INSERT INTO project_tokens (id, project_slug, token_hash, prefix, label, created_by, expires_at, scope)
+      VALUES (${id}, ${slug}, ${hashToken(token)}, ${token.slice(0, 11)}, ${label}, 'admin', ${expires}, ${scope})`;
+    await c.sql`
+      INSERT INTO project_audit (project_slug, actor, actor_type, action, target, detail)
+      VALUES (${slug}, 'admin', 'admin', 'create_key', ${token.slice(0, 11)}, ${JSON.stringify({ scope, label, days })}::jsonb)`;
+    return { id, token, prefix: token.slice(0, 11), scope, expiresAt: expires };
+  });
+}
+
+/** Admin only: every key of a project (never the key itself). */
+export async function listProjectKeys(slug: string): Promise<TokenRow[]> {
+  await ensureProjectsSchema();
+  const { rows } = await sql<TokenRow>`
+    SELECT id, project_slug, prefix, label, created_by, created_at, expires_at, revoked_at, last_used_at, scope
+    FROM project_tokens WHERE project_slug = ${slug} ORDER BY created_at DESC LIMIT 200`;
+  return rows;
+}
+
+/** Admin only: revokes any key of a project. */
+export async function revokeProjectKey(slug: string, id: string): Promise<boolean> {
+  await ensureProjectsSchema();
+  const { rowCount } = await sql`
+    UPDATE project_tokens SET revoked_at = NOW() WHERE id = ${id} AND project_slug = ${slug} AND revoked_at IS NULL`;
+  if ((rowCount ?? 0) > 0) await audit(slug, "admin", "admin", "revoke_key", id, null);
+  return (rowCount ?? 0) > 0;
 }
 
 // ── Iterations ──────────────────────────────────────────────────────────────
@@ -290,11 +366,26 @@ export interface PushTable {
   name: string;
   file: string | null;
   rows: Record<string, string | number | boolean | null>[];
+  /** Total rows when the table arrives in chunks: `rows` is the first chunk, the rest via appendRows. */
+  expectedRows?: number;
+}
+
+export interface IncompleteTable {
+  name: string;
+  have: number;
+  expected: number;
 }
 
 export type CommitResult =
-  | { duplicate: true; iteration: IterationRow }
+  | { duplicate: true; iteration: IterationRow; incomplete: IncompleteTable[] }
   | { duplicate: false; iteration: IterationRow; newFiles: number };
+
+async function incompleteTables(c: VercelPoolClient, slug: string, n: number): Promise<IncompleteTable[]> {
+  const { rows } = await c.sql<{ table_name: string; row_count: number; expected_rows: number }>`
+    SELECT table_name, row_count, expected_rows FROM project_tables
+    WHERE project_slug = ${slug} AND iteration_n = ${n} AND expected_rows IS NOT NULL AND row_count < expected_rows`;
+  return rows.map((r) => ({ name: r.table_name, have: r.row_count, expected: r.expected_rows }));
+}
 
 /**
  * Registers one iteration atomically: the duplicate check, limits, iteration row, file index,
@@ -317,7 +408,7 @@ export async function commitIteration(args: {
 }): Promise<CommitResult> {
   await ensureProjectsSchema();
   const { slug } = args;
-  const newRows = args.tables.reduce((sum, t) => sum + t.rows.length, 0);
+  const newRows = args.tables.reduce((sum, t) => sum + (t.expectedRows ?? t.rows.length), 0);
 
   return inTransaction(async (c) => {
     await c.sql`SELECT pg_advisory_xact_lock(hashtext(${"push:" + slug}))`;
@@ -325,7 +416,10 @@ export async function commitIteration(args: {
     const dup = await c.sql<IterationRow>`
       SELECT n, label, source, actor_type, actor, git_sha, summary, files, new_files, status, created_at
       FROM project_iterations WHERE project_slug = ${slug} AND manifest_sha256 = ${args.manifestSha}`;
-    if (dup.rows[0]) return { duplicate: true as const, iteration: dup.rows[0] };
+    if (dup.rows[0]) {
+      // A retried push: report tables whose chunks did not all arrive, so the client can resume.
+      return { duplicate: true as const, iteration: dup.rows[0], incomplete: await incompleteTables(c, slug, dup.rows[0].n) };
+    }
 
     const perToken = await c.sql`
       SELECT COUNT(*)::int AS n FROM project_iterations
@@ -340,6 +434,12 @@ export async function commitIteration(args: {
       throw new LimitError(429, `This project has had ${LIMITS.maxPushesPerDay} pushes today. Try again tomorrow.`);
     }
 
+    if (!args.sandbox) {
+      const total = await c.sql`SELECT COALESCE(SUM(COALESCE(expected_rows, row_count)), 0)::int AS n FROM project_tables WHERE project_slug = ${slug}`;
+      if (Number(total.rows[0]?.n ?? 0) + newRows > CAMPAIGN_LIMITS.maxRecordRows) {
+        throw new LimitError(507, `This project holds at most ${CAMPAIGN_LIMITS.maxRecordRows} table rows.`);
+      }
+    }
     if (args.sandbox) {
       // Make room first, so the sandbox never holds more than keepIterations.
       const cut = await c.sql<{ n: number }>`
@@ -351,7 +451,7 @@ export async function commitIteration(args: {
         await c.sql`DELETE FROM project_artifacts WHERE project_slug = ${slug} AND iteration_n <= ${cutoff}`;
         await c.sql`DELETE FROM project_iterations WHERE project_slug = ${slug} AND n <= ${cutoff}`;
       }
-      const total = await c.sql`SELECT COALESCE(SUM(row_count), 0)::int AS n FROM project_tables WHERE project_slug = ${slug}`;
+      const total = await c.sql`SELECT COALESCE(SUM(COALESCE(expected_rows, row_count)), 0)::int AS n FROM project_tables WHERE project_slug = ${slug}`;
       if (Number(total.rows[0]?.n ?? 0) + newRows > LIMITS.maxRecordRows) {
         throw new LimitError(507, `The sandbox holds at most ${LIMITS.maxRecordRows} table rows. Push smaller summary tables.`);
       }
@@ -391,8 +491,8 @@ export async function commitIteration(args: {
       const columns: string[] = [];
       for (const row of t.rows) for (const k of Object.keys(row)) if (!columns.includes(k)) columns.push(k);
       await c.sql`
-        INSERT INTO project_tables (project_slug, iteration_n, table_name, file_path, columns, row_count)
-        VALUES (${slug}, ${n}, ${t.name}, ${t.file}, ${JSON.stringify(columns)}::jsonb, ${t.rows.length})`;
+        INSERT INTO project_tables (project_slug, iteration_n, table_name, file_path, columns, row_count, expected_rows)
+        VALUES (${slug}, ${n}, ${t.name}, ${t.file}, ${JSON.stringify(columns)}::jsonb, ${t.rows.length}, ${t.expectedRows ?? null})`;
       await c.sql`
         INSERT INTO project_records (project_slug, iteration_n, table_name, row_index, data)
         SELECT ${slug}, ${n}, ${t.name}, (ord - 1)::int, value
@@ -404,6 +504,56 @@ export async function commitIteration(args: {
       INSERT INTO project_audit (project_slug, actor, actor_type, action, target, detail)
       VALUES (${slug}, ${args.actor}, ${args.actorType}, 'push_iteration', ${"iteration " + n}, ${JSON.stringify(detail)}::jsonb)`;
     return { duplicate: false as const, iteration, newFiles };
+  });
+}
+
+/**
+ * Appends one chunk of rows to a table declared with expectedRows in an iteration. Only the key that
+ * pushed the iteration may append, within a day, and never beyond the declared row count.
+ */
+export async function appendRows(args: {
+  slug: string;
+  n: number;
+  tokenId: string;
+  table: string;
+  offset: number;
+  rows: PushTable["rows"];
+}): Promise<{ have: number; expected: number }> {
+  await ensureProjectsSchema();
+  const { slug, n, table } = args;
+  return inTransaction(async (c) => {
+    await c.sql`SELECT pg_advisory_xact_lock(hashtext(${"append:" + slug + ":" + n + ":" + table}))`;
+    const it = await c.sql`
+      SELECT token_id, created_at > NOW() - INTERVAL '1 day' AS fresh FROM project_iterations WHERE project_slug = ${slug} AND n = ${n}`;
+    if (!it.rows[0]) throw new LimitError(404, `Iteration ${n} not found.`);
+    if (it.rows[0].token_id !== args.tokenId) throw new LimitError(403, "Only the key that pushed this iteration can add rows to it.");
+    if (!it.rows[0].fresh) throw new LimitError(409, "Rows can be added only within a day of the push.");
+    const meta = await c.sql<{ row_count: number; expected_rows: number | null; columns: string[] }>`
+      SELECT row_count, expected_rows, columns FROM project_tables WHERE project_slug = ${slug} AND iteration_n = ${n} AND table_name = ${table}`;
+    const m = meta.rows[0];
+    if (!m || m.expected_rows == null) throw new LimitError(404, `Table ${table} in iteration ${n} does not take chunks.`);
+    // Retried chunks are idempotent: the client says where the chunk starts.
+    if (args.offset !== m.row_count) {
+      if (args.offset + args.rows.length <= m.row_count) return { have: m.row_count, expected: m.expected_rows };
+      throw new LimitError(409, `Expected the chunk to start at row ${m.row_count}, not ${args.offset}.`);
+    }
+    if (m.row_count + args.rows.length > m.expected_rows) {
+      throw new LimitError(400, `Table ${table} was declared with ${m.expected_rows} rows; this chunk would exceed it.`);
+    }
+    const seen = new Set(m.columns);
+    const columns = [...m.columns];
+    const max = limitsFor("campaign").maxColumns;
+    for (const row of args.rows) for (const k of Object.keys(row)) if (!seen.has(k)) { seen.add(k); columns.push(k); }
+    if (columns.length > max) throw new LimitError(400, `Table ${table} would have more than ${max} columns.`);
+    await c.sql`
+      INSERT INTO project_records (project_slug, iteration_n, table_name, row_index, data)
+      SELECT ${slug}, ${n}, ${table}, (${m.row_count}::int + ord::int - 1), value
+      FROM jsonb_array_elements(${JSON.stringify(args.rows)}::jsonb) WITH ORDINALITY AS r(value, ord)`;
+    const have = m.row_count + args.rows.length;
+    await c.sql`
+      UPDATE project_tables SET row_count = ${have}, columns = ${JSON.stringify(columns)}::jsonb
+      WHERE project_slug = ${slug} AND iteration_n = ${n} AND table_name = ${table}`;
+    return { have, expected: m.expected_rows };
   });
 }
 
@@ -429,14 +579,21 @@ export async function listArtifacts(slug: string, limit = 500): Promise<Artifact
 /** Each table's latest iteration and row count. */
 export async function listTables(slug: string) {
   await ensureProjectsSchema();
-  const { rows } = await sql<{ table_name: string; iteration_n: number; rows: number }>`
-    SELECT DISTINCT ON (table_name) table_name, iteration_n, row_count AS rows
+  const { rows } = await sql<{ table_name: string; iteration_n: number; rows: number; expected_rows: number | null }>`
+    SELECT DISTINCT ON (table_name) table_name, iteration_n, row_count AS rows, expected_rows
     FROM project_tables WHERE project_slug = ${slug}
     ORDER BY table_name, iteration_n DESC`;
   return rows;
 }
 
-export async function readRecords(slug: string, table: string, iteration: number | null, limit: number, offset: number) {
+export async function readRecords(
+  slug: string,
+  table: string,
+  iteration: number | null,
+  limit: number,
+  offset: number,
+  opts: { q?: string | null; sort?: string | null; desc?: boolean } = {},
+) {
   await ensureProjectsSchema();
   let n = iteration;
   if (n == null) {
@@ -444,15 +601,43 @@ export async function readRecords(slug: string, table: string, iteration: number
       SELECT MAX(iteration_n) AS n FROM project_tables WHERE project_slug = ${slug} AND table_name = ${table}`;
     n = rows[0]?.n ?? null;
   }
-  if (n == null) return { iteration: null, total: 0, columns: [] as string[], rows: [] as unknown[] };
-  const { rows: meta } = await sql<{ columns: string[]; row_count: number }>`
-    SELECT columns, row_count FROM project_tables WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n}`;
+  if (n == null) return { iteration: null, total: 0, matched: 0, columns: [] as string[], rows: [] as unknown[] };
+  const { rows: meta } = await sql<{ columns: string[]; row_count: number; expected_rows: number | null }>`
+    SELECT columns, row_count, expected_rows FROM project_tables WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n}`;
+  const columns = meta[0]?.columns ?? [];
+  const q = opts.q ? `%${opts.q.replace(/[\\%_]/g, (c) => "\\" + c)}%` : null;
+  // Sort only by a column the table has; numbers sort numerically, text alphabetically, missing values last.
+  const sortCol = opts.sort && columns.includes(opts.sort) ? opts.sort : null;
   const { rows: count } = await sql<{ c: number }>`
-    SELECT COUNT(*)::int AS c FROM project_records WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n}`;
-  const { rows } = await sql<{ data: unknown }>`
-    SELECT data FROM project_records WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n}
-    ORDER BY row_index LIMIT ${limit} OFFSET ${offset}`;
-  return { iteration: n, total: Number(count[0]?.c ?? 0), columns: meta[0]?.columns ?? [], rows: rows.map((r) => r.data) };
+    SELECT COUNT(*)::int AS c FROM project_records
+    WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n}
+      AND (${q}::text IS NULL OR data::text ILIKE ${q})`;
+  const { rows } = sortCol
+    ? opts.desc
+      ? await sql<{ data: unknown }>`
+          SELECT data FROM project_records
+          WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n} AND (${q}::text IS NULL OR data::text ILIKE ${q})
+          ORDER BY CASE WHEN jsonb_typeof(data->${sortCol}) = 'number' THEN (data->>${sortCol})::float8 END DESC NULLS LAST,
+                   data->>${sortCol} DESC NULLS LAST, row_index
+          LIMIT ${limit} OFFSET ${offset}`
+      : await sql<{ data: unknown }>`
+          SELECT data FROM project_records
+          WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n} AND (${q}::text IS NULL OR data::text ILIKE ${q})
+          ORDER BY CASE WHEN jsonb_typeof(data->${sortCol}) = 'number' THEN (data->>${sortCol})::float8 END ASC NULLS LAST,
+                   data->>${sortCol} ASC NULLS LAST, row_index
+          LIMIT ${limit} OFFSET ${offset}`
+    : await sql<{ data: unknown }>`
+        SELECT data FROM project_records
+        WHERE project_slug = ${slug} AND table_name = ${table} AND iteration_n = ${n} AND (${q}::text IS NULL OR data::text ILIKE ${q})
+        ORDER BY row_index LIMIT ${limit} OFFSET ${offset}`;
+  return {
+    iteration: n,
+    total: meta[0]?.row_count ?? 0,
+    expected: meta[0]?.expected_rows ?? null,
+    matched: Number(count[0]?.c ?? 0),
+    columns,
+    rows: rows.map((r) => r.data),
+  };
 }
 
 // ── Audit ───────────────────────────────────────────────────────────────────

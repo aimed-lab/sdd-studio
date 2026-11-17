@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { json, fail, sandboxOnly, SLUG_RE } from "@/lib/projects-api";
+import { json, fail, readAccess, SLUG_RE } from "@/lib/projects-api";
 import { getProject, listArtifacts, listIterations, listTables } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +8,11 @@ export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
 /** GET /api/v1/projects/{slug} — project summary: iterations, file index and tables. */
-export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
   if (!SLUG_RE.test(params.slug)) return fail(404, "Project not found.");
   try {
     const project = await getProject(params.slug);
-    const denied = sandboxOnly(project);
+    const { denied, scope } = await readAccess(project, req);
     if (denied) return denied;
     const [iterations, artifacts, tables] = await Promise.all([
       listIterations(params.slug),
@@ -30,7 +30,9 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
         iteration: a.iteration_n, path: a.path, kind: a.kind, sha256: a.sha256, size: Number(a.size),
         sensitivity: a.sensitivity, release: a.release_state, actorType: a.actor_type,
       })),
-      tables: tables.map((t) => ({ name: t.table_name, iteration: t.iteration_n, rows: t.rows })),
+      tables: tables.map((t) => ({ name: t.table_name, iteration: t.iteration_n, rows: t.rows, expectedRows: t.expected_rows })),
+      // Which kind of key opened a campaign; the browser keeps only read keys.
+      access: scope,
     });
   } catch (err) {
     console.error("[/api/v1/projects/:slug] GET", err);

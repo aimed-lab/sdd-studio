@@ -12,15 +12,12 @@ export async function GET() {
     const projects = await listProjects();
     return json({
       ok: true,
-      projects: projects.map((p) => ({
-        slug: p.slug,
-        title: p.title,
-        description: p.description,
-        kind: p.kind,
-        open: p.kind === "sandbox",
-        iterations: p.iterations,
-        latestAt: p.latest_at,
-      })),
+      // Campaigns need a project key: only their title is listed here.
+      projects: projects.map((p) =>
+        p.kind === "sandbox"
+          ? { slug: p.slug, title: p.title, description: p.description, kind: p.kind, open: true, iterations: p.iterations, latestAt: p.latest_at }
+          : { slug: p.slug, title: p.title, description: null, kind: p.kind, open: false, iterations: null, latestAt: null },
+      ),
     });
   } catch (err) {
     console.error("[/api/v1/projects] GET", err);

@@ -13,7 +13,7 @@ import { join, relative, sep } from "node:path";
 
 const ROOT = process.cwd();
 const APP = join(ROOT, "src", "app");
-const ALLOWED_WITHOUT_BANNER = new Set(["live", "curated", "mixed", "app"]);
+const ALLOWED_WITHOUT_BANNER = new Set(["live", "curated", "mixed", "app", "project"]);
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -54,7 +54,7 @@ for (const file of pages) {
     failures.push(`${rel}: route ${route} has no <DemoDataNotice /> and no entry in src/data/page-classes.ts`);
   } else if (kind && !ALLOWED_WITHOUT_BANNER.has(kind) && !banner) {
     failures.push(`${rel}: route ${route} is classified "${kind}" but does not render <DemoDataNotice />`);
-  } else if (kind && !["live", "curated", "demo", "mixed", "planned", "app"].includes(kind)) {
+  } else if (kind && !["live", "curated", "demo", "mixed", "planned", "app", "project"].includes(kind)) {
     failures.push(`src/data/page-classes.ts: route ${route} has unknown kind "${kind}"`);
   }
 }

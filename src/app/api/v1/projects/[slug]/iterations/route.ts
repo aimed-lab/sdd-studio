@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { bearer, fail, json, parsePush, sandboxOnly, SLUG_RE } from "@/lib/projects-api";
+import { bearer, fail, json, parsePush, readGate, SLUG_RE } from "@/lib/projects-api";
 import { LIMITS, LimitError, commitIteration, getProject, listIterations, verifyToken } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +8,11 @@ export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
 /** GET /api/v1/projects/{slug}/iterations — latest iterations, newest first. */
-export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
   if (!SLUG_RE.test(params.slug)) return fail(404, "Project not found.");
   try {
     const project = await getProject(params.slug);
-    const denied = sandboxOnly(project);
+    const denied = await readGate(project, req);
     if (denied) return denied;
     const iterations = await listIterations(params.slug);
     // Who pushed is not public: the actor (an email) stays in the audit log.
@@ -52,9 +52,8 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
 
   try {
     const project = await getProject(params.slug);
-    const denied = sandboxOnly(project);
-    if (denied) return denied;
-    const tok = await verifyToken(params.slug, token);
+    if (!project) return fail(404, "Project not found.");
+    const tok = await verifyToken(params.slug, token, "push");
     if (!tok) return fail(401, "Push token is unknown, revoked, expired or for another project.");
 
     const input = parsePush(body, project!);
@@ -77,7 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     });
     if (result.duplicate) {
       const it = result.iteration;
-      return json({ ok: true, duplicate: true, iteration: it.n, label: it.label, files: it.files, newFiles: 0 });
+      return json({ ok: true, duplicate: true, iteration: it.n, label: it.label, files: it.files, newFiles: 0, incomplete: result.incomplete });
     }
     const { iteration, newFiles } = result;
 
@@ -89,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
       files: input.files.length,
       newFiles,
       unchanged: input.files.length - newFiles,
-      tables: input.tables.map((t) => ({ name: t.name, rows: t.rows.length })),
+      tables: input.tables.map((t) => ({ name: t.name, rows: t.rows.length, expectedRows: t.expectedRows ?? t.rows.length })),
       url: `${req.nextUrl.origin}/projects/${params.slug}?view=iterations`,
     }, 201);
   } catch (err) {
