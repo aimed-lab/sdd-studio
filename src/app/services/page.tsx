@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -11,18 +12,19 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { DemoDataNotice } from "@/components/data-provenance";
+import { useAuth } from "@/lib/auth-context";
+import { type RunSummary, type UsageInfo, agentHeaders } from "@/lib/agents/client";
+import { UsageMeter } from "@/components/agents/usage-meter";
+import { RecentRuns } from "@/components/agents/recent-runs";
+import { LiteratureRunForm, TrialsRunForm } from "@/components/agents/run-forms";
 
-interface AIAgent {
+interface PlannedAgent {
   id: string;
   name: string;
   description: string;
   capabilities: string[];
-  creditsPerRun: number | null;
-  status: "available" | "busy" | "maintenance";
   operatesOn: string[];
   category: "computational" | "experimental" | "clinical";
-  successRate: number | null;
-  avgRunTime: string;
 }
 
 interface HumanExpert {
@@ -40,7 +42,30 @@ interface HumanExpert {
   initials: string;
 }
 
-const agents: AIAgent[] = [
+// Agents that run on the platform. Each run is recorded with its data sources, model, tokens and cost.
+const liveAgents = [
+  {
+    id: "literature" as const,
+    name: "Literature Mining Agent",
+    description:
+      "Searches PubMed for your question (optionally a target and a compound), reads up to 40 abstracts and writes an answer in which every statement cites PubMed records from that set. The server checks each citation and removes statements that cite nothing from the set.",
+    sources: "PubMed (NCBI E-utilities)",
+    operatesOn: ["targets", "compounds"],
+    category: "computational",
+  },
+  {
+    id: "trials" as const,
+    name: "Clinical Trial Feasibility Agent",
+    description:
+      "Queries ClinicalTrials.gov for a condition (optionally an intervention and a location) and computes trial counts by status and phase, recruiting sites by country, enrollment sizes and sponsor types. Claude writes a short narrative around those numbers; sentences with any other number are removed.",
+    sources: "ClinicalTrials.gov API v2",
+    operatesOn: ["projects"],
+    category: "clinical",
+  },
+];
+
+// Catalog preview: none of these run yet.
+const plannedAgents: PlannedAgent[] = [
   {
     id: "agent-001",
     name: "ADMET Prediction Agent",
@@ -53,12 +78,8 @@ const agents: AIAgent[] = [
       "BBB permeability",
       "Hepatotoxicity scoring",
     ],
-    creditsPerRun: null,
-    status: "available",
     operatesOn: ["compounds"],
     category: "computational",
-    successRate: null,
-    avgRunTime: "—",
   },
   {
     id: "agent-002",
@@ -72,31 +93,8 @@ const agents: AIAgent[] = [
       "Interaction maps",
       "Ensemble docking",
     ],
-    creditsPerRun: null,
-    status: "available",
     operatesOn: ["compounds", "targets"],
     category: "computational",
-    successRate: null,
-    avgRunTime: "—",
-  },
-  {
-    id: "agent-003",
-    name: "Literature Mining Agent",
-    description:
-      "Planned: would scan the literature and patents for relevant findings. Not built yet.",
-    capabilities: [
-      "PubMed search",
-      "Patent analysis",
-      "Competitor intelligence",
-      "MoA extraction",
-      "Citation networks",
-    ],
-    creditsPerRun: null,
-    status: "available",
-    operatesOn: ["targets", "projects"],
-    category: "computational",
-    successRate: null,
-    avgRunTime: "—",
   },
   {
     id: "agent-004",
@@ -110,12 +108,8 @@ const agents: AIAgent[] = [
       "MMP analysis",
       "Synthetic accessibility",
     ],
-    creditsPerRun: null,
-    status: "busy",
     operatesOn: ["compounds", "experiments"],
     category: "computational",
-    successRate: null,
-    avgRunTime: "—",
   },
   {
     id: "agent-005",
@@ -129,31 +123,8 @@ const agents: AIAgent[] = [
       "Power analysis",
       "Readout optimization",
     ],
-    creditsPerRun: null,
-    status: "available",
     operatesOn: ["experiments", "targets"],
     category: "experimental",
-    successRate: null,
-    avgRunTime: "—",
-  },
-  {
-    id: "agent-006",
-    name: "Clinical Trial Feasibility Agent",
-    description:
-      "Planned: would assess trial feasibility. Not built yet.",
-    capabilities: [
-      "Population estimation",
-      "Regulatory pathways",
-      "Competitor monitoring",
-      "Endpoint recommendation",
-      "Site selection",
-    ],
-    creditsPerRun: null,
-    status: "maintenance",
-    operatesOn: ["projects"],
-    category: "clinical",
-    successRate: null,
-    avgRunTime: "—",
   },
 ];
 
@@ -269,14 +240,6 @@ const entityChipColors: Record<string, string> = {
   projects: "bg-green-100 text-green-800",
 };
 
-const statusBadgeColors: Record<string, string> = {
-  available:
-    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  busy: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-  maintenance:
-    "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
-};
-
 const availabilityBadgeColors: Record<string, string> = {
   available:
     "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
@@ -292,14 +255,50 @@ const avatarColors: Record<string, string> = {
   clinical: "bg-green-500",
 };
 
+/** The signed-in member's AI usage and recent runs, refreshed after each run. */
+function useAgentData(email: string | undefined) {
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [runs, setRuns] = useState<RunSummary[] | null>(null);
+  const [usageError, setUsageError] = useState<string | null>(null);
+  const [runsError, setRunsError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    if (!email) return;
+    const headers = agentHeaders(email);
+    fetch("/api/agents/usage", { headers, cache: "no-store" })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        setUsage(data as UsageInfo);
+        setUsageError(null);
+      })
+      .catch((e: Error) => setUsageError(`Usage is unavailable: ${e.message}`));
+    fetch("/api/agents/runs", { headers, cache: "no-store" })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+        setRuns(data.runs as RunSummary[]);
+        setRunsError(null);
+      })
+      .catch((e: Error) => setRunsError(`Run history is unavailable: ${e.message}`));
+  }, [email]);
+
+  useEffect(refresh, [refresh]);
+  return { usage, runs, usageError, runsError, refresh };
+}
+
 export default function ServicesPage() {
+  const { user } = useAuth();
+  const email = user?.email;
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [expertFilter, setExpertFilter] = useState<string>("all");
+  const [openAgent, setOpenAgent] = useState<"literature" | "trials" | null>(null);
+  const { usage, runs, usageError, runsError, refresh } = useAgentData(email);
 
   const filteredAgents =
     agentFilter === "all"
-      ? agents
-      : agents.filter((a) => a.category === agentFilter);
+      ? plannedAgents
+      : plannedAgents.filter((a) => a.category === agentFilter);
 
   const filteredExperts =
     expertFilter === "all"
@@ -312,6 +311,11 @@ export default function ServicesPage() {
       <p className="text-muted-foreground mt-1">
         Deploy AI agents or consult human experts on your projects and assets
       </p>
+      <p className="text-sm">
+        <strong>Two agents run for real:</strong> Literature Mining and Clinical Trial Feasibility. Each run queries the public
+        source at that moment and keeps a run record with its sources, model, tokens and cost. Everything else on this page
+        (the other agents, human experts, office tools and Create Agent) is a catalog preview:
+      </p>
       <DemoDataNotice variant="planned" />
 
       <Tabs defaultValue="agents">
@@ -323,87 +327,157 @@ export default function ServicesPage() {
         </TabsList>
 
         {/* AI Agents Tab */}
-        <TabsContent value="agents">
-          <div className="flex gap-2 mb-6">
-            {filterCategories.map((cat) => (
-              <button
-                key={cat.value}
-                onClick={() => setAgentFilter(cat.value)}
-                className={cn(
-                  "rounded-full px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer",
-                  agentFilter === cat.value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-            {filteredAgents.map((agent) => (
-              <Card key={agent.id} className="flex flex-col">
+        <TabsContent value="agents" className="space-y-8">
+          <section className="grid gap-6 lg:grid-cols-3">
+            {liveAgents.map((agent) => (
+              <Card key={agent.id} className={cn("flex flex-col", openAgent === agent.id && "border-primary")}>
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="text-base leading-snug flex-1 min-h-[2.5rem] line-clamp-2">
-                      {agent.name}
-                    </CardTitle>
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-0.5 text-xs font-medium capitalize shrink-0",
-                        statusBadgeColors[agent.status]
-                      )}
-                    >
-                      {agent.status}
+                    <CardTitle className="text-base leading-snug">{agent.name}</CardTitle>
+                    <span className="rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                      Available
                     </span>
                   </div>
-                  <CardDescription className="line-clamp-2 min-h-[2.5rem]">
-                    {agent.description}
-                  </CardDescription>
+                  <CardDescription>{agent.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col flex-1 pb-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
-                    Capabilities
+                <CardContent className="mt-auto space-y-3 pb-4">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium">Data source:</span> {agent.sources} · <span className="font-medium">Writes:</span> Claude
+                    ({usage?.model ?? "Anthropic API"})
                   </p>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    {agent.capabilities.map((cap) => (
-                      <li key={cap} className="truncate" title={cap}>• {cap}</li>
+                  <div className="flex flex-wrap gap-1.5">
+                    {agent.operatesOn.map((entity) => (
+                      <span key={entity} className={cn("rounded-full px-2 py-0.5 text-xs font-medium capitalize", entityChipColors[entity])}>
+                        {entity}
+                      </span>
                     ))}
-                  </ul>
-
-                  {/* Footer — chips + stats + button pinned together at card bottom */}
-                  <div className="mt-auto pt-3 border-t space-y-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {agent.operatesOn.map((entity) => (
-                        <span
-                          key={entity}
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                            entityChipColors[entity]
-                          )}
-                        >
-                          {entity}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">Success rate: —</span>
-                      <span className="text-muted-foreground">Run time: {agent.avgRunTime}</span>
-                      <span className="text-muted-foreground">Credits: —</span>
-                    </div>
-                    <button
-                      className="w-full rounded-md px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={agent.status !== "available"}
-                    >
-                      Run Agent
-                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setOpenAgent(openAgent === agent.id ? null : agent.id)}
+                    aria-expanded={openAgent === agent.id}
+                    className="w-full rounded-md px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {openAgent === agent.id ? "Close" : "Run"}
+                  </button>
                 </CardContent>
               </Card>
             ))}
-          </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">AI usage</CardTitle>
+                <CardDescription>
+                  Runs are paid from the lab&apos;s Claude budget; past the limits you can use your own key (
+                  <Link href="/settings" className="underline">Settings → API Keys</Link>).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pb-4">
+                <UsageMeter usage={usage} error={usageError} />
+              </CardContent>
+            </Card>
+          </section>
+
+          {openAgent && (
+            <Card className="border-primary">
+              <CardHeader>
+                <CardTitle className="text-lg">{liveAgents.find((a) => a.id === openAgent)?.name}</CardTitle>
+                <CardDescription>
+                  {openAgent === "literature"
+                    ? "Claude sees only the abstracts this search returns, and must cite them."
+                    : "Counts are computed from ClinicalTrials.gov records; Claude only writes the narrative around them."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {openAgent === "literature" ? (
+                  <LiteratureRunForm email={email} onFinished={refresh} />
+                ) : (
+                  <TrialsRunForm email={email} onFinished={refresh} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">Your recent runs</h2>
+            <RecentRuns runs={runs} error={runsError} />
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Planned agents</h2>
+              <p className="text-sm text-muted-foreground">Catalog preview. None of these run yet.</p>
+            </div>
+            <div className="flex gap-2">
+              {filterCategories.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setAgentFilter(cat.value)}
+                  className={cn(
+                    "rounded-full px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer",
+                    agentFilter === cat.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+              {filteredAgents.map((agent) => (
+                <Card key={agent.id} className="flex flex-col">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <CardTitle className="text-base leading-snug flex-1 min-h-[2.5rem] line-clamp-2">
+                        {agent.name}
+                      </CardTitle>
+                      <span className="rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        Planned
+                      </span>
+                    </div>
+                    <CardDescription className="line-clamp-2 min-h-[2.5rem]">
+                      {agent.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col flex-1 pb-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                      Planned capabilities
+                    </p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      {agent.capabilities.map((cap) => (
+                        <li key={cap} className="truncate" title={cap}>• {cap}</li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-auto pt-3 border-t space-y-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {agent.operatesOn.map((entity) => (
+                          <span
+                            key={entity}
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+                              entityChipColors[entity]
+                            )}
+                          >
+                            {entity}
+                          </span>
+                        ))}
+                      </div>
+                      <button
+                        className="w-full rounded-md px-4 py-2 text-sm font-medium bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled
+                      >
+                        Not available yet
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
         </TabsContent>
+
 
         {/* Human Experts Tab */}
         <TabsContent value="experts">
@@ -738,26 +812,32 @@ function CreateAgentSection() {
         </CardContent>
       </Card>
 
-      {/* Active Custom Agents */}
+      {/* Custom agents */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Your Custom Agents</CardTitle>
           <CardDescription>
-            Agents you have created or connected
+            Creating and connecting your own agents is planned. The Local ADMET Screener has its own page.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {[
-              { name: "Local ADMET Screener", type: "local", status: "idle", level: "A4" },
-              { name: "Remote Docking Service", type: "remote", status: "running", level: "A1" },
+              { name: "Local ADMET Screener", type: "local", level: "A4", href: "/services/admet" },
+              { name: "Remote Docking Service", type: "remote", level: "A1", href: null },
             ].map((agent) => (
               <div
                 key={agent.name}
                 className="flex items-center justify-between rounded-md border p-3"
               >
                 <div>
-                  <p className="text-sm font-medium">{agent.name}</p>
+                  {agent.href ? (
+                    <Link href={agent.href} className="text-sm font-medium text-primary hover:underline">
+                      {agent.name}
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-medium">{agent.name}</p>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">
                       {agent.type}
@@ -767,16 +847,18 @@ function CreateAgentSection() {
                     </span>
                   </div>
                 </div>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
-                    agent.status === "running"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-gray-100 text-gray-800"
-                  )}
-                >
-                  {agent.status}
-                </span>
+                {agent.href ? (
+                  <Link
+                    href={agent.href}
+                    className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  >
+                    Open screener →
+                  </Link>
+                ) : (
+                  <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Planned
+                  </span>
+                )}
               </div>
             ))}
           </div>

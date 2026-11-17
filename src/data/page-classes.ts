@@ -67,7 +67,21 @@ export const pageClasses: Record<string, PageClass> = {
   "/analysis": { kind: "demo" },
   "/design": { kind: "planned" },
   "/models": { kind: "planned" },
-  "/services": { kind: "planned" },
+  "/services": {
+    kind: "mixed",
+    sections: [
+      { label: "Literature Mining and Clinical Trial Feasibility agents: PubMed and ClinicalTrials.gov queried at run time, with a Claude-written summary checked against them", kind: "live" },
+      { label: "Your runs and AI usage", kind: "app" },
+      { label: "Other agents, human experts, office tools and Create Agent: catalog preview", kind: "planned" },
+    ],
+  },
+  "/services/runs/[id]": {
+    kind: "mixed",
+    sections: [
+      { label: "Records and counts from PubMed or ClinicalTrials.gov, as retrieved at the time of the run", kind: "live" },
+      { label: "Run details: model, tokens, cost", kind: "app" },
+    ],
+  },
   "/plugins": { kind: "planned" },
   "/targets/[gene]": {
     kind: "mixed",

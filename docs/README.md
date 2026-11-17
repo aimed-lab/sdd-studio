@@ -12,6 +12,7 @@ The pages below are published in Studio's **Documentation** section at [studio.s
 | Document | What it covers |
 |---|---|
 | [Members and invitations](members-and-invitations.md) | Joining with a personal code, inviting people, roles, removing access |
+| [AI agents and usage limits](ai-agents.md) | Literature Mining and Clinical Trial Feasibility agents, run records, the lab budget and your own key |
 | [Developer guide](developer-guide.md) | Pushing iterations to the developer sandbox with `sdd.mjs` |
 | [Agent workflow](../skills/sdd-studio-push/SKILL.md) | The skill an AI agent follows to push results |
 | [Projects API](projects-api.md) | Endpoints, push format, limits and tables |
