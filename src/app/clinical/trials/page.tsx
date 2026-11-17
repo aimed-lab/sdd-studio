@@ -2,13 +2,14 @@
 
 import { Fragment, Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DemoDataNotice } from "@/components/data-provenance";
-import { TrialLandscape } from "@/components/trial-landscape";
+import { TrialLandscape, filtersToParams, type TrialFilters } from "@/components/trial-landscape";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { usePublicMode } from "@/lib/public-mode";
 
 interface Trial {
   id: string;
@@ -109,30 +110,89 @@ export default function TrialsPage() {
   );
 }
 
+// Built-in example when the URL carries no query: EGFR in its main indication (decided on #57).
+const EXAMPLE: TrialFilters = {
+  term: "EGFR",
+  condition: "non-small cell lung cancer",
+  intervention: "",
+  location: "",
+  phase: "",
+  status: "",
+  disambiguate: true,
+  fieldsGeneOnly: false,
+};
+
+const QUERY_KEYS = ["term", "condition", "intervention", "location", "phase", "status"];
+
 function TrialsContent() {
-  const initialTerm = useSearchParams().get("term") ?? "EGFR";
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const isPublic = usePublicMode();
+  // Anonymous visitors only ever get the live landscape; the demo tab is not rendered for them.
+  const tab = !isPublic && searchParams.get("tab") === "internal" ? "internal" : "landscape";
+  const fromUrl = QUERY_KEYS.some((k) => searchParams.get(k));
+  const [initial] = useState<TrialFilters>(() =>
+    fromUrl
+      ? {
+          term: searchParams.get("term") ?? "",
+          condition: searchParams.get("condition") ?? "",
+          intervention: searchParams.get("intervention") ?? "",
+          location: searchParams.get("location") ?? "",
+          phase: (searchParams.get("phase") ?? "").toUpperCase(),
+          status: (searchParams.get("status") ?? "").toUpperCase(),
+          disambiguate: searchParams.get("disambiguate") !== "false",
+          fieldsGeneOnly: searchParams.get("fieldsGeneOnly") === "true",
+          drugAware: searchParams.get("mode") === "drug-aware",
+        }
+      : EXAMPLE
+  );
+
+  const replaceUrl = (filters: TrialFilters, nextTab: string) => {
+    const params = filtersToParams(filters);
+    if (nextTab === "internal") params.set("tab", "internal");
+    const qs = params.toString();
+    router.replace(`/clinical/trials${qs ? `?${qs}` : ""}`, { scroll: false });
+  };
+  const [lastFilters, setLastFilters] = useState<TrialFilters>(initial);
 
   return (
     <div className="p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Trials</h1>
         <p className="text-muted-foreground mt-1">
-          Registered trial landscape from ClinicalTrials.gov, plus illustrative internal trial designs
+          {isPublic
+            ? "Registered trial landscape from ClinicalTrials.gov"
+            : "Registered trial landscape from ClinicalTrials.gov, plus illustrative internal trial designs"}
         </p>
       </div>
 
-      <Tabs defaultValue="landscape">
-        <TabsList>
-          <TabsTrigger value="landscape">Trial Landscape (ClinicalTrials.gov)</TabsTrigger>
-          <TabsTrigger value="internal">Illustrative internal programs (demo)</TabsTrigger>
-        </TabsList>
+      <p role="note" className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <strong>Not medical advice.</strong> Trial details and recruiting status come from ClinicalTrials.gov as of each
+        row&apos;s &ldquo;Updated&rdquo; date. Eligibility and availability change; check with the trial site or your clinician.
+      </p>
+
+      <Tabs value={tab} onValueChange={(v) => replaceUrl(lastFilters, v)}>
+        {!isPublic && (
+          <TabsList>
+            <TabsTrigger value="landscape">Trial Landscape (ClinicalTrials.gov)</TabsTrigger>
+            <TabsTrigger value="internal">Illustrative internal programs (demo)</TabsTrigger>
+          </TabsList>
+        )}
         <TabsContent value="landscape" className="mt-4">
-          <TrialLandscape initialTerm={initialTerm} />
+          <TrialLandscape
+            initial={lastFilters}
+            onSearch={(f) => {
+              setLastFilters(f);
+              replaceUrl(f, "landscape");
+            }}
+          />
         </TabsContent>
-        <TabsContent value="internal" className="mt-4 space-y-4">
-          <DemoDataNotice />
-          <IllustrativePrograms />
-        </TabsContent>
+        {!isPublic && (
+          <TabsContent value="internal" className="mt-4 space-y-4">
+            <DemoDataNotice />
+            <IllustrativePrograms />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

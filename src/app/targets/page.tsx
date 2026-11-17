@@ -1,101 +1,42 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DemoDataNotice } from "@/components/data-provenance";
 import { EgfrResistancePanel } from "@/components/egfr-resistance-panel";
+import { GlossaryTerm } from "@/components/glossary-term";
+import { TargetEvidencePanel } from "@/components/target-evidence-panel";
+import { referenceCompounds } from "@/data/curated/chembl-reference-compounds";
+import { pdbLigandLinks, rcsbSearchUrl } from "@/data/curated/pdb-ligands";
+import { trialsHrefFor } from "@/data/curated/target-default-conditions";
+import { registryTargets, targetHref } from "@/data/registry/targets";
+import { usePublicMode } from "@/lib/public-mode";
 import { cn } from "@/lib/utils";
 
-interface Target {
-  id: string;
-  name: string;
-  gene: string;
-  uniprotId: string;
-  organism: string;
-  diseaseArea: string;
-  diseaseKey: string;
-  compoundCount: number;
-  targetClass: string;
-}
-
-const targets: Target[] = [
-  {
-    id: "TGT-001",
-    name: "Epidermal Growth Factor Receptor",
-    gene: "EGFR",
-    uniprotId: "P00533",
-    organism: "Homo sapiens",
-    diseaseArea: "Non-Small Cell Lung Cancer",
-    diseaseKey: "NSCLC",
-    compoundCount: 42,
-    targetClass: "Kinase",
-  },
-  {
-    id: "TGT-002",
-    name: "B-Raf Proto-Oncogene",
-    gene: "BRAF",
-    uniprotId: "P15056",
-    organism: "Homo sapiens",
-    diseaseArea: "Melanoma",
-    diseaseKey: "Melanoma",
-    compoundCount: 35,
-    targetClass: "Kinase",
-  },
-  {
-    id: "TGT-003",
-    name: "Anaplastic Lymphoma Kinase",
-    gene: "ALK",
-    uniprotId: "Q9UM73",
-    organism: "Homo sapiens",
-    diseaseArea: "Non-Small Cell Lung Cancer",
-    diseaseKey: "NSCLC",
-    compoundCount: 18,
-    targetClass: "Kinase",
-  },
-  {
-    id: "TGT-004",
-    name: "Cyclooxygenase-2",
-    gene: "PTGS2",
-    uniprotId: "P35354",
-    organism: "Homo sapiens",
-    diseaseArea: "Inflammation / Pain",
-    diseaseKey: "Inflammation",
-    compoundCount: 28,
-    targetClass: "Enzyme",
-  },
-  {
-    id: "TGT-005",
-    name: "Beta-Secretase 1",
-    gene: "BACE1",
-    uniprotId: "P56817",
-    organism: "Homo sapiens",
-    diseaseArea: "Alzheimer's Disease",
-    diseaseKey: "Alzheimer's",
-    compoundCount: 15,
-    targetClass: "Protease",
-  },
-  {
-    id: "TGT-006",
-    name: "Janus Kinase 2",
-    gene: "JAK2",
-    uniprotId: "O60674",
-    organism: "Homo sapiens",
-    diseaseArea: "Myeloproliferative Disorders",
-    diseaseKey: "MPN",
-    compoundCount: 22,
-    targetClass: "Kinase",
-  },
-];
+// Program targets come from the shared registry (#25). Identity fields are curated (UniProtKB, HGNC, ChEMBL, verified
+// on TARGET_REGISTRY_VERIFIED); program disease areas and board IDs are demo fields.
+const targets = registryTargets.map((t) => ({
+  gene: t.gene.value,
+  name: t.name.value,
+  uniprotId: t.uniprotId.value,
+  organism: t.organism.value,
+  targetClass: t.targetClass.value,
+  diseaseArea: t.programDiseaseArea.value,
+  diseaseKey: t.programDiseaseKey.value,
+  boardId: t.boardId.value,
+}));
 
 const classColors: Record<string, string> = {
   Kinase: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-  Enzyme: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+  Oxidoreductase: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
   Protease: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
 };
 
 const extLink = "text-primary hover:underline";
+
+const referenceCountFor = (gene: string) =>
+  referenceCompounds.filter((c) => c.mechanismTargets.some((t) => t.toUpperCase() === gene.toUpperCase())).length;
 
 export default function TargetsPage() {
   return (
@@ -106,10 +47,60 @@ export default function TargetsPage() {
 }
 
 function TargetsContent() {
-  const q = (useSearchParams().get("q") ?? "").trim().toLowerCase();
+  const isPublic = usePublicMode();
+  if (isPublic) return <PublicTargets />;
+  return <MemberTargets />;
+}
+
+/** Anonymous visitors see only the curated, cited resistance set; target cards hold illustrative fields. */
+function PublicTargets() {
+  return (
+    <div className="p-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">EGFR resistance mechanisms</h1>
+        <p className="text-muted-foreground mt-1">
+          A curated reference set from primary literature, each row linked to its PubMed record.
+        </p>
+      </div>
+      <p className="text-sm">
+        <Link href={trialsHrefFor("EGFR")} className={extLink}>
+          Search EGFR trials in non-small cell lung cancer
+        </Link>
+      </p>
+      <nav aria-label="Target pages" className="text-sm">
+        <span className="text-muted-foreground">Target pages (curated identity, live evidence, drugs and trials): </span>
+        {registryTargets.map((t, i) => (
+          <span key={t.gene.value}>
+            {i > 0 && " · "}
+            <Link href={targetHref(t.gene.value)} className={extLink}>
+              {t.gene.value}
+            </Link>
+          </span>
+        ))}
+      </nav>
+      <div className="max-w-3xl rounded-lg border p-4">
+        <p className="text-sm font-medium">EGFR (UniProt P00533)</p>
+        <TargetEvidencePanel gene="EGFR" />
+      </div>
+      <EgfrResistancePanel />
+    </div>
+  );
+}
+
+function MemberTargets() {
+  const router = useRouter();
+  const urlQuery = useSearchParams().get("q") ?? "";
+  const [input, setInput] = useState(urlQuery);
+  const q = urlQuery.trim().toLowerCase();
   const shown = q
-    ? targets.filter((t) => t.gene.toLowerCase() === q || t.name.toLowerCase().includes(q))
+    ? targets.filter((t) => t.gene.toLowerCase().startsWith(q) || t.name.toLowerCase().includes(q))
     : targets;
+
+  const updateQuery = (value: string) => {
+    setInput(value);
+    const trimmed = value.trim();
+    router.replace(trimmed ? `/targets?q=${encodeURIComponent(trimmed)}` : "/targets", { scroll: false });
+  };
 
   return (
     <div className="p-8 space-y-6">
@@ -120,16 +111,29 @@ function TargetsContent() {
         </p>
       </div>
 
-      <DemoDataNotice />
+
+      <div className="max-w-md">
+        <label htmlFor="target-search" className="text-sm font-medium">
+          Search targets
+        </label>
+        <input
+          id="target-search"
+          type="search"
+          value={input}
+          onChange={(e) => updateQuery(e.target.value)}
+          placeholder="Gene symbol or protein name"
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
 
       {q && (
         <div className="flex items-center gap-3 text-sm">
           <span className="text-muted-foreground">
             Filtered by &ldquo;{q.toUpperCase()}&rdquo; &mdash; {shown.length} match{shown.length === 1 ? "" : "es"}
           </span>
-          <Link href="/targets" className={extLink}>
+          <button type="button" onClick={() => updateQuery("")} className={extLink}>
             Show all targets
-          </Link>
+          </button>
         </div>
       )}
 
@@ -151,11 +155,15 @@ function TargetsContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {shown.map((target) => (
-          <Card key={target.id} className="hover:shadow-md transition-shadow">
+          <Card key={target.gene} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{target.gene}</CardTitle>
+                  <CardTitle className="text-lg">
+                    <Link href={targetHref(target.gene)} className="hover:underline">
+                      {target.gene}
+                    </Link>
+                  </CardTitle>
                   <CardDescription className="mt-1">{target.name}</CardDescription>
                 </div>
                 <span
@@ -171,7 +179,9 @@ function TargetsContent() {
             <CardContent>
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">UniProt</dt>
+                  <dt className="text-muted-foreground">
+                    <GlossaryTerm k="uniprotAccession">UniProt</GlossaryTerm>
+                  </dt>
                   <dd className="font-mono">
                     <a
                       href={`https://www.uniprot.org/uniprotkb/${target.uniprotId}/entry`}
@@ -188,7 +198,7 @@ function TargetsContent() {
                   <dd className="font-medium italic">{target.organism}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">Disease Area</dt>
+                  <dt className="text-muted-foreground">Program disease area (demo)</dt>
                   <dd className="font-medium text-right">
                     <Link
                       href={`/disease-biology/target-board?disease=${encodeURIComponent(target.diseaseKey)}`}
@@ -199,26 +209,36 @@ function TargetsContent() {
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Compounds</dt>
+                  <dt className="text-muted-foreground">Reference compounds (ChEMBL)</dt>
                   <dd className="font-medium">
-                    <Link
-                      href={`/compounds?target=${encodeURIComponent(target.gene)}`}
-                      className="inline-flex items-center justify-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-semibold hover:bg-primary/20"
-                    >
-                      {target.compoundCount}
-                    </Link>
+                    {referenceCountFor(target.gene) > 0 ? (
+                      <Link
+                        href={`/compounds?target=${encodeURIComponent(target.gene)}`}
+                        className="inline-flex items-center justify-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-semibold hover:bg-primary/20"
+                      >
+                        {referenceCountFor(target.gene)}
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">none listed</span>
+                    )}
                   </dd>
                 </div>
               </dl>
+              <TargetEvidencePanel gene={target.gene} />
               <div className="mt-4 pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-muted-foreground">{target.id}</span>
+                <span className="text-muted-foreground" title="Demo target-board row">
+                  {target.boardId ? `Board ${target.boardId} (demo)` : "Not on the demo board"}
+                </span>
                 <span className="flex flex-wrap gap-3">
                   {target.gene === "EGFR" && (
                     <a href="#egfr-resistance" className="font-medium text-emerald-700 dark:text-emerald-400 hover:underline">
                       Resistance (curated)
                     </a>
                   )}
-                  <Link href={`/clinical/trials?term=${encodeURIComponent(target.gene)}`} className={extLink}>
+                  <Link href={targetHref(target.gene)} className={`${extLink} font-medium`}>
+                    Details
+                  </Link>
+                  <Link href={trialsHrefFor(target.gene)} className={extLink}>
                     Trials
                   </Link>
                   <a
@@ -229,27 +249,23 @@ function TargetsContent() {
                   >
                     Open Targets
                   </a>
-                  <a
-                    href={`https://www.rcsb.org/search?request=${encodeURIComponent(
-                      JSON.stringify({
-                        query: {
-                          type: "terminal",
-                          service: "text",
-                          parameters: {
-                            attribute: "rcsb_polymer_entity_container_identifiers.reference_sequence_identifiers.database_accession",
-                            operator: "exact_match",
-                            value: target.uniprotId,
-                          },
-                        },
-                        return_type: "entry",
-                      })
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={extLink}
-                  >
-                    PDB structures
+                  <a href={rcsbSearchUrl(target.uniprotId)} target="_blank" rel="noopener noreferrer" className={extLink}>
+                    All PDB entries
                   </a>
+                  {pdbLigandLinks
+                    .filter((l) => l.uniprotId === target.uniprotId)
+                    .map((l) => (
+                      <a
+                        key={l.ligandId}
+                        href={rcsbSearchUrl(l.uniprotId, l.ligandId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={extLink}
+                        title={`${l.entriesAtVerification} entries when verified on ${l.verified}`}
+                      >
+                        PDB entries: {l.gene} with {l.drug.toLowerCase()} ({l.ligandId})
+                      </a>
+                    ))}
                 </span>
               </div>
             </CardContent>

@@ -81,24 +81,27 @@ const phases: {
 
 const dmbtEntries: DMBTEntry[] = [
   // Design
-  { id: "1", compound: "SDD-0012", phase: "design", task: "Virtual screening hit", status: "completed", assignee: "Dr. Raj Patel", date: "Mar 10", result: "IC50 pred: 12 nM" },
-  { id: "2", compound: "SDD-0089", phase: "design", task: "Scaffold hopping candidates", status: "active", assignee: "Drug-GPT", date: "Mar 20", result: "3 candidates generated" },
-  { id: "3", compound: "SDD-0102", phase: "design", task: "ADMET prediction", status: "planned", assignee: "BioGPT", date: "Mar 25", result: "\u2014" },
+  { id: "1", compound: "SDD-0012", phase: "design", task: "Virtual screening hit", status: "completed", assignee: "Scientist 1", date: "Q? 20??", result: "\u2014" },
+  { id: "2", compound: "SDD-0089", phase: "design", task: "Scaffold hopping candidates", status: "active", assignee: "Tool 1 (planned)", date: "Q? 20??", result: "\u2014" },
+  { id: "3", compound: "SDD-0102", phase: "design", task: "ADMET prediction", status: "planned", assignee: "Tool 2 (planned)", date: "Q? 20??", result: "\u2014" },
   // Make
-  { id: "4", compound: "SDD-0012", phase: "make", task: "Retrosynthesis analysis", status: "completed", assignee: "Dr. Elena Vasquez", date: "Mar 12", result: "4-step route identified" },
-  { id: "5", compound: "SDD-0089", phase: "make", task: "Synthetic feasibility check", status: "active", assignee: "Dr. Maria Rodriguez", date: "Mar 22", result: "Route optimization" },
-  { id: "6", compound: "SDD-0102", phase: "make", task: "Reagent procurement", status: "planned", assignee: "Dr. Wei Zhang", date: "Mar 28", result: "\u2014" },
+  { id: "4", compound: "SDD-0012", phase: "make", task: "Retrosynthesis analysis", status: "completed", assignee: "Scientist 2", date: "Q? 20??", result: "\u2014" },
+  { id: "5", compound: "SDD-0089", phase: "make", task: "Synthetic feasibility check", status: "active", assignee: "Scientist 3", date: "Q? 20??", result: "\u2014" },
+  { id: "6", compound: "SDD-0102", phase: "make", task: "Reagent procurement", status: "planned", assignee: "Scientist 4", date: "Q? 20??", result: "\u2014" },
   // Build
-  { id: "7", compound: "SDD-0012", phase: "build", task: "Compound synthesis", status: "completed", assignee: "Dr. Elena Vasquez", date: "Mar 18", result: "98% purity, 45mg" },
-  { id: "8", compound: "SDD-0089", phase: "build", task: "Library enumeration", status: "active", assignee: "Synthesis Bot", date: "Mar 24", result: "12/24 compounds" },
-  { id: "9", compound: "SDD-0102", phase: "build", task: "Scale-up preparation", status: "planned", assignee: "Lab Automation", date: "Apr 1", result: "\u2014" },
+  { id: "7", compound: "SDD-0012", phase: "build", task: "Compound synthesis", status: "completed", assignee: "Scientist 2", date: "Q? 20??", result: "\u2014" },
+  { id: "8", compound: "SDD-0089", phase: "build", task: "Library enumeration", status: "active", assignee: "Tool 3 (planned)", date: "Q? 20??", result: "\u2014" },
+  { id: "9", compound: "SDD-0102", phase: "build", task: "Scale-up preparation", status: "planned", assignee: "Tool 4 (planned)", date: "Q? 20??", result: "\u2014" },
   // Test
-  { id: "10", compound: "SDD-0012", phase: "test", task: "Kinase selectivity panel", status: "completed", assignee: "Dr. Sarah Chen", date: "Mar 20", result: ">100x selective" },
-  { id: "11", compound: "SDD-0089", phase: "test", task: "Primary biochemical assay", status: "active", assignee: "Assay Bot", date: "Mar 25", result: "Awaiting results" },
-  { id: "12", compound: "SDD-0012", phase: "test", task: "In vivo PK study", status: "planned", assignee: "Dr. Amanda Foster", date: "Apr 5", result: "\u2014" },
+  { id: "10", compound: "SDD-0012", phase: "test", task: "Kinase selectivity panel", status: "completed", assignee: "Scientist 5", date: "Q? 20??", result: "\u2014" },
+  { id: "11", compound: "SDD-0089", phase: "test", task: "Primary biochemical assay", status: "active", assignee: "Tool 5 (planned)", date: "Q? 20??", result: "\u2014" },
+  { id: "12", compound: "SDD-0012", phase: "test", task: "In vivo PK study", status: "planned", assignee: "Scientist 6", date: "Q? 20??", result: "\u2014" },
 ];
 
-// ── ChEMBL live data (fetched 2026-03-28 via MCP) ──────────────────────────
+// ── Illustrative ChEMBL workflow ─────────────────────────────────────────────
+// Only stable identifiers are kept (ChEMBL target and molecule IDs, UniProt
+// accession). Property and activity values are not frozen into this page; the
+// live values come from /search.
 
 const chemblData = {
   target: {
@@ -107,44 +110,17 @@ const chemblData = {
     gene: "BRAF",
     organism: "Homo sapiens",
     uniprot: "P15056",
-    pdb_structures: 100,
     go_terms: ["MAPK cascade", "protein phosphorylation", "ERK1/ERK2 cascade"],
   },
   approvedDrugs: [
-    {
-      name: "Vemurafenib (Zelboraf)",
-      chembl_id: "CHEMBL1229517",
-      approved: 2011,
-      moa: "BRAF V600E inhibitor (direct, disease-efficacy confirmed)",
-      mw: 489.93,
-      alogp: 5.54,
-      psa: 91.92,
-      hba: 4,
-      hbd: 2,
-      ro5_violations: 1,
-      qed: 0.33,
-      usan_stem: "-rafenib",
-    },
-    {
-      name: "Dabrafenib (Tafinlar)",
-      chembl_id: "CHEMBL2028663",
-      approved: 2013,
-      moa: "BRAF V600E inhibitor (orphan designation)",
-      mw: 519.57,
-      alogp: 5.36,
-      psa: 110.86,
-      hba: 7,
-      hbd: 2,
-      ro5_violations: 2,
-      qed: 0.37,
-      usan_stem: "-rafenib",
-    },
+    { name: "Vemurafenib", chembl_id: "CHEMBL1229517", query: "vemurafenib" },
+    { name: "Dabrafenib", chembl_id: "CHEMBL2028663", query: "dabrafenib" },
   ],
   topHits: [
-    { chembl_id: "CHEMBL248256", ic50_nM: 5, pchembl: 8.3, le: 0.35, journal: "Bioorg Med Chem Lett 2007" },
-    { chembl_id: "CHEMBL200889", ic50_nM: 6, pchembl: 8.22, le: 0.47, journal: "Bioorg Med Chem Lett 2006" },
-    { chembl_id: "CHEMBL381250", ic50_nM: 6, pchembl: 8.22, le: 0.45, journal: "Bioorg Med Chem Lett 2006" },
-    { chembl_id: "CHEMBL200320", ic50_nM: 8, pchembl: 8.10, le: 0.41, journal: "Bioorg Med Chem Lett 2006" },
+    { label: "Compound 1" },
+    { label: "Compound 2" },
+    { label: "Compound 3" },
+    { label: "Compound 4" },
   ],
 };
 
@@ -160,29 +136,24 @@ const initialMessages: Message[] = [
   {
     id: "msg-2",
     role: "assistant",
-    content: `Based on the DMBT framework, here's my design proposal:
+    content: `Illustrative reply (no model was run). A design proposal would follow the DMBT framework:
 
 **Design Phase:**
-\u2022 Scaffold: 7-azaindole core (replaces sulfonamide)
-\u2022 Key modifications: 3-fluoropyridine at C5, cyclopropyl at N1
-\u2022 Predicted IC50: 8 nM (BRAF V600E)
-\u2022 Predicted selectivity: >50x over BRAF WT
+\u2022 Propose alternative core scaffolds and substituents
+\u2022 Predicted potency and selectivity: \u2014 (no prediction is made on this page)
 
-**Make Phase (recommended route):**
-\u2022 4-step synthesis from commercial 7-azaindole
-\u2022 Key step: Suzuki coupling at C5
-\u2022 Estimated timeline: 2 weeks
+**Make Phase:**
+\u2022 Outline a synthetic route from commercial starting materials
+\u2022 Estimated timeline: \u2014
 
 **Build Phase:**
-\u2022 Priority: Synthesize 3 analogs varying C5 substituent
-\u2022 Library size: 12 compounds (R-group enumeration)
+\u2022 Prioritise a small set of analogs
+\u2022 Library size: \u2014
 
 **Test Phase:**
 \u2022 Primary: BRAF V600E biochemical assay
-\u2022 Secondary: Cell viability (A375 melanoma)
-\u2022 ADMET: Microsomal stability, CYP panel
-
-Shall I proceed with detailed retrosynthesis analysis?`,
+\u2022 Secondary: cell viability in a BRAF-mutant melanoma line
+\u2022 ADMET: microsomal stability, CYP panel`,
     timestamp: "2:31 PM",
   },
 ];
@@ -507,13 +478,13 @@ export default function DesignPage() {
 
           {/* Header banner */}
           <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 p-4 flex items-start gap-3">
-            <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse mt-0.5 shrink-0" />
+            <span className="h-2.5 w-2.5 rounded-full bg-green-500 mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                ChEMBL MCP Server — Live (6 tools connected)
+                Illustration: how an MCP connection to ChEMBL could inform design (not a live session)
               </p>
               <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
-                Data retrieved live on 2026-03-28 · Target: BRAF V600E / Melanoma · ChEMBL 34
+                Figures are not shown here. For live, sourced ChEMBL values use Compound search. Target: BRAF V600E / Melanoma.
               </p>
             </div>
           </div>
@@ -569,7 +540,7 @@ export default function DesignPage() {
                   <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                   With ChEMBL MCP
                 </CardTitle>
-                <CardDescription>Live queries to ChEMBL 34 — verified, citable data</CardDescription>
+                <CardDescription>What live ChEMBL queries would return: identifiers, sourced values and assay references</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 text-sm">
 
@@ -581,7 +552,7 @@ export default function DesignPage() {
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
                     <span><span className="text-muted-foreground">ID:</span> <span className="font-mono">{chemblData.target.chembl_id}</span></span>
                     <span><span className="text-muted-foreground">UniProt:</span> <span className="font-mono">{chemblData.target.uniprot}</span></span>
-                    <span><span className="text-muted-foreground">PDB structures:</span> {chemblData.target.pdb_structures}+</span>
+                    <span><span className="text-muted-foreground">PDB structures:</span> —</span>
                   </div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {chemblData.target.go_terms.map((t) => (
@@ -606,18 +577,16 @@ export default function DesignPage() {
                     </thead>
                     <tbody>
                       {chemblData.topHits.map((h) => (
-                        <tr key={h.chembl_id} className="border-b last:border-0">
-                          <td className="py-1 pr-2 font-mono text-[10px] text-muted-foreground">{h.chembl_id}</td>
-                          <td className={cn("py-1 pr-2 font-medium", h.ic50_nM <= 6 ? "text-green-600" : "text-yellow-600")}>
-                            {h.ic50_nM}
-                          </td>
-                          <td className="py-1 pr-2">{h.pchembl}</td>
-                          <td className="py-1">{h.le}</td>
+                        <tr key={h.label} className="border-b last:border-0">
+                          <td className="py-1 pr-2 font-mono text-[10px] text-muted-foreground">{h.label}</td>
+                          <td className="py-1 pr-2">—</td>
+                          <td className="py-1 pr-2">—</td>
+                          <td className="py-1">—</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">Total BRAF bioactivity records in ChEMBL: 3,993+</p>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">Total BRAF bioactivity records in ChEMBL: —</p>
                 </div>
 
                 {/* Approved drugs ADMET */}
@@ -631,37 +600,27 @@ export default function DesignPage() {
                         <span className="font-medium text-xs">{drug.name}</span>
                         <span className="text-[10px] text-muted-foreground font-mono">{drug.chembl_id}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">{drug.moa}</p>
                       <div className="grid grid-cols-4 gap-1">
-                        {[
-                          { label: "MW", val: drug.mw.toFixed(0) },
-                          { label: "ALogP", val: drug.alogp.toFixed(2) },
-                          { label: "PSA", val: drug.psa.toFixed(0) + " Å²" },
-                          { label: "QED", val: drug.qed.toFixed(2) },
-                        ].map(({ label, val }) => (
+                        {["MW", "ALogP", "PSA", "QED"].map((label) => (
                           <div key={label} className="rounded bg-muted p-1.5 text-center">
                             <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
-                            <p className="text-xs font-semibold">{val}</p>
+                            <p className="text-xs font-semibold">—</p>
                           </div>
                         ))}
                       </div>
-                      <p className="text-[10px]">
-                        <span className={cn("font-medium", drug.ro5_violations === 0 ? "text-green-600" : "text-orange-500")}>
-                          Ro5 violations: {drug.ro5_violations}
-                        </span>
-                        <span className="text-muted-foreground ml-2">Approved {drug.approved} · USAN: {drug.usan_stem}</span>
-                      </p>
+                      <a href={`/search?q=${drug.query}`} className="text-[10px] text-blue-600 hover:underline dark:text-blue-400">
+                        Live values in Compound search →
+                      </a>
                     </div>
                   ))}
                 </div>
 
                 {/* Design insight */}
                 <div className="rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 p-3 space-y-1.5">
-                  <p className="text-xs font-semibold text-green-800 dark:text-green-300">MCP-derived Design Insight</p>
+                  <p className="text-xs font-semibold text-green-800 dark:text-green-300">Design insight (illustrative)</p>
                   <p className="text-xs text-green-700 dark:text-green-400">
-                    Vemurafenib: ALogP 5.54 (Ro5 borderline), QED 0.33 — metabolic liability likely from high lipophilicity.
-                    Target property profile: ALogP ≤ 4.5, PSA 80–100 Å², MW &lt; 480, QED &gt; 0.45.
-                    Best scaffold class: imidazopyridine/azaindole cores (LE ≥ 0.45 observed in top hits).
+                    A grounded assistant would compare the approved drugs&apos; sourced properties with the target profile
+                    and cite each value. No property profile or scaffold ranking is claimed here.
                   </p>
                 </div>
 
@@ -672,20 +631,20 @@ export default function DesignPage() {
           {/* Tool call log */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">MCP Tool Call Log — this session</CardTitle>
+              <CardTitle className="text-sm">Example MCP tool calls (illustrative, not run)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-1.5 font-mono text-xs">
                 {[
-                  { tool: "target_search", args: 'gene_symbol="BRAF", organism="Homo sapiens"', result: "CHEMBL5145 · 1 target · 100+ PDB" },
-                  { tool: "compound_search", args: 'name="vemurafenib", max_phase=4', result: "CHEMBL1229517 · MW 489.93 · ALogP 5.54" },
-                  { tool: "compound_search", args: 'name="dabrafenib", max_phase=4', result: "CHEMBL2028663 · MW 519.57 · ALogP 5.36" },
-                  { tool: "get_bioactivity", args: "target=CHEMBL5145, IC50, pChEMBL≥8", result: "6 hits shown · 3,993 total" },
-                  { tool: "get_mechanism", args: "molecule=CHEMBL1229517", result: "INHIBITOR · V600E specific · FDA 2011" },
-                  { tool: "get_admet", args: "molecule=CHEMBL1229517", result: "Ro5 violations=1 · QED=0.33 · PSA=91.92" },
+                  { tool: "target_search", args: 'gene_symbol="BRAF", organism="Homo sapiens"', result: "CHEMBL5145" },
+                  { tool: "compound_search", args: 'name="vemurafenib", max_phase=4', result: "CHEMBL1229517" },
+                  { tool: "compound_search", args: 'name="dabrafenib", max_phase=4', result: "CHEMBL2028663" },
+                  { tool: "get_bioactivity", args: "target=CHEMBL5145, IC50, pChEMBL≥8", result: "—" },
+                  { tool: "get_mechanism", args: "molecule=CHEMBL1229517", result: "—" },
+                  { tool: "get_admet", args: "molecule=CHEMBL1229517", result: "—" },
                 ].map((call, i) => (
                   <div key={i} className="flex items-start gap-2 rounded bg-muted/50 px-3 py-1.5">
-                    <span className="text-green-600 shrink-0">✓</span>
+                    <span className="text-muted-foreground shrink-0">·</span>
                     <span className="text-primary font-semibold shrink-0">{call.tool}</span>
                     <span className="text-muted-foreground truncate">({call.args})</span>
                     <span className="ml-auto text-muted-foreground shrink-0 hidden sm:block">→ {call.result}</span>

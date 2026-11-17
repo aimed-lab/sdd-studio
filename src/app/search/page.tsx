@@ -1,15 +1,21 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { SourceLine } from "@/components/data-provenance";
 import { MoleculeViewer } from "@/components/molecule-viewer";
+import { CompoundDetail } from "./compound-detail";
+import { StructureSearch } from "./structure-search";
 import { cn } from "@/lib/utils";
 
 interface SearchResult {
   chemblId: string;
+  parentChemblId: string | null;
+  isSalt: boolean;
+  inchiKey: string | null;
   name: string;
   smiles: string | null;
   mw: number | null;
@@ -18,7 +24,7 @@ interface SearchResult {
   hbd: number | null;
   psa: number | null;
   qed: number | null;
-  maxPhase: number;
+  maxPhase: number | null;
   moleculeType: string;
 }
 
@@ -26,7 +32,23 @@ interface SourceInfo {
   name: string;
   url: string;
   retrieved: string;
+  release?: { version: string; date: string | null };
 }
+
+const CHEMBL_CALC = "Calculated by ChEMBL for the parent structure";
+const COLUMNS: [string, string][] = [
+  ["Structure", "2D depiction drawn from the ChEMBL canonical SMILES"],
+  ["ChEMBL ID", "ChEMBL molecule identifier; opens the ChEMBL record"],
+  ["Name", "ChEMBL preferred name"],
+  ["Type", "ChEMBL molecule type"],
+  ["MW", `Molecular weight in g/mol (full molecule). ${CHEMBL_CALC}`],
+  ["ALogP", `Calculated octanol–water partition coefficient (ALogP, Wildman–Crippen atomic contributions, 1999, per ChEMBL documentation). ${CHEMBL_CALC}`],
+  ["HBA/HBD", `Hydrogen-bond acceptors / donors, ChEMBL convention (not Lipinski counts). ${CHEMBL_CALC}`],
+  ["PSA", `Polar surface area in Å². ${CHEMBL_CALC}`],
+  ["QED", `Quantitative estimate of drug-likeness, 0–1 (weighted). ${CHEMBL_CALC}`],
+  ["Phase", "Highest development phase recorded in ChEMBL (max_phase)"],
+  ["Details", "Mechanism of action and bioactivity from ChEMBL, loaded when you open it"],
+];
 
 const fmt = (v: number | null, digits: number) => (v === null ? "—" : v.toFixed(digits));
 
@@ -40,8 +62,13 @@ export default function SearchPage() {
 
 function SearchContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialQuery = searchParams.get("q") ?? "";
+  const searchMode = searchParams.get("mode") === "structure" ? "structure" : "name";
+  const setSearchMode = (m: "name" | "structure") =>
+    router.replace(m === "structure" ? "/search?mode=structure" : "/search", { scroll: false });
   const [query, setQuery] = useState(initialQuery);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
@@ -49,22 +76,22 @@ function SearchContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const runSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string, offset = 0) => {
     if (!q.trim()) return;
     setLoading(true);
     setError(null);
     setSubmitted(q.trim());
 
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}&offset=${offset}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search request failed");
-      setResults(data.results ?? []);
+      setResults((prev) => (offset > 0 ? [...prev, ...(data.results ?? [])] : data.results ?? []));
       setTotal(data.total ?? 0);
       setSource(data.source ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch search results. Please try again.");
-      setResults([]);
+      if (offset === 0) setResults([]);
     } finally {
       setLoading(false);
     }
@@ -76,18 +103,23 @@ function SearchContent() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    runSearch(query);
+    if (!query.trim()) return;
+    router.replace(`/search?q=${encodeURIComponent(query.trim())}`, { scroll: false });
+    if (query.trim() === initialQuery.trim()) runSearch(query);
   };
 
-  const phaseLabel = (phase: number) => {
+  // ChEMBL max_phase: 4 approved, 1–3 clinical, 0.5 early phase 1, 0 preclinical, -1/null unknown.
+  const phaseLabel = (phase: number | null) => {
+    if (phase === null || phase < 0) return "Unknown";
     if (phase >= 4) return "Approved";
     if (phase >= 1) return `Phase ${Math.floor(phase)}`;
+    if (phase > 0) return "Early Phase 1";
     return "Preclinical";
   };
 
-  const phaseClass = (phase: number) => {
-    if (phase >= 4) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    if (phase >= 1) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+  const phaseClass = (phase: number | null) => {
+    if (phase !== null && phase >= 4) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+    if (phase !== null && phase > 0) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
     return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
   };
 
@@ -101,6 +133,28 @@ function SearchContent() {
           Live compound search against the EMBL-EBI ChEMBL database
         </p>
       </div>
+
+      <div role="tablist" aria-label="Search by" className="inline-flex rounded-md border p-1 text-sm">
+        {(["name", "structure"] as const).map((m) => (
+          <button
+            key={m}
+            role="tab"
+            aria-selected={searchMode === m}
+            onClick={() => setSearchMode(m)}
+            className={cn(
+              "rounded px-3 py-1.5 font-medium transition-colors",
+              searchMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {m === "name" ? "Name or ChEMBL ID" : "Structure (SMILES)"}
+          </button>
+        ))}
+      </div>
+
+      {searchMode === "structure" ? (
+        <StructureSearch initialSmiles={searchParams.get("smiles") ?? ""} />
+      ) : (
+        <>
 
       <Card>
         <CardHeader>
@@ -139,7 +193,7 @@ function SearchContent() {
         </Card>
       )}
 
-      {searched && !loading && !error && (
+      {searched && !error && (!loading || results.length > 0) && (
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -153,7 +207,7 @@ function SearchContent() {
               </div>
               {results.length > 0 && (
                 <ExportCsvButton
-                  rows={results}
+                  rows={results.map((r) => ({ query: submitted, ...r }))}
                   filename={`chembl-${submitted}`}
                   source={source ? { name: source.name, retrieved: source.retrieved } : undefined}
                 />
@@ -166,8 +220,8 @@ function SearchContent() {
                 <table className="w-full">
                   <thead className="border-b">
                     <tr>
-                      {["Structure", "ChEMBL ID", "Name", "Type", "MW", "LogP", "HBA/HBD", "PSA", "QED", "Phase"].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {COLUMNS.map(([h, tip]) => (
+                        <th key={h} title={tip} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           {h}
                         </th>
                       ))}
@@ -175,11 +229,12 @@ function SearchContent() {
                   </thead>
                   <tbody className="divide-y">
                     {results.map((r) => (
-                      <tr key={r.chemblId} className="hover:bg-muted/50 transition-colors">
+                      <Fragment key={r.chemblId}>
+                      <tr className="hover:bg-muted/50 transition-colors">
                         <td className="px-4 py-2">
                           {r.smiles ? (
                             <div title={r.smiles}>
-                              <MoleculeViewer smiles={r.smiles} width={140} height={90} />
+                              <MoleculeViewer smiles={r.smiles} name={r.name} width={140} height={90} actions />
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">{"—"}</span>
@@ -191,11 +246,44 @@ function SearchContent() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline"
+                            title={r.inchiKey ? `InChIKey ${r.inchiKey}` : undefined}
                           >
                             {r.chemblId}
                           </a>
+                          {r.smiles && /^CHEMBL\d+$/.test(r.chemblId) && (
+                            <a
+                              href={`https://www.ebi.ac.uk/chembl/api/data/molecule/${r.chemblId}.sdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 font-sans text-xs text-muted-foreground hover:underline"
+                              title="Download the structure as an SDF/molfile from ChEMBL"
+                            >
+                              SDF
+                            </a>
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium">{r.name}</td>
+                        <td className="px-4 py-3 text-sm font-medium">
+                          {r.name === r.chemblId ? <span className="text-muted-foreground italic">(unnamed)</span> : r.name}
+                          {r.isSalt && r.parentChemblId ? (
+                            <div className="text-xs font-normal text-muted-foreground">
+                              Salt of{" "}
+                              <Link href={`/search?q=${r.parentChemblId}`} className="text-primary hover:underline">
+                                {r.parentChemblId}
+                              </Link>
+                            </div>
+                          ) : (
+                            r.name !== r.chemblId && (
+                              <div className="text-xs font-normal">
+                                <Link
+                                  href={`/clinical/trials?intervention=${encodeURIComponent(r.name)}`}
+                                  className="text-primary hover:underline"
+                                >
+                                  Trials for {r.name.toLowerCase()}
+                                </Link>
+                              </div>
+                            )
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{r.moleculeType}</td>
                         <td className="px-4 py-3 text-sm tabular-nums">{fmt(r.mw, 2)}</td>
                         <td className="px-4 py-3 text-sm tabular-nums">{fmt(r.logP, 2)}</td>
@@ -209,16 +297,51 @@ function SearchContent() {
                             {phaseLabel(r.maxPhase)}
                           </span>
                         </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            aria-expanded={expanded === r.chemblId}
+                            onClick={() => setExpanded(expanded === r.chemblId ? null : r.chemblId)}
+                            className="whitespace-nowrap text-sm text-primary hover:underline"
+                          >
+                            {expanded === r.chemblId ? "Hide" : "Mechanism & activity"}
+                          </button>
+                        </td>
                       </tr>
+                      {expanded === r.chemblId && (
+                        <tr className="bg-muted/30">
+                          <td colSpan={COLUMNS.length} className="px-4 py-4">
+                            <CompoundDetail chemblId={r.chemblId} />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
               </div>
-              {source && (
-                <div className="mt-4">
-                  <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />
-                </div>
-              )}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                {source && (
+                  <div className="text-xs text-muted-foreground">
+                    <SourceLine name={source.name} url={source.url} retrieved={source.retrieved} />
+                    {source.release && (
+                      <span>
+                        Data release {source.release.version}
+                        {source.release.date ? ` (${source.release.date})` : ""}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {results.length < total && (
+                  <button
+                    onClick={() => runSearch(submitted, results.length)}
+                    disabled={loading}
+                    className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+                  >
+                    {loading ? "Loading..." : `Load 25 more (${total - results.length} remaining)`}
+                  </button>
+                )}
+              </div>
             </CardContent>
           )}
         </Card>
@@ -235,6 +358,8 @@ function SearchContent() {
             </div>
           </CardContent>
         </Card>
+      )}
+        </>
       )}
     </div>
   );

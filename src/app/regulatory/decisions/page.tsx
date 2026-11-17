@@ -31,7 +31,7 @@ const decisions: DecisionRecord[] = [
     program: "BRAF Inhibitor",
     milestone: "Patent filing (7-azaindole)",
     decision: "Go",
-    date: "Mar 22, 2026",
+    date: "Q? 20??",
     confidence: 95,
     keyEvidence: "Freedom-to-operate confirmed, novel composition claims strong",
     reviewer: "IP Counsel",
@@ -41,17 +41,17 @@ const decisions: DecisionRecord[] = [
     program: "Platform",
     milestone: "OSDD2 license adoption",
     decision: "Go",
-    date: "Mar 15, 2026",
+    date: "Q? 20??",
     confidence: 88,
     keyEvidence: "FAIR compliance achieved for public datasets, commercial protection maintained",
-    reviewer: "Dr. Jake Chen",
+    reviewer: "Reviewer 10",
   },
   {
     id: "DEC-RG-003",
     program: "BRAF Inhibitor",
     milestone: "Partnership deal structure",
     decision: "Conditional Go",
-    date: "Mar 10, 2026",
+    date: "Q? 20??",
     confidence: 72,
     keyEvidence: "Option deal preferred over full out-license to retain upside",
     reviewer: "Business Dev",
@@ -61,7 +61,7 @@ const decisions: DecisionRecord[] = [
     program: "EGFR Resistance",
     milestone: "Out-license timing",
     decision: "Go",
-    date: "Feb 28, 2026",
+    date: "Q? 20??",
     confidence: 85,
     keyEvidence: "IND-ready package maximizes value, 3 interested parties",
     reviewer: "Business Dev",
@@ -71,10 +71,10 @@ const decisions: DecisionRecord[] = [
     program: "Alzheimer's Tau",
     milestone: "Data sharing agreement",
     decision: "Go",
-    date: "Feb 15, 2026",
+    date: "Q? 20??",
     confidence: 90,
     keyEvidence: "ADNI collaboration under IRB-approved protocol, FAIR-compliant",
-    reviewer: "Dr. James Wilson",
+    reviewer: "Reviewer 4",
   },
 ];
 
@@ -107,7 +107,7 @@ export default function DecisionsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Decision Reports</h1>
         <p className="text-muted-foreground">
-          Regulatory, IP, and business strategy decisions
+          Illustrative go/no-go decision records for regulatory, IP and business strategy
         </p>
       </div>
 

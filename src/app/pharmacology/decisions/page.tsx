@@ -25,40 +25,40 @@ const decisions: DecisionReport[] = [
     program: "BRAF Inhibitor",
     milestone: "Lead Selection",
     decision: "Go",
-    date: "Mar 18, 2026",
+    date: "Q? 20??",
     confidence: 90,
     keyEvidence: "SDD-0012 passes A1-A5, >100x selectivity, phototox mitigated",
-    reviewer: "Dr. Sarah Chen",
+    reviewer: "Reviewer 1",
   },
   {
     id: "DEC-PH-002",
     program: "JAK2 Inhibitor",
     milestone: "Lead Optimization",
     decision: "Conditional Go",
-    date: "Mar 12, 2026",
+    date: "Q? 20??",
     confidence: 75,
     keyEvidence: "SDD-0127 potent but CYP2D6 interaction needs resolution",
-    reviewer: "Dr. Maria Rodriguez",
+    reviewer: "Reviewer 7",
   },
   {
     id: "DEC-PH-003",
     program: "Alzheimer's Tau",
     milestone: "Hit-to-Lead",
     decision: "Go",
-    date: "Mar 5, 2026",
+    date: "Q? 20??",
     confidence: 82,
     keyEvidence: "3 scaffold series identified, BBB optimization ongoing",
-    reviewer: "Dr. James Wilson",
+    reviewer: "Reviewer 4",
   },
   {
     id: "DEC-PH-004",
     program: "EGFR Resistance",
     milestone: "Candidate Nomination",
     decision: "No-Go",
-    date: "Feb 20, 2026",
+    date: "Q? 20??",
     confidence: 55,
     keyEvidence: "hERG liability in SDD-0139, need structural redesign",
-    reviewer: "Dr. Robert Kim",
+    reviewer: "Reviewer 8",
   },
 ];
 
@@ -95,7 +95,7 @@ export default function DecisionsPage() {
       <div>
         <h1 className="text-3xl font-bold">Decision Reports</h1>
         <p className="text-muted-foreground mt-1">
-          Evidence-based go/no-go decisions for pharmacology milestones
+          Illustrative go/no-go decision records for pharmacology
         </p>
       </div>
 

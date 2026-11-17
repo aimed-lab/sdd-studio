@@ -15,13 +15,15 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     env:
-      BASE_URL: https://target.smartdrugdiscovery.org
+      BASE_URL: ${{ vars.SMOKE_BASE_URL || 'https://studio.smartdrugdiscovery.org' }}
     steps:
       - name: ChEMBL via /api/search
         id: chembl
         continue-on-error: true
         run: |
-          body=$(curl -sf --max-time 30 "$BASE_URL/api/search?q=imatinib")
+          ctype=$(curl -sS -o /dev/null -w '%{content_type}' --max-time 30 "$BASE_URL/api/search?q=imatinib")
+          case "$ctype" in application/json*) ;; *) echo "::error::Wrong host? $BASE_URL/api/search returned '$ctype', not JSON"; exit 1;; esac
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$BASE_URL/api/search?q=imatinib") || { echo "$body"; exit 1; }
           echo "$body" | jq -e '.results | length > 0' > /dev/null
           echo "$body" | jq -e '.source.name == "ChEMBL" and (.source.retrieved | length > 0)' > /dev/null
 
@@ -29,19 +31,60 @@ jobs:
         id: ctgov
         continue-on-error: true
         run: |
-          body=$(curl -sf --max-time 30 "$BASE_URL/api/trials?term=EGFR&condition=cancer")
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$BASE_URL/api/trials?term=EGFR&condition=cancer") || { echo "$body"; exit 1; }
           echo "$body" | jq -e '.results | length > 0' > /dev/null
           echo "$body" | jq -e '.results[0].nctId | startswith("NCT")' > /dev/null
 
+      - name: EGFR disambiguation keeps NSCLC recall (#57)
+        id: disambig
+        continue-on-error: true
+        run: |
+          q="$BASE_URL/api/trials?term=EGFR&condition=non-small%20cell%20lung%20cancer"
+          on=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$q" | jq -e '.total')
+          off=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$q&disambiguate=false" | jq -e '.total')
+          echo "EGFR+NSCLC default=$on without disambiguation=$off"
+          # Ratio, not absolute totals (they drift daily): the default may drop under 1% of trials.
+          awk -v on="$on" -v off="$off" 'BEGIN { exit !(off > 0 && on / off >= 0.99) }'
+
+      - name: ChEMBL similarity via /api/structure (#72)
+        id: structure
+        continue-on-error: true
+        run: |
+          smi='Cc1ccc(NC(=O)c2ccc(CN3CCN(C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1'
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 -G "$BASE_URL/api/structure" --data-urlencode "smiles=$smi" --data-urlencode "threshold=90") || { echo "$body"; exit 1; }
+          echo "$body" | jq -e '.state == "ok" and .results[0].chemblId == "CHEMBL941"' > /dev/null
+
+      - name: MCP endpoint via /api/mcp (#73)
+        id: mcp
+        continue-on-error: true
+        run: |
+          mcp() { curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -X POST "$BASE_URL/api/mcp" -d "$1"; }
+          list=$(mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list"}') || { echo "$list"; exit 1; }
+          echo "$list" | jq -e '[.result.tools[].name] | index("search_compounds") != null and index("search_trials") != null' > /dev/null
+          call=$(mcp '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_compounds","arguments":{"q":"imatinib","limit":5}}}') || { echo "$call"; exit 1; }
+          echo "$call" | jq -e '.result.isError != true and .result.structuredContent.results[0].chemblId == "CHEMBL941" and .result.structuredContent.source.name == "ChEMBL"' > /dev/null
+
+      - name: Open Targets via /api/target-evidence (#27)
+        id: opentargets
+        continue-on-error: true
+        run: |
+          body=$(curl -sS --retry 2 --retry-all-errors --retry-delay 5 --fail-with-body --max-time 30 "$BASE_URL/api/target-evidence?gene=EGFR&limit=25") || { echo "$body"; exit 1; }
+          echo "$body" | jq -e '.ensemblId == "ENSG00000146648" and .source.name == "Open Targets Platform" and (.source.retrieved | length > 0)' > /dev/null
+          echo "$body" | jq -e '[.associations.rows[].diseaseName] | index("non-small cell lung carcinoma") != null' > /dev/null
+
       - name: Report failures
-        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure'
+        if: steps.chembl.outcome == 'failure' || steps.ctgov.outcome == 'failure' || steps.disambig.outcome == 'failure' || steps.structure.outcome == 'failure' || steps.mcp.outcome == 'failure' || steps.opentargets.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHEMBL: ${{ steps.chembl.outcome }}
           CTGOV: ${{ steps.ctgov.outcome }}
+          DISAMBIG: ${{ steps.disambig.outcome }}
+          STRUCTURE: ${{ steps.structure.outcome }}
+          MCP: ${{ steps.mcp.outcome }}
+          OPENTARGETS: ${{ steps.opentargets.outcome }}
         run: |
           title="Upstream smoke test failing"
-          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          msg="Daily smoke test on $(date -u +%F): ChEMBL=$CHEMBL, ClinicalTrials.gov=$CTGOV, EGFR disambiguation recall=$DISAMBIG, structure search=$STRUCTURE, MCP=$MCP, Open Targets=$OPENTARGETS. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number -q '.[0].number')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$msg"

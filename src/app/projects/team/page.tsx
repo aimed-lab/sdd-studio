@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DemoDataNotice } from "@/components/data-provenance";
 
 // ── Team data ──────────────────────────────────────────────────────────────────
 
@@ -11,10 +12,10 @@ const teams = [
     name: "Oncology Team",
     color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
     members: [
-      { name: "Dr. Sarah Chen",     role: "Principal Investigator", initials: "SC", expertise: ["BRAF inhibitors", "Kinase selectivity"] },
-      { name: "Dr. Raj Patel",      role: "Computational Chemist",  initials: "RP", expertise: ["Molecular dynamics", "Virtual screening"] },
-      { name: "Dr. Robert Kim",     role: "Project Lead",           initials: "RK", expertise: ["EGFR resistance", "IND filing"] },
-      { name: "Dr. Lucia Romano",   role: "Regulatory Scientist",   initials: "LR", expertise: ["IND packages", "Toxicology"] },
+      { name: "Scientist 1",     role: "Principal Investigator", initials: "S1", expertise: ["BRAF inhibitors", "Kinase selectivity"] },
+      { name: "Scientist 2",      role: "Computational Chemist",  initials: "S2", expertise: ["Molecular dynamics", "Virtual screening"] },
+      { name: "Scientist 8",     role: "Project Lead",           initials: "S8", expertise: ["EGFR resistance", "IND filing"] },
+      { name: "Scientist 9",   role: "Regulatory Scientist",   initials: "S9", expertise: ["IND packages", "Toxicology"] },
     ],
     projects: ["BRAF Inhibitor Program", "EGFR-T790M Resistance Program", "JAK2 Inhibitor Optimization"],
   },
@@ -22,10 +23,10 @@ const teams = [
     name: "Neurology Team",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
     members: [
-      { name: "Dr. James Wilson",   role: "Project Lead",           initials: "JW", expertise: ["Tau biology", "Neurodegeneration"] },
-      { name: "Dr. Elena Vasquez",  role: "Medicinal Chemist",      initials: "EV", expertise: ["Fragment-based design", "Kinase inhibitors"] },
-      { name: "Dr. Amanda Foster",  role: "Clinical Scientist",     initials: "AF", expertise: ["Biomarkers", "Clinical feasibility"] },
-      { name: "Dr. Wei Zhang",      role: "Structural Biologist",   initials: "WZ", expertise: ["X-ray crystallography", "Cryo-EM"] },
+      { name: "Scientist 4",   role: "Project Lead",           initials: "S4", expertise: ["Tau biology", "Neurodegeneration"] },
+      { name: "Scientist 5",  role: "Medicinal Chemist",      initials: "S5", expertise: ["Fragment-based design", "Kinase inhibitors"] },
+      { name: "Scientist 6",  role: "Clinical Scientist",     initials: "S6", expertise: ["Biomarkers", "Clinical feasibility"] },
+      { name: "Scientist 3",      role: "Structural Biologist",   initials: "S3", expertise: ["X-ray crystallography", "Cryo-EM"] },
     ],
     projects: ["Alzheimer's Tau Program"],
   },
@@ -56,11 +57,11 @@ interface KGResult {
 }
 
 const mockKGResults: KGResult[] = [
-  { name: "Dr. Sarah Chen",     initials: "SC", role: "Principal Investigator", institution: "UAB SysPAI",     matchScore: 97, matchedSkills: ["BRAF inhibitors", "Kinase selectivity", "IND experience"], availability: "Available", projects: 5, publications: 42 },
-  { name: "Dr. Raj Patel",      initials: "RP", role: "Computational Chemist",  institution: "UAB SysPAI",     matchScore: 91, matchedSkills: ["Virtual screening", "QSAR", "Docking"], availability: "Limited",   projects: 4, publications: 28 },
-  { name: "Dr. Elena Vasquez",  initials: "EV", role: "Medicinal Chemist",      institution: "Pfizer (alumni)", matchScore: 85, matchedSkills: ["SAR optimization", "Kinase inhibitors"],  availability: "Available", projects: 3, publications: 19 },
-  { name: "Dr. Marcus Lee",     initials: "ML", role: "Structural Biologist",   institution: "MIT",             matchScore: 78, matchedSkills: ["X-ray crystallography", "Kinase structures"], availability: "Busy",      projects: 2, publications: 31 },
-  { name: "Dr. Priya Sharma",   initials: "PS", role: "Medicinal Chemist",      institution: "AstraZeneca",     matchScore: 72, matchedSkills: ["Lead optimization", "Synthetic chemistry"],  availability: "Available", projects: 6, publications: 15 },
+  { name: "Scientist 1",     initials: "S1", role: "Principal Investigator", institution: "Institution A",     matchScore: 97, matchedSkills: ["BRAF inhibitors", "Kinase selectivity", "IND experience"], availability: "Available", projects: 5, publications: 42 },
+  { name: "Scientist 2",      initials: "S2", role: "Computational Chemist",  institution: "Institution B",     matchScore: 91, matchedSkills: ["Virtual screening", "QSAR", "Docking"], availability: "Limited",   projects: 4, publications: 28 },
+  { name: "Scientist 5",  initials: "S5", role: "Medicinal Chemist",      institution: "Institution C", matchScore: 85, matchedSkills: ["SAR optimization", "Kinase inhibitors"],  availability: "Available", projects: 3, publications: 19 },
+  { name: "Scientist 12",     initials: "S12", role: "Structural Biologist",   institution: "Institution D",             matchScore: 78, matchedSkills: ["X-ray crystallography", "Kinase structures"], availability: "Busy",      projects: 2, publications: 31 },
+  { name: "Scientist 13",   initials: "S13", role: "Medicinal Chemist",      institution: "Institution E",     matchScore: 72, matchedSkills: ["Lead optimization", "Synthetic chemistry"],  availability: "Available", projects: 6, publications: 15 },
 ];
 
 const availColor: Record<string, string> = {
@@ -293,6 +294,8 @@ export default function TeamPage() {
         <h1 className="text-2xl font-bold">Team Directory</h1>
         <p className="text-muted-foreground text-sm mt-1">Researchers, clinicians, and AI agents grouped by domain team</p>
       </div>
+
+      <DemoDataNotice />
 
       {/* Talent KG search panel */}
       <TalentKGSearch />

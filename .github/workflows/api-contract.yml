@@ -1,0 +1,54 @@
+name: API contract test
+
+# Validates the read-only API against public/openapi.json.
+# PRs: builds and serves the PR's own code, then tests it. Nightly: tests production.
+on:
+  pull_request:
+    paths:
+      - "src/app/api/**"
+      - "src/lib/upstream.ts"
+      - "src/middleware.ts"
+      - "src/data/ambiguous-symbols.ts"
+      - "public/openapi.json"
+      - "scripts/contract-test.mjs"
+      - ".github/workflows/api-contract.yml"
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx next build
+      - name: Start the app
+        run: |
+          npx next start -p 3000 > next.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://localhost:3000/api/search?q=imatinib && break; sleep 2; done
+      - name: Contract test against the PR build
+        run: BASE_URL=http://localhost:3000 node scripts/contract-test.mjs
+      - if: failure()
+        run: tail -100 next.log
+
+  production:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Contract test against production
+        run: BASE_URL=${{ vars.SMOKE_BASE_URL || 'https://studio.smartdrugdiscovery.org' }} node scripts/contract-test.mjs

@@ -19,7 +19,7 @@ interface Valuation {
   phase: Phase;
   valueRange: string;
   method: string;
-  pos: number;
+  pos: number | null;
   peakSales: string;
   ipSummary: string;
   partners: string;
@@ -38,30 +38,30 @@ const valuations: Valuation[] = [
   {
     program: "BRAF Inhibitor Program",
     phase: "Preclinical",
-    valueRange: "$120-180M",
+    valueRange: "—",
     method: "Risk-adjusted NPV",
-    pos: 15,
-    peakSales: "$800M",
+    pos: null,
+    peakSales: "—",
     ipSummary: "2 patents (1 granted, 1 pending)",
     partners: "Large pharma oncology players",
   },
   {
     program: "Alzheimer's Tau Program",
     phase: "Discovery",
-    valueRange: "$40-75M",
+    valueRange: "—",
     method: "Risk-adjusted NPV",
-    pos: 8,
-    peakSales: "$2.5B",
+    pos: null,
+    peakSales: "—",
     ipSummary: "1 patent pending",
     partners: "Neurology-focused biotechs",
   },
   {
     program: "EGFR-T790M (completed)",
     phase: "IND-ready",
-    valueRange: "$250-350M",
+    valueRange: "—",
     method: "Comparable transactions",
-    pos: 22,
-    peakSales: "$1.2B",
+    pos: null,
+    peakSales: "—",
     ipSummary: "1 granted patent",
     partners: "Lung cancer portfolio builders",
   },
@@ -69,23 +69,23 @@ const valuations: Valuation[] = [
 
 const transactions: Transaction[] = [
   {
-    date: "Mar 2026",
+    date: "Q? 20??",
     type: "Option agreement",
     program: "BRAF",
     counterparty: "Undisclosed pharma",
-    value: "$15M upfront + milestones",
+    value: "— upfront + milestones",
     status: "In negotiation",
   },
   {
-    date: "Jan 2026",
+    date: "Q? 20??",
     type: "Research collaboration",
     program: "Alzheimer's",
-    counterparty: "ADNI Consortium",
+    counterparty: "Consortium A",
     value: "In-kind",
     status: "Active",
   },
   {
-    date: "Nov 2025",
+    date: "Q? 20??",
     type: "Out-licensing inquiry",
     program: "EGFR",
     counterparty: "3 interested parties",
@@ -159,7 +159,7 @@ export default function TransactionsPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Probability of Success</span>
-                    <span className={cn("font-bold", posColor(v.pos))}>{v.pos}%</span>
+                    <span className={cn("font-bold", v.pos === null ? "text-muted-foreground" : posColor(v.pos))}>{v.pos === null ? "—" : `${v.pos}%`}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Peak Sales Estimate</span>

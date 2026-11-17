@@ -26,7 +26,7 @@ Key platform facts:
 - Persistence: user accounts, invitations and settings are stored server-side (Vercel Postgres).
 - AI Chat is powered by your own API key set in Settings → API Keys. Supported providers: Anthropic, OpenAI, Google Gemini, DeepSeek, Groq, Perplexity, Kimi (Moonshot), GLM (Zhipu AI).
 - Projects have A.G.E. scores (Activity · Goal · Execution).
-- Docs: /docs/ directory in the GitHub repo — roles, architecture, ownership transfer, API reference.
+- Docs: the Documentation section at /docs — members and invitations, the developer guide (pushing iterations to the developer sandbox with sdd.mjs), the agent workflow, the Projects API, the read-only data API and the Projects plan.
 - Security & Compliance page: /security (Admin/Developer only).
 - Support Dashboard: /support (TechSupport+ only).
 - Access Control (RBAC module visibility): Settings → Access Control tab (Admin/Owner only).

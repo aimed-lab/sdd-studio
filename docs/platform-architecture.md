@@ -78,7 +78,7 @@ Until that migration occurs, all user data remains client-local.
 |---|---|
 | `src/lib/auth-context.tsx` | `AuthProvider` and `useAuth` hook. Defines the `User` interface (including `accountStatus`, `invitedBy`, `approvedBy` fields), localStorage persistence, login/logout, `updateUser`, and admin functions (`getAllUsers`, `approveUser`, `rejectUser`, `suspendUser`, `reactivateUser`, `updateUserRole`). Login flow validates invitation tokens for new users and checks account status for returning users. |
 | `src/lib/roles.ts` | All RBAC types and logic: `AppRole`, `ROLE_ORDER`, `roleRank`, `hasRole`, `can`, `ROLE_PERMISSIONS`, `ROLE_AVATAR_BG`, `ROLE_RING`, `ROLE_GLOW`, `ROLE_META`. Single source of truth for permissions. Includes invitation and member management permissions. |
-| `src/lib/invitations.ts` | Invitation engine: token generation, creation, validation, redemption, revocation, quota enforcement, and platform capacity settings. Handles the SPARC2026 legacy token as a synthetic invitation. |
+| `src/lib/invitations.ts` | Invitation engine: token generation, creation, validation, redemption, revocation, quota enforcement, and platform capacity settings. Email invitations are bound to the recipient's address. |
 | `src/lib/platform-config.ts` | `PLATFORM_CONFIG` constant: platform name, version number, build date, license tier, copyright string, and tech stack array. Update version here — it propagates to sidebar footer and Settings → About. |
 
 ### Page Routes

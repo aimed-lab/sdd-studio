@@ -1,0 +1,28 @@
+name: Page labels
+
+# Fails a PR if a page route is neither bannered (<DemoDataNotice />) nor classified live,
+# curated, mixed or app in src/data/page-classes.ts, or if page copy outside bannered files
+# claims a model was run ("predicts", "identified through", "validated via" + model name). (#28)
+on:
+  pull_request:
+    paths:
+      - "src/app/**"
+      - "src/components/**"
+      - "src/data/page-classes.ts"
+      - "scripts/check-page-classes.mjs"
+      - ".github/workflows/page-labels.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/check-page-classes.mjs

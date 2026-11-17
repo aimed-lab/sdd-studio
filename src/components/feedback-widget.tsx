@@ -7,6 +7,7 @@ import {
   Settings, KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DOC_PAGES } from "@/data/docs";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -41,13 +42,10 @@ const priorityConfig: Record<FeedbackPriority, { label: string; active: string }
 
 // No free-tier limit — users bring their own API key
 
+// The in-app Documentation section (/docs), plus release notes on GitHub.
 const QUICK_LINKS = [
-  { label: "Getting Started",      href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/getting-started.md" },
-  { label: "Roles & Permissions",  href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/roles-and-permissions.md" },
-  { label: "Ownership Transfer",   href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/ownership-transfer.md" },
-  { label: "Platform Architecture",href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/platform-architecture.md" },
-  { label: "API Reference",        href: "https://github.com/aimed-lab/sdd-studio/blob/main/docs/api-reference.md" },
-  { label: "RELEASES.md",          href: "https://github.com/aimed-lab/sdd-studio/blob/main/RELEASES.md" },
+  ...DOC_PAGES.map((p) => ({ label: p.title, href: `/docs/${p.slug}` })),
+  { label: "Release notes (GitHub)", href: "https://github.com/aimed-lab/sdd-studio/blob/main/RELEASES.md" },
 ];
 
 const STARTER_QUESTIONS = [
@@ -588,11 +586,11 @@ export function FeedbackWidget({ user }: { user: { name: string; email: string; 
           {tab === "docs" && (
             <div className="p-4 space-y-4">
               <p className="text-xs text-muted-foreground">
-                Platform documentation lives in the <code className="bg-muted px-1 rounded font-mono">/docs</code> directory on GitHub. Ask the AI assistant any question, or browse the pages below.
+                The <a href="/docs" className="text-primary underline">Documentation</a> section covers joining, the developer sandbox and the APIs. Browse the pages below or ask the assistant.
               </p>
               <div className="space-y-1.5">
                 {QUICK_LINKS.map(({ label, href }) => (
-                  <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+                  <a key={label} href={href} {...(href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     className="flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm hover:bg-accent transition-colors group">
                     <span>{label}</span>
                     <BookOpen className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />

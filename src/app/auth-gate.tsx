@@ -8,10 +8,14 @@ import LoginPage from "./login/page";
 import { AccountStatusGate } from "@/components/pending-approval-screen";
 import { cn } from "@/lib/utils";
 import {
-  Dna, FlaskConical, Stethoscope, ShieldCheck,
-  Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert,
+  Dna, FlaskConical, Stethoscope, ShieldCheck, Database,
+  Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert, BookOpen,
 } from "lucide-react";
 import { FeedbackWidget } from "@/components/feedback-widget";
+import { DataClassBadge, PageClassStrip } from "@/components/data-provenance";
+import { pageClassFor } from "@/data/page-classes";
+import { isPublicPath } from "@/data/public-routes";
+import { PublicShell, PublicToolsBanner } from "@/components/public-shell";
 import { RoleAvatar } from "@/components/role-avatar";
 import { PLATFORM_CONFIG } from "@/lib/platform-config";
 import { type AppRole, hasRole } from "@/lib/roles";
@@ -30,13 +34,20 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 function AuthSwitch({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading, user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center" />;
   }
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    if (isPublicPath(pathname)) return <PublicShell>{children}</PublicShell>;
+    return (
+      <>
+        <PublicToolsBanner />
+        <LoginPage />
+      </>
+    );
   }
 
   return (
@@ -80,7 +91,10 @@ function AuthSwitch({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-auto">
+            <PageClassStrip pageClass={pageClassFor(pathname)} />
+            {children}
+          </main>
         </div>
       </div>
     </AccountStatusGate>
@@ -95,10 +109,21 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
+    // Not a module-access key, so it is visible to every role.
+    label: "Live data",
+    icon: Database,
+    items: [
+      { href: "/search", label: "Compound search" },
+      { href: "/targets", label: "Targets" },
+      { href: "/clinical/trials", label: "Trial landscape" },
+    ],
+  },
+  {
     label: "Projects",
     icon: FolderOpen,
     items: [
-      { href: "/projects", label: "Directory" },
+      { href: "/projects", label: "Campaigns" },
+      { href: "/projects/demo", label: "Demo directory" },
       { href: "/projects/team", label: "Team" },
       { href: "/projects/performance", label: "Performance" },
       { href: "/projects/reports", label: "Reports" },
@@ -130,7 +155,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/clinical/cohorts", label: "Candidate Cohorts" },
       { href: "/clinical/biomarkers", label: "Companion Biomarker Opt." },
-      { href: "/clinical/trials", label: "Trial Simulations" },
+      { href: "/clinical/trials", label: "Trials" },
       { href: "/clinical/decisions", label: "Decision Reports" },
     ],
   },
@@ -148,6 +173,8 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+const NAV_HREFS = navGroups.flatMap((g) => g.items.map((i) => i.href));
+
 function Sidebar({
   user,
   onLogout,
@@ -164,7 +191,7 @@ function Sidebar({
   // Load persisted expanded state from localStorage (falls back to defaults)
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const defaults: Record<string, boolean> = {
-      "Projects": true, "Biology": false, "Pharmacology": false,
+      "Live data": true, "Projects": true, "Biology": false, "Pharmacology": false,
       "Clinical": false, "Regulation": false,
     };
     if (typeof window === "undefined") return defaults;
@@ -285,7 +312,8 @@ function Sidebar({
                 <div className="ml-2 border-l border-border pl-1 space-y-0.5 mt-0.5">
                   {group.items.map((item) => {
                     // Build sub-key: e.g. "biology/target-board" from href "/disease-biology/target-board"
-                    const hrefParts  = item.href.replace("/disease-biology", "/biology").split("/").filter(Boolean);
+                    // "/projects/demo" keeps the access key of the old "/projects" directory page it replaced.
+                    const hrefParts  = item.href.replace("/disease-biology", "/biology").replace("/projects/demo", "/projects/directory").split("/").filter(Boolean);
                     const subKey = hrefParts.length >= 2
                       ? (`${groupKey}/${hrefParts[hrefParts.length - 1]}` as ModuleKey)
                       : groupKey;
@@ -314,6 +342,7 @@ function Sidebar({
           {access("models")  !== "hidden" && <NavItem href="/models"   label="Foundation Models"  icon={BrainCircuit} onNavigate={onClose} locked={access("models")  === "partial"} />}
           {access("services")!== "hidden" && <NavItem href="/services" label="Add-on Service"     icon={Package}      onNavigate={onClose} locked={access("services")=== "partial"} />}
           {access("plugins") !== "hidden" && <NavItem href="/plugins"  label="Tool Plugins"       icon={Puzzle}       onNavigate={onClose} locked={access("plugins") === "partial"} />}
+          <NavItem href="/docs" label="Docs" icon={BookOpen} onNavigate={onClose} />
           {access("support") !== "hidden" && (
             <NavItem href="/support" label="Support" icon={Headset} onNavigate={onClose} locked={access("support") === "partial"} />
           )}
@@ -419,7 +448,10 @@ function NavItem({ href, label, sub, icon: Icon, onNavigate, locked }: {
   locked?: boolean;
 }) {
   const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(href + "/");
+  // Only the most specific matching sidebar link is active, so "/projects" is not lit on "/projects/team".
+  const matches = (h: string) => pathname === h || pathname.startsWith(h + "/");
+  const longer = NAV_HREFS.some((h) => h.length > href.length && h.startsWith(href + "/") && matches(h));
+  const isActive = matches(href) && !longer;
 
   return (
     <Link
@@ -438,6 +470,7 @@ function NavItem({ href, label, sub, icon: Icon, onNavigate, locked }: {
     >
       {Icon && <Icon className={cn("h-3.5 w-3.5 shrink-0", isActive && !locked && "text-primary")} />}
       <span className="flex-1">{label}</span>
+      {pageClassFor(href) && <DataClassBadge kind={pageClassFor(href)!.kind} size="sm" />}
       {locked && <Lock className="h-3 w-3 shrink-0 opacity-40" />}
     </Link>
   );

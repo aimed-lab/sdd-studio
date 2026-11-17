@@ -27,15 +27,12 @@ interface Drug {
 }
 
 const drugs: Drug[] = [
-  { id: "SDD-0012", name: "Vemurafenib analog", origin: "de-novo", modality: "small-molecule", target: "BRAF V600E", indication: "Melanoma", stage: "preclinical", moa: "BRAF kinase inhibitor", mw: "510.4" },
+  { id: "SDD-0012", name: "BRAF-cmpd-A", origin: "de-novo", modality: "small-molecule", target: "BRAF V600E", indication: "Melanoma", stage: "preclinical", moa: "BRAF kinase inhibitor", mw: "510.4" },
   { id: "SDD-0034", name: "Tau-Phos-1", origin: "de-novo", modality: "small-molecule", target: "GSK-3\u03B2", indication: "Alzheimer\u2019s", stage: "discovery", moa: "GSK-3\u03B2 inhibitor", mw: "385.2" },
   { id: "SDD-0056", name: "JAK2-Sel-7", origin: "de-novo", modality: "small-molecule", target: "JAK2", indication: "Myelofibrosis", stage: "preclinical", moa: "Selective JAK2 inhibitor", mw: "442.8" },
-  { id: "SDD-0078", name: "Osimertinib-R", origin: "repositioned", modality: "small-molecule", target: "EGFR T790M", indication: "NSCLC (C797S)", stage: "phase-1", moa: "Covalent EGFR inhibitor", mw: "499.6", originalIndication: "NSCLC (T790M)" },
   { id: "SDD-0091", name: "Anti-PD-L1-BRAF", origin: "de-novo", modality: "antibody", target: "PD-L1 + BRAF", indication: "Melanoma", stage: "discovery", moa: "Bispecific antibody" },
-  { id: "SDD-0103", name: "Metformin", origin: "repositioned", modality: "small-molecule", target: "AMPK", indication: "Pancreatic cancer", stage: "phase-2", moa: "AMPK activator", smiles: "CN(C)C(=N)N=C(N)N", mw: "129.2", originalIndication: "Type 2 Diabetes" },
   { id: "SDD-0115", name: "TAU-ASO-1", origin: "de-novo", modality: "oligonucleotide", target: "MAPT mRNA", indication: "Alzheimer\u2019s", stage: "discovery", moa: "Antisense oligonucleotide" },
   { id: "SDD-0127", name: "NK-BRAF-CAR", origin: "de-novo", modality: "cell-therapy", target: "BRAF V600E+ cells", indication: "Melanoma", stage: "discovery", moa: "CAR-NK cell therapy" },
-  { id: "SDD-0139", name: "Thalidomide", origin: "repositioned", modality: "small-molecule", target: "Cereblon", indication: "Multiple Myeloma", stage: "approved", moa: "IMiD, cereblon modulator", smiles: "O=C1CCC(N2C(=O)c3ccccc3C2=O)C(=O)N1", mw: "258.2", originalIndication: "Morning sickness (withdrawn)" },
   { id: "SDD-0151", name: "RAS-pep-1", origin: "de-novo", modality: "peptide", target: "KRAS G12C", indication: "NSCLC", stage: "discovery", moa: "Stapled peptide inhibitor", mw: "1850" },
 ];
 
@@ -227,7 +224,7 @@ export default function DrugPage() {
                       <CardContent className="space-y-1 text-sm">
                         {drug.smiles && (
                           <div className="pb-2">
-                            <MoleculeViewer smiles={drug.smiles} width={120} height={80} />
+                            <MoleculeViewer smiles={drug.smiles} name={drug.name} width={120} height={80} />
                           </div>
                         )}
                         <div className="flex justify-between">
@@ -264,6 +261,16 @@ export default function DrugPage() {
           <p className="text-sm text-muted-foreground">
             Drugs originally developed for one indication, now being explored for new therapeutic areas.
           </p>
+          {repositionedDrugs.length === 0 && (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              No repositioning programs are recorded. Approved drugs used as references, with ChEMBL mechanism data, are
+              listed under{" "}
+              <Link href="/compounds" className="text-primary hover:underline">
+                Reference compounds
+              </Link>
+              .
+            </p>
+          )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {repositionedDrugs.map((drug) => (
               <Card key={drug.id} className="border-amber-200">

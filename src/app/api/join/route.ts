@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getInvitationByToken, redeemInvitation as dbRedeemInvitation,
+  getInvitationByToken, getUserByEmail, redeemInvitation as dbRedeemInvitation,
 } from "@/lib/db";
 import { upsertUser } from "@/lib/db";
 import { ssoEnabled } from "@/lib/sso/config";
@@ -51,22 +51,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invitation token required" }, { status: 400 });
   }
 
-  // Handle legacy seed token (published in this repo, so never honoured once SSO is on)
-  if (token === "SPARC2026" && !ssoEnabled()) {
-    const user = await upsertUser({
-      email,
-      role: "Developer",
-      account_status: "active",
-      invited_by: "system",
-      invited_at: new Date().toISOString(),
-      approved_by: "auto",
-      approved_at: new Date().toISOString(),
-    });
-    return NextResponse.json({
-      ok: true,
-      user: mapUser(user),
-      autoApproved: true,
-    });
+  // The shared SPARC2026 code was public in this repository; it no longer creates accounts.
+  // Accounts that already used it are unaffected.
+  if (token === "SPARC2026") {
+    return NextResponse.json(
+      { ok: false, error: "This shared code has been retired. Ask the platform owner for your personal invitation code." },
+      { status: 410 },
+    );
   }
 
   try {
@@ -84,6 +75,31 @@ export async function POST(req: NextRequest) {
     // Check if already used
     if (inv.status !== "pending") {
       return NextResponse.json({ ok: false, error: `This invitation has already been ${inv.status}.` }, { status: 409 });
+    }
+
+    // An invitation issued to an email address works only for that address.
+    const recipient = inv.recipient_hint?.includes("@") ? inv.recipient_hint.trim().toLowerCase() : null;
+    if (recipient && recipient !== email) {
+      return NextResponse.json(
+        { ok: false, error: "This invitation code was issued to a different email address. Sign in with the address the invitation was sent to." },
+        { status: 403 },
+      );
+    }
+
+    // An active account never changes role through a code; it signs in without one.
+    const existing = await getUserByEmail(email);
+    if (existing?.account_status === "active") {
+      return NextResponse.json(
+        { ok: false, error: "This email already has an active account. Sign in without a code." },
+        { status: 409 },
+      );
+    }
+    // A suspended or removed account comes back only through an invitation addressed to it.
+    if (existing && (existing.account_status === "suspended" || existing.account_status === "rejected") && recipient !== email) {
+      return NextResponse.json(
+        { ok: false, error: "This account is not active. Contact the platform owner." },
+        { status: 403 },
+      );
     }
 
     // 2. Redeem the invitation

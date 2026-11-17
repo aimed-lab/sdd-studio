@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { importInvitationFromParams } from "@/lib/invitations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ const PENDING_INVITE_KEY = "sdd-pending-invite";
 
 export default function LoginPage() {
   const { login, ssoMode, pendingInvite, joinWithInvite } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
@@ -72,6 +73,8 @@ export default function LoginPage() {
     try {
       const err = await login(email, inviteCode);
       if (err) setError(err);
+      // The same form guards every members page; only on /login itself is there nowhere else to go.
+      else if (window.location.pathname === "/login") router.replace("/");
     } finally {
       setLoading(false);
     }

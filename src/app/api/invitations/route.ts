@@ -3,15 +3,15 @@ import { ELEVATED_LOCK_MESSAGE, isElevatedRole } from "@/lib/elevated-roles";
 import { INVITE_QUOTAS } from "@/lib/invitations";
 import { type AppRole, hasRole } from "@/lib/roles";
 import { authorize, rankOf } from "@/lib/session";
+import {
+  getAllInvitations, getInvitationsByCreator, getInvitationByToken,
+  createInvitation, redeemInvitation, revokeInvitation,
+  countPendingInvitations, getUserByEmail, updateUserFields,
+} from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 const forbidden = (msg: string) => NextResponse.json({ ok: false, error: msg }, { status: 403 });
-import {
-  getAllInvitations, getInvitationsByCreator, getInvitationByToken,
-  createInvitation, redeemInvitation, revokeInvitation,
-  countPendingInvitations,
-} from "@/lib/db";
 
 /**
  * /api/invitations — Server-side invitation management backed by Vercel Postgres.
@@ -194,8 +194,15 @@ export async function DELETE(req: NextRequest) {
       const mine = await getInvitationsByCreator(caller.email);
       if (!mine.some((inv) => inv.id === id)) return forbidden("You can only revoke your own invitations.");
     }
-    const ok = await revokeInvitation(id);
-    return NextResponse.json({ ok });
+    const revoked = await revokeInvitation(id);
+    // An email invitation creates an "invited" placeholder account. Block it too, so the
+    // address cannot sign in to the waiting screen; an account already in use is untouched.
+    const recipient = revoked?.recipient_hint?.includes("@") ? revoked.recipient_hint.toLowerCase() : null;
+    if (recipient) {
+      const existing = await getUserByEmail(recipient);
+      if (existing?.account_status === "invited") await updateUserFields(recipient, { account_status: "rejected" });
+    }
+    return NextResponse.json({ ok: !!revoked });
   } catch (err) {
     console.error("[/api/invitations] DELETE error:", err);
     return NextResponse.json({ ok: false, error: "Database error" }, { status: 500 });
