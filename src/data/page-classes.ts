@@ -68,6 +68,10 @@ export const pageClasses: Record<string, PageClass> = {
   "/design": { kind: "planned" },
   "/models": { kind: "planned" },
   "/services": { kind: "planned" },
+  // Descriptors are computed in the browser from structures the user supplies,
+  // and every threshold and substructure pattern is from cited literature;
+  // nothing shown is illustrative, fetched live, or project data.
+  "/services/admet": { kind: "curated" },
   "/plugins": { kind: "planned" },
   "/targets/[gene]": {
     kind: "mixed",

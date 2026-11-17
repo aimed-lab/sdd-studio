@@ -1,49 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { MainModule } from "@rdkit/rdkit";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { SourceLine } from "@/components/data-provenance";
 import { MoleculeViewer } from "@/components/molecule-viewer";
+import { loadRDKit } from "@/lib/rdkit";
 import { cn } from "@/lib/utils";
 
-// RDKit.js runs only in the browser and only in Structure mode. Pinned version.
-const RDKIT_BASE = "https://unpkg.com/@rdkit/rdkit@2026.3.6/dist/";
-
-interface RDKitMol {
-  is_valid(): boolean;
-  get_smiles(): string;
-  get_svg(width?: number, height?: number): string;
-  delete(): void;
-}
-interface RDKitModule {
-  get_mol(smiles: string): RDKitMol | null;
-}
-declare global {
-  interface Window {
-    initRDKitModule?: (opts: { locateFile: (f: string) => string }) => Promise<RDKitModule>;
-  }
-}
-
-let rdkitPromise: Promise<RDKitModule> | null = null;
-function loadRDKit(): Promise<RDKitModule> {
-  if (rdkitPromise) return rdkitPromise;
-  rdkitPromise = new Promise<RDKitModule>((resolve, reject) => {
-    const start = () =>
-      window.initRDKitModule!({ locateFile: (f) => RDKIT_BASE + f }).then(resolve, reject);
-    if (window.initRDKitModule) return start();
-    const script = document.createElement("script");
-    script.src = `${RDKIT_BASE}RDKit_minimal.js`;
-    script.async = true;
-    script.onload = start;
-    script.onerror = () => reject(new Error("Could not load RDKit.js"));
-    document.head.appendChild(script);
-  }).catch((err) => {
-    rdkitPromise = null;
-    throw err;
-  });
-  return rdkitPromise;
-}
+// RDKit.js runs only in the browser and only in Structure mode. It is loaded by
+// the app's single loader (src/lib/rdkit.ts) from the pinned @rdkit/rdkit
+// package, because the build claims the global window.initRDKitModule and two
+// loaders would pair one version's glue with another's .wasm.
+type RDKitModule = MainModule;
 
 interface Hit {
   chemblId: string;
