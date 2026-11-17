@@ -10,6 +10,8 @@
 //   sdd admin keys --project phgdh-npa [--studio URL]
 //   sdd admin revoke --project phgdh-npa --id <key id> [--studio URL]
 //   sdd admin move-account --from old@example.org --to new@example.org [--dry-run] [--studio URL]
+//   sdd admin accounts [--role Owner] [--studio URL]
+//   sdd admin first-owner --email you@example.org [--dry-run] [--studio URL]   (only while Studio has no Owner)
 //
 // Reads sdd.project.json in the current folder (or a parent). The push key comes from the
 // SDD_PROJECT_TOKEN environment variable, or from a file given with --token-file; it is never printed.
@@ -373,12 +375,23 @@ async function admin(args) {
     const c = d.changes;
     console.log(`${dryRun ? "Dry run, nothing written: would move" : "Moved"} the ${d.role} account (${d.status}) from ${d.from} to ${d.to}.`);
     console.log(`  also updated: ${c.invitedBy} invited-by, ${c.approvedBy} approved-by, ${c.invitationsCreated} invitations created, ${c.invitationsAccepted} accepted, ${c.pushTokens} sandbox tokens.`);
+  } else if (sub === "accounts") {
+    const role = typeof args.role === "string" ? `?role=${encodeURIComponent(args.role)}` : "";
+    const d = await call("GET", `/accounts${role}`);
+    for (const a of d.accounts) console.log(`  ${a.role.padEnd(11)} ${a.status.padEnd(16)} ${a.email}`);
+    if (!d.accounts.length) console.log("  no accounts");
+  } else if (sub === "first-owner") {
+    if (typeof args.email !== "string") die("usage: sdd admin first-owner --email <SDD sign-in email> [--dry-run]");
+    const dryRun = args["dry-run"] === true;
+    const d = await call("POST", "/accounts/owner", { email: args.email, dryRun });
+    const was = d.previous ? `was ${d.previous.role}, ${d.previous.status}` : "new account";
+    console.log(`${dryRun ? "Dry run, nothing written: would make" : "Made"} ${d.email} the Owner (${was}).`);
   } else if (sub === "revoke") {
     if (!project || typeof args.id !== "string") die("usage: sdd admin revoke --project <slug> --id <key id>");
     await call("DELETE", `/projects/${project}/keys`, { id: args.id });
     console.log(`Revoked key ${args.id}.`);
   } else {
-    die("usage: sdd admin create-project | key | keys | revoke | move-account (see the top of sdd.mjs)");
+    die("usage: sdd admin create-project | key | keys | revoke | move-account | accounts | first-owner (see the top of sdd.mjs)");
   }
 }
 

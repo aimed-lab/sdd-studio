@@ -21,9 +21,11 @@ node sdd.mjs admin key --project phgdh-npa --scope push --label "import"
 node sdd.mjs admin keys --project phgdh-npa
 node sdd.mjs admin revoke --project phgdh-npa --id <key id>
 node sdd.mjs admin move-account --from old@example.org --to new@example.org --dry-run
+node sdd.mjs admin accounts --role Owner
+node sdd.mjs admin first-owner --email you@example.org --dry-run
 ```
 
-`admin move-account` is for someone whose SDD sign-in uses a different email from their Studio account: run it with `--dry-run` first, then without.
+`admin first-owner` is for first setup only: it refuses if Studio already has an active Owner, so it cannot take over an existing Owner (that is ownership transfer, in Studio). `admin move-account` is for someone whose SDD sign-in uses a different email from their Studio account: run it with `--dry-run` first, then without.
 
 `admin key` writes the new key to `~/.sdd/keys/<project>.<scope>.<id>.key` (readable only by you) and prints only its file name and prefix. Share a read key privately (for example in a password manager), never in email or chat.
 
@@ -48,6 +50,8 @@ All endpoints live under `/api/v1/projects`. They are JSON, `Cache-Control: no-s
 | POST | `/api/v1/admin/projects` | admin key | Create a campaign |
 | GET / POST / DELETE | `/api/v1/admin/projects/{slug}/keys` | admin key | List, issue or revoke a campaign's keys |
 | POST | `/api/v1/admin/accounts/email` | admin key | Move a Studio account to a new email (keeps role and history); `dryRun` reports without writing |
+| GET | `/api/v1/admin/accounts` | admin key | List Studio accounts (`?role=` to filter) |
+| POST | `/api/v1/admin/accounts/owner` | admin key | Make an account the Owner, only while Studio has no active Owner; `dryRun` reports without writing |
 
 A read key is sent as `X-SDD-Project-Key: sdd_pt_…` (or `Authorization: Bearer sdd_pt_…`).
 
