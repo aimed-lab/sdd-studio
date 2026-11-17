@@ -32,8 +32,61 @@ function take(key: string, budget: { capacity: number; refillPerSecond: number }
   return Math.ceil((1 - b.tokens) / budget.refillPerSecond);
 }
 
-export function middleware(req: NextRequest) {
+// ── Sign-in gate for pages ──────────────────────────────────────────────────
+// Every Studio page needs a signed-in member. Only the sign-in screen and the sign-in flow are open.
+// The data API, MCP endpoint and /api/v1 (project keys) stay open here and do their own checks.
+// The session cookie is the one /auth/callback sets (src/lib/sso/signed-cookie.ts): base64url(JSON)
+// + "." + base64url(HMAC-SHA256(SESSION_SECRET, body)), with an `exp` in seconds. Middleware runs on
+// the edge, so it is verified with Web Crypto. Account status is checked again by every data route.
+const SESSION_COOKIE = "sdd_session";
+const OPEN_PAGES = ["/login"];
+const OPEN_PREFIXES = ["/auth/"];
+
+const ssoConfigured = () =>
+  !!process.env.OIDC_CLIENT_ID && !!process.env.OIDC_CLIENT_SECRET && !!process.env.SESSION_SECRET;
+
+function fromBase64Url(s: string): Uint8Array<ArrayBuffer> {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  const bin = atob(b64);
+  const out = new Uint8Array(new ArrayBuffer(bin.length));
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+let hmacKey: Promise<CryptoKey> | null = null;
+async function validSession(value: string | undefined): Promise<boolean> {
+  const secret = process.env.SESSION_SECRET;
+  if (!value || !secret) return false;
+  const dot = value.lastIndexOf(".");
+  if (dot <= 0) return false;
+  try {
+    hmacKey ??= crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const body = value.slice(0, dot);
+    const ok = await crypto.subtle.verify("HMAC", await hmacKey, fromBase64Url(value.slice(dot + 1)), new TextEncoder().encode(body));
+    if (!ok) return false;
+    const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(body))) as { email?: unknown; exp?: unknown };
+    return typeof payload.email === "string" && typeof payload.exp === "number" && payload.exp > Date.now() / 1000;
+  } catch {
+    return false;
+  }
+}
+
+export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+
+  if (!path.startsWith("/api/")) {
+    const open = OPEN_PAGES.includes(path) || OPEN_PREFIXES.some((p) => path.startsWith(p));
+    // With single sign-on off (its kill switch), the browser-side gate in auth-gate.tsx still requires sign-in.
+    if (!open && ssoConfigured() && !(await validSession(req.cookies.get(SESSION_COOKIE)?.value))) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = "";
+      if (path !== "/") url.searchParams.set("next", path + req.nextUrl.search);
+      return NextResponse.redirect(url);
+    }
+    if (!path.startsWith("/targets/")) return NextResponse.next();
+  }
+
   const bucket: BucketName = path.startsWith("/api/v1/")
     ? req.method === "GET" ? "projectsRead" : "projectsWrite"
     : path.startsWith("/targets/")
@@ -68,7 +121,11 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    // Rate-limited data APIs.
     "/api/search", "/api/trials", "/api/compound/:path*", "/api/structure", "/api/target-evidence", "/api/mcp",
-    "/targets/:path+", "/api/v1/:path+",
+    "/api/v1/:path+",
+    // Every page (sign-in gate; /targets/* is also rate-limited). Not API routes, Next.js assets or files
+    // with an extension (public/ files such as /openapi.json and images).
+    "/((?!api/|_next/|favicon\\.ico|.*\\.[A-Za-z0-9]+$).*)",
   ],
 };

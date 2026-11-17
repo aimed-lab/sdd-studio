@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { importInvitationFromParams } from "@/lib/invitations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BookOpen, Database, FolderOpen, Plug, Terminal } from "lucide-react";
 
 const SSO_ERRORS: Record<string, string> = {
   denied: "Sign-in was cancelled.",
@@ -81,132 +82,200 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50">
-      <div className="w-full max-w-md px-4">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center mb-4">
-            <span className="text-primary-foreground text-2xl font-bold">SD</span>
-          </div>
-          <h1 className="text-3xl font-bold">SmartDrugDiscovery</h1>
-          <p className="text-muted-foreground mt-1 text-sm uppercase tracking-widest">faster &middot; cheaper &middot; personalized</p>
-        </div>
-
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle>{ssoMode ? (pendingInvite ? "Finish joining" : "Sign In") : isEmailInvite ? "Accept Invitation" : "Sign In"}</CardTitle>
-            <CardDescription>
-              {ssoMode
-                ? "Sign in with your Smart Drug Discovery (SDD) account."
-                : isEmailInvite
-                ? "You\u2019ve been invited to join the platform. Enter your email to confirm."
-                : "Enter your email to access the platform. New users need an invitation code."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {ssoMode ? (
-              pendingInvite ? (
-                <form onSubmit={handleJoin} className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Signed in as <span className="font-medium text-foreground">{pendingInvite}</span>. Enter your
-                    invitation code once to join this platform.
-                  </p>
-                  <input
-                    aria-label="Invitation code"
-                    value={inviteCode}
-                    onChange={(e) => { setInviteCode(e.target.value); setError(""); }}
-                    placeholder="e.g. ABCD1234"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-ring"
-                    autoFocus
-                  />
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full rounded-md px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 transition-colors"
-                  >
-                    {loading ? "Joining..." : "Join"}
-                  </button>
-                  <a href="/auth/logout" className="block text-center text-xs text-muted-foreground hover:underline">
-                    Use a different SDD account
-                  </a>
-                </form>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-4 py-10 md:grid-cols-[1.15fr_1fr] md:px-8">
+        <StudioIntro />
+        <div className="order-first w-full max-w-md justify-self-center md:order-none">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle>{ssoMode ? (pendingInvite ? "Finish joining" : "Sign In") : isEmailInvite ? "Accept Invitation" : "Sign In"}</CardTitle>
+              <CardDescription>
+                {ssoMode
+                  ? "Sign in with your Smart Drug Discovery (SDD) account."
+                  : isEmailInvite
+                  ? "You\u2019ve been invited to join the platform. Enter your email to confirm."
+                  : "Enter your email to access the platform. New users need an invitation code."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {ssoMode ? (
+                pendingInvite ? (
+                  <form onSubmit={handleJoin} className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Signed in as <span className="font-medium text-foreground">{pendingInvite}</span>. Enter your
+                      invitation code once to join this platform.
+                    </p>
+                    <input
+                      aria-label="Invitation code"
+                      value={inviteCode}
+                      onChange={(e) => { setInviteCode(e.target.value); setError(""); }}
+                      placeholder="e.g. ABCD1234"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-ring"
+                      autoFocus
+                    />
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full rounded-md px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 transition-colors"
+                    >
+                      {loading ? "Joining..." : "Join"}
+                    </button>
+                    <a href="/auth/logout" className="block text-center text-xs text-muted-foreground hover:underline">
+                      Use a different SDD account
+                    </a>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                    <button
+                      type="button"
+                      onClick={() => { setLoading(true); login("", ""); }}
+                      disabled={loading}
+                      className="w-full rounded-md px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 transition-colors"
+                    >
+                      {loading ? "Redirecting..." : "Sign in with your SDD account"}
+                    </button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      One Smart Drug Discovery account for all lab apps. New here? You&apos;ll be asked for your
+                      invitation code once after signing in.
+                    </p>
+                  </div>
+                )
               ) : (
-                <div className="space-y-4">
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                  <button
-                    type="button"
-                    onClick={() => { setLoading(true); login("", ""); }}
-                    disabled={loading}
-                    className="w-full rounded-md px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 transition-colors"
-                  >
-                    {loading ? "Redirecting..." : "Sign in with your SDD account"}
-                  </button>
-                  <p className="text-xs text-muted-foreground text-center">
-                    One Smart Drug Discovery account for all lab apps. New here? You&apos;ll be asked for your
-                    invitation code once after signing in.
-                  </p>
-                </div>
-              )
-            ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@institution.edu"
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  autoFocus
-                />
-              </div>
-              {!isEmailInvite && (
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium" htmlFor="invite-code">
-                    Invitation Code
+                  <label className="text-sm font-medium" htmlFor="email">
+                    Email
                   </label>
                   <input
-                    id="invite-code"
-                    type="text"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    placeholder="e.g. ABCD1234"
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-ring"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@institution.edu"
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    autoFocus
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Returning users can sign in without a code.
-                    Need an invitation? Ask a team member for an invite link.
-                  </p>
                 </div>
+                {!isEmailInvite && (
+                  <div>
+                    <label className="text-sm font-medium" htmlFor="invite-code">
+                      Invitation Code
+                    </label>
+                    <input
+                      id="invite-code"
+                      type="text"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      placeholder="e.g. ABCD1234"
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Returning users can sign in without a code.
+                      Need an invitation? Ask a team member for an invite link.
+                    </p>
+                  </div>
+                )}
+                {isEmailInvite && (
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
+                    <p className="text-xs text-blue-800 dark:text-blue-300">
+                      This is a direct invitation — no code needed. Just confirm your email above and click the button below.
+                    </p>
+                  </div>
+                )}
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-md px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 transition-colors"
+                >
+                  {loading ? "Signing in..." : isEmailInvite ? "Accept & Join" : "Sign In"}
+                </button>
+              </form>
               )}
-              {isEmailInvite && (
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
-                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                    This is a direct invitation — no code needed. Just confirm your email above and click the button below.
-                  </p>
-                </div>
-              )}
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-md px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 transition-colors"
-              >
-                {loading ? "Signing in..." : isEmailInvite ? "Accept & Join" : "Sign In"}
-              </button>
-            </form>
-            )}
-          </CardContent>
-        </Card>
-
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          AIDD 2.0 — Multi-scale, Parallel, Evidence-driven Drug Discovery
-        </p>
+            </CardContent>
+          </Card>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            AIDD 2.0 — Multi-scale, Parallel, Evidence-driven Drug Discovery
+          </p>
+        </div>
       </div>
     </div>
+  );
+}
+
+const INSIDE = [
+  {
+    icon: Database,
+    title: "Live drug-discovery data",
+    text: "Compound search on ChEMBL, the ClinicalTrials.gov trial landscape and target pages with Open Targets evidence. Every result shows its source and when it was retrieved.",
+  },
+  {
+    icon: BookOpen,
+    title: "Curated, cited reference sets",
+    text: "Sets checked against primary literature, such as EGFR inhibitor resistance mechanisms, with each row linked to its PubMed record.",
+  },
+  {
+    icon: FolderOpen,
+    title: "Project campaigns",
+    text: "The lab's campaign workspaces: explorable compound tables, rounds and decision sheets, updated iteration by iteration. Their results are unpublished, so each campaign needs your role or its project key.",
+  },
+  {
+    icon: Terminal,
+    title: "Developer sandbox, CLI and agent skill",
+    text: "Try the push workflow on test data. sdd.mjs sends each iteration's files and tables from your project folder, and the agent skill lets your AI agent do the same.",
+  },
+  {
+    icon: Plug,
+    title: "API and MCP for agents",
+    text: "A read-only JSON API (spec at /openapi.json) and an MCP endpoint at /api/mcp. Both are rate-limited and serve public data only.",
+  },
+] as const;
+
+/** What a developer finds inside, shown beside the sign-in card. Only features that exist today. */
+function StudioIntro() {
+  return (
+    <section className="space-y-6" aria-labelledby="studio-intro-title">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
+          <span className="text-base font-bold text-primary-foreground">SD</span>
+        </div>
+        <div>
+          <h1 id="studio-intro-title" className="text-2xl font-bold leading-tight">SmartDrugDiscovery Studio</h1>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">faster · cheaper · personalized</p>
+        </div>
+      </div>
+      <p className="text-[15px] leading-relaxed text-muted-foreground">
+        The lab&apos;s drug-discovery workspace for SPARC Center developers and collaborators. Studio is open to
+        members only: sign in with your SDD account to use it.
+      </p>
+      <div>
+        <h2 className="text-sm font-semibold">What&apos;s inside</h2>
+        <ul className="mt-3 space-y-3">
+          {INSIDE.map(({ icon: Icon, title, text }) => (
+            <li key={title} className="flex gap-3">
+              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <div>
+                <p className="text-sm font-medium">{title}</p>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-lg border bg-card p-4">
+        <h2 className="text-sm font-semibold">Getting access</h2>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed text-muted-foreground">
+          <li>Ask the platform owner for an invitation. It comes with a personal code tied to your email address.</li>
+          <li>
+            Choose <span className="font-medium text-foreground">Sign in with your SDD account</span>. If you don&apos;t
+            have one yet, choose <span className="font-medium text-foreground">Register</span> on the SDD sign-in page
+            and use the email address your invitation was sent to.
+          </li>
+          <li>Back here, enter your code once. Developer guides and API docs are under Docs once you&apos;re in.</li>
+        </ol>
+      </div>
+    </section>
   );
 }
