@@ -9,7 +9,7 @@ import { AccountStatusGate } from "@/components/pending-approval-screen";
 import { cn } from "@/lib/utils";
 import {
   Dna, FlaskConical, Stethoscope, ShieldCheck, Database,
-  Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert, BookOpen,
+  Sparkles, Package, Puzzle, FolderOpen, BrainCircuit, Headset, Lock, ShieldAlert, BookOpen, Cpu,
 } from "lucide-react";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { DataClassBadge, PageClassStrip } from "@/components/data-provenance";
@@ -330,6 +330,8 @@ function Sidebar({
         {/* Utilities */}
         <div className="mt-3 pt-2 border-t space-y-0.5">
           {access("design")  !== "hidden" && <NavItem href="/design"   label="Design with AI"     icon={Sparkles}     onNavigate={onClose} locked={access("design")  === "partial"} />}
+          {/* Compute jobs on SPARC clusters: Developers and up request runs; see docs/sparc-jobs-plan.md. */}
+          {hasRole(user?.role, "Developer") && <NavItem href="/jobs" label="Compute jobs" icon={Cpu} onNavigate={onClose} />}
           {access("models")  !== "hidden" && <NavItem href="/models"   label="Foundation Models"  icon={BrainCircuit} onNavigate={onClose} locked={access("models")  === "partial"} />}
           {access("services")!== "hidden" && <NavItem href="/services" label="Add-on Service"     icon={Package}      onNavigate={onClose} locked={access("services")=== "partial"} />}
           {access("plugins") !== "hidden" && <NavItem href="/plugins"  label="Tool Plugins"       icon={Puzzle}       onNavigate={onClose} locked={access("plugins") === "partial"} />}

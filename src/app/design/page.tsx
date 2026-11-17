@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -279,6 +280,33 @@ export default function DesignPage() {
         </p>
       </div>
       <DemoDataNotice variant="planned" />
+
+      {/* The one part of this page that is real: requesting a run on SPARC Center GPU clusters. */}
+      <div className="border-b bg-card px-6 py-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="min-w-[16rem] flex-1">
+            <h2 className="text-sm font-semibold">Run it on SPARC compute</h2>
+            <p className="text-xs text-muted-foreground">
+              Docking and generative-design runs go to the SPARC Center&apos;s GPU clusters through a queue Studio
+              keeps. Requests need an Owner&apos;s or Admin&apos;s approval; the developer sandbox takes dry runs.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/jobs/new?kind=generative-design"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+            >
+              Request a design run
+            </Link>
+            <Link href="/jobs/new?kind=docking" className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent">
+              Request a docking run
+            </Link>
+            <Link href="/jobs" className="text-sm text-muted-foreground hover:underline">
+              Compute jobs
+            </Link>
+          </div>
+        </div>
+      </div>
 
       {/* Main content — Tabs */}
       <Tabs defaultValue="dmbt" className="flex-1 flex flex-col">
