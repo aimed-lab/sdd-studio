@@ -3,7 +3,7 @@
 // Studio matches the signed-in SDD account to its own account by email, so without this the
 // person is treated as new and asked for an invitation code, and nobody can be invited as Owner.
 
-import { db } from "@vercel/postgres";
+import { db, sql } from "@vercel/postgres";
 import "@/lib/db"; // sets POSTGRES_URL from whichever variable Vercel provided
 import { ensureProjectsSchema } from "@/lib/projects-db";
 
@@ -65,6 +65,70 @@ export async function changeAccountEmail(fromRaw: string, toRaw: string, dryRun:
       pushTokens: (await client.sql`UPDATE project_tokens SET created_by = ${to} WHERE created_by = ${from}`).rowCount ?? 0,
     };
     result = { ok: true, dryRun, role: current.rows[0].role, status: current.rows[0].account_status, changes };
+    if (dryRun) throw new DryRun();
+    await client.sql`COMMIT`;
+    return result;
+  } catch (err) {
+    await client.sql`ROLLBACK`.catch(() => undefined);
+    if (err instanceof DryRun && result) return result;
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// ── Account list and first Owner (admin key) ────────────────────────────────
+
+export interface AccountRow { email: string; name: string; role: string; account_status: string; registered_at: string }
+
+/** All accounts, highest role first (at most 1,000), optionally one role only. */
+export async function listAccounts(role: string | null): Promise<AccountRow[]> {
+  const { rows } = role
+    ? await sql<AccountRow>`
+        SELECT email, name, role, account_status, registered_at FROM users WHERE role = ${role} ORDER BY email LIMIT 1000`
+    : await sql<AccountRow>`
+        SELECT email, name, role, account_status, registered_at FROM users
+        ORDER BY CASE role WHEN 'Owner' THEN 0 WHEN 'Admin' THEN 1 WHEN 'TechSupport' THEN 2 WHEN 'Developer' THEN 3 ELSE 4 END, email
+        LIMIT 1000`;
+  return rows;
+}
+
+export type SetOwnerResult =
+  | { ok: true; dryRun: boolean; action: "created" | "promoted"; previous: { role: string; status: string } | null }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Makes `email` the Owner, but only while Studio has no active Owner (first setup, or the Owner
+ * existed only in a browser before single sign-on). It never replaces an existing Owner; that is
+ * ownership transfer, done by the Owner in Studio.
+ */
+export async function setFirstOwner(emailRaw: string, dryRun: boolean): Promise<SetOwnerResult> {
+  const email = emailRaw.trim().toLowerCase();
+  if (!ACCOUNT_EMAIL_RE.test(email)) return { ok: false, status: 400, error: "email must be an email address." };
+  const client = await db.connect();
+  let result: SetOwnerResult | null = null;
+  try {
+    await client.sql`BEGIN`;
+    await client.sql`SELECT pg_advisory_xact_lock(hashtext('account-email'))`;
+    const owners = await client.sql<{ email: string }>`
+      SELECT email FROM users WHERE role = 'Owner' AND account_status = 'active'`;
+    if (owners.rows.length) {
+      result = { ok: false, status: 409, error: `Studio already has an Owner (${owners.rows.map((r) => r.email).join(", ")}). Use ownership transfer in Studio.` };
+      throw new DryRun();
+    }
+    const existing = await client.sql<{ role: string; account_status: string }>`
+      SELECT role, account_status FROM users WHERE email = ${email} FOR UPDATE`;
+    const previous = existing.rows.length ? { role: existing.rows[0].role, status: existing.rows[0].account_status } : null;
+    if (previous) {
+      await client.sql`
+        UPDATE users SET role = 'Owner', account_status = 'active', approved_by = 'admin-key', approved_at = NOW(), updated_at = NOW()
+        WHERE email = ${email}`;
+    } else {
+      await client.sql`
+        INSERT INTO users (email, name, role, account_status, approved_by, approved_at)
+        VALUES (${email}, ${email.split("@")[0]}, 'Owner', 'active', 'admin-key', NOW())`;
+    }
+    result = { ok: true, dryRun, action: previous ? "promoted" : "created", previous };
     if (dryRun) throw new DryRun();
     await client.sql`COMMIT`;
     return result;
