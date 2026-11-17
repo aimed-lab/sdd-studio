@@ -3,8 +3,9 @@ import { AGENT_MODEL, costUsd, type TokenCounts } from "./pricing";
 import type { KeySource } from "./store";
 
 // One Claude call per agent run: adaptive thinking at medium effort, JSON output constrained to a schema,
-// and Anthropic's server-side refusal fallback (a request declined by a safety classifier, for example
-// on biology topics, is re-run on the fallback model Anthropic picks for that category).
+// and Anthropic's server-side refusal fallback: a request declined by a safety classifier is re-run on the
+// fallback model Anthropic picks for that category. For Claude Sonnet 5.5 that covers "cyber" and
+// "frontier_llm" declines (re-run on Claude Sonnet 5); "bio" and other declines come back as refusals.
 
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 

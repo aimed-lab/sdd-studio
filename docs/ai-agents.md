@@ -62,14 +62,16 @@ Each Claude call is costed when it is made from the tokens Anthropic reports, at
 
 | Model | Input | Output | Cache read |
 |---|---|---|---|
-| Claude Opus 5.5 (`claude-opus-5-5`, used by both agents) | $4 per million tokens | $20 per million tokens | $0.20 per million tokens |
-| Claude Opus 5 and Claude Opus 4.8 (refusal fallback) | $5 per million tokens | $25 per million tokens | $0.50 per million tokens |
+| Claude Sonnet 5.5 (`claude-sonnet-5-5`, used by both agents) | $2 per million tokens | $10 per million tokens | $0.10 per million tokens |
+| Claude Sonnet 5 (refusal fallback) | $2 per million tokens | $10 per million tokens | $0.20 per million tokens |
 
 Prices were checked on 2026-11-17 and live in `src/lib/agents/pricing.ts`. A call to a model not in that table is costed at the highest listed price, so usage is never under-counted.
 
 Claude's thinking counts as output tokens. Each run's actual cost is in its run record.
 
-**Refusals.** Claude Opus 5.5 has safety classifiers that can decline a request, for example on some biology topics. The agents ask Anthropic to re-run a declined request on the fallback model Anthropic picks for that category; the run record then names the model that answered. If the request is still declined, the run is saved as *Declined by Claude*, its cost is recorded, and the retrieved records or computed figures are still shown.
+**Model.** Both agents use Claude Sonnet 5.5, chosen by the Owner on 2026-11-17 for cost (half the price of Claude Opus 5.5 per token). The model is set in one place, `AGENT_MODEL` in `src/lib/agents/pricing.ts`.
+
+**Refusals.** Claude Sonnet 5.5 has safety classifiers that can decline a request. The agents ask Anthropic to re-run a declined request on the fallback model Anthropic picks for that category; for Claude Sonnet 5.5 that covers the cyber and frontier-AI categories (re-run on Claude Sonnet 5), not biology. The run record names the model that answered. If the request is still declined, the run is saved as *Declined by Claude*, its cost is recorded, and the retrieved records or computed figures are still shown.
 
 ## Data sources and limits
 
