@@ -34,7 +34,8 @@ interface Integration {
   id: string;
   name: string;
   kind: Kind;
-  thirdParty?: { by: string };
+  /** Provider; `listed` = as named in the bio-research plugin README, which is our only source for it. */
+  thirdParty?: { by: string; listed?: boolean };
   summary: string;
   access: Access;
   accessText: string;
@@ -218,7 +219,7 @@ const THIRD_PARTY_ITEMS: Integration[] = [
     id: "chembl-mcp",
     name: "ChEMBL MCP server",
     kind: "MCP server",
-    thirdParty: { by: "listed as deepsense.ai in Anthropic's bio-research plugin" },
+    thirdParty: { by: "deepsense.ai", listed: true },
     summary:
       "Hosted MCP server for ChEMBL, including bioactivity by target and ADMET-related properties that Studio's tools do not return. Studio does not use it; Studio calls the ChEMBL REST API directly.",
     access: "open",
@@ -259,7 +260,7 @@ const THIRD_PARTY_ITEMS: Integration[] = [
     id: "pubmed-mcp",
     name: "PubMed MCP server",
     kind: "MCP server",
-    thirdParty: { by: "listed as the U.S. National Library of Medicine in Anthropic's bio-research plugin" },
+    thirdParty: { by: "U.S. National Library of Medicine", listed: true },
     summary: "Hosted MCP server for PubMed: article search, metadata and related articles. Studio does not use it.",
     access: "open",
     accessText: "Open: no sign-in (checked from Claude Code)",
@@ -385,7 +386,12 @@ function IntegrationCard({ item }: { item: Integration }) {
           )}
         </div>
         <CardTitle className="pt-1 text-base leading-snug">{item.name}</CardTitle>
-        {item.thirdParty && <p className="text-xs text-muted-foreground">By {item.thirdParty.by}. Not run by this site.</p>}
+        {item.thirdParty && (
+          <p className="text-xs text-muted-foreground">
+            Provider: {item.thirdParty.by}
+            {item.thirdParty.listed && " (as listed in the bio-research plugin README)"}. Not run by this site.
+          </p>
+        )}
         <CardDescription className="text-xs leading-relaxed">{item.summary}</CardDescription>
       </CardHeader>
 
