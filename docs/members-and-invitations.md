@@ -1,6 +1,6 @@
 # Members and invitations
 
-SDD Studio is open to anyone for its public tools (compound search, the trial landscape, target pages and the curated EGFR set). Everything else needs an account, and accounts are by invitation only.
+SDD Studio is for members only: every page, including these guides, needs sign-in. The read-only data API and the MCP endpoint stay open for scripts and AI agents; they are rate-limited and serve public data only. Accounts are by invitation only.
 
 ## Inviting people (Owner and Admins)
 1. Go to **Settings → Member Management → Invite people by email**.

@@ -14,8 +14,6 @@ import {
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { DataClassBadge, PageClassStrip } from "@/components/data-provenance";
 import { pageClassFor } from "@/data/page-classes";
-import { isPublicPath } from "@/data/public-routes";
-import { PublicShell, PublicToolsBanner } from "@/components/public-shell";
 import { RoleAvatar } from "@/components/role-avatar";
 import { PLATFORM_CONFIG } from "@/lib/platform-config";
 import { type AppRole, hasRole } from "@/lib/roles";
@@ -40,15 +38,8 @@ function AuthSwitch({ children }: { children: React.ReactNode }) {
     return <div className="flex h-screen items-center justify-center" />;
   }
 
-  if (!isAuthenticated) {
-    if (isPublicPath(pathname)) return <PublicShell>{children}</PublicShell>;
-    return (
-      <>
-        <PublicToolsBanner />
-        <LoginPage />
-      </>
-    );
-  }
+  // Every page needs sign-in (src/middleware.ts enforces it on the server when single sign-on is on).
+  if (!isAuthenticated) return <LoginPage />;
 
   return (
     <AccountStatusGate>

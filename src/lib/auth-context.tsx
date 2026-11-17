@@ -280,7 +280,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, inviteCode: string): Promise<string | null> => {
     if (ssoMode) {
-      const next = window.location.pathname === "/login" ? "/" : window.location.pathname;
+      // On /login, return to the page the sign-in gate sent the person from (?next=); the server re-checks it.
+      const params = new URLSearchParams(window.location.search);
+      const asked = params.get("next");
+      const next = window.location.pathname === "/login"
+        ? (asked && asked.startsWith("/") && !asked.startsWith("//") ? asked : "/")
+        : window.location.pathname + window.location.search;
       window.location.href = `/auth/login?next=${encodeURIComponent(next)}`;
       return null;
     }
