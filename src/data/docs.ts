@@ -37,6 +37,13 @@ export const DOC_PAGES: DocPage[] = [
     file: "skills/sdd-studio-push/SKILL.md",
   },
   {
+    slug: "sparc-jobs",
+    title: "Compute jobs on SPARC clusters",
+    description: "Requesting a docking or generative-design run, approvals and limits, and running the SPARC runner.",
+    section: "Developers",
+    file: "docs/sparc-jobs.md",
+  },
+  {
     slug: "projects-api",
     title: "Projects API and sdd tool",
     description: "Endpoints, push format, limits and tables behind the developer sandbox.",
@@ -52,6 +59,13 @@ export const DOC_PAGES: DocPage[] = [
     // Only the public part; the rest of that file covers internal endpoints.
     from: "## Read-only JSON API",
     until: "## POST /api/assistant",
+  },
+  {
+    slug: "sparc-jobs-plan",
+    title: "SPARC compute plan",
+    description: "How docking and design jobs reach the clusters: the queue, the runner, quotas, data rules and open questions.",
+    section: "Reference",
+    file: "docs/sparc-jobs-plan.md",
   },
   {
     slug: "projects-plan",

@@ -66,6 +66,11 @@ export const pageClasses: Record<string, PageClass> = {
   "/experiments": { kind: "demo" },
   "/analysis": { kind: "demo" },
   "/design": { kind: "planned" },
+  // Compute jobs: the queue and the record of each run. The results themselves are project data,
+  // shown with their iteration under /projects; a dry run's results are labelled test data.
+  "/jobs": { kind: "app" },
+  "/jobs/new": { kind: "app" },
+  "/jobs/[id]": { kind: "app" },
   "/models": { kind: "planned" },
   "/services": { kind: "planned" },
   "/plugins": { kind: "planned" },
