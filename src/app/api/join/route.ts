@@ -8,6 +8,13 @@ import {
   PENDING_COOKIE, SESSION_COOKIE, SESSION_TTL_SECONDS, clearCookie, setSealedCookie, unseal,
 } from "@/lib/sso/signed-cookie";
 
+// Account lookups must never come from Next.js's data cache: a cached "no such account" kept the
+// Owner out after the account was created. The database client can query over fetch.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
+
 /**
  * /api/join — Single server-side endpoint that handles the ENTIRE signup flow:
  *

@@ -6,6 +6,10 @@ import {
 import { authorize, rankOf } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
+// Account lookups must never come from Next.js's data cache: a cached "no such account" kept the
+// Owner out after the account was created. The database client can query over fetch.
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 /**
  * /api/users — Persistent user registry backed by Vercel Postgres.

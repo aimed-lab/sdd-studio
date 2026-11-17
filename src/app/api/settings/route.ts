@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/db";
 import { authorize } from "@/lib/session";
 
+// Account lookups must never come from Next.js's data cache: a cached "no such account" kept the
+// Owner out after the account was created. The database client can query over fetch.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
+
 /**
  * /api/settings — Platform-wide settings backed by Vercel Postgres.
  *

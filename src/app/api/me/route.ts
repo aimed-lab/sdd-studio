@@ -4,6 +4,10 @@ import { ssoEnabled } from "@/lib/sso/config";
 import { PENDING_COOKIE, unseal } from "@/lib/sso/signed-cookie";
 
 export const dynamic = "force-dynamic";
+// Account lookups must never come from Next.js's data cache: a cached "no such account" kept the
+// Owner out after the account was created. The database client can query over fetch.
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   if (!ssoEnabled()) return NextResponse.json({ ssoEnabled: false, authenticated: false });

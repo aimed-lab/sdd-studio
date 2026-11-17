@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 
+// Account lookups must never come from Next.js's data cache: a cached "no such account" kept the
+// Owner out after the account was created. The database client can query over fetch.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
+
 interface Change {
   file: string;
   description: string;
