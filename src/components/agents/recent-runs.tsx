@@ -30,15 +30,17 @@ export function RecentRuns({ runs, error }: { runs: RunSummary[] | null; error?:
         <tbody>
           {runs.map((r) => (
             <tr key={r.id} className="border-t hover:bg-muted/30">
-              <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</td>
-              <td className="whitespace-nowrap px-3 py-2">{AGENT_NAMES[r.agent] ?? r.agent}</td>
-              <td className="max-w-[28rem] px-3 py-2">
+              <td className="px-3 py-2 text-xs text-muted-foreground">
+                {new Date(r.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+              </td>
+              <td className="px-3 py-2 text-xs">{AGENT_NAMES[r.agent] ?? r.agent}</td>
+              <td className="min-w-[10rem] px-3 py-2">
                 <Link href={`/services/runs/${r.id}`} className="line-clamp-2 text-primary underline-offset-2 hover:underline">
                   {runTitle(r) || "(no input)"}
                 </Link>
               </td>
-              <td className="whitespace-nowrap px-3 py-2">
-                <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", statusStyle[r.status])}>{STATUS_LABELS[r.status] ?? r.status}</span>
+              <td className="px-3 py-2">
+                <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium", statusStyle[r.status])}>{STATUS_LABELS[r.status] ?? r.status}</span>
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {usd(r.cost_usd)}

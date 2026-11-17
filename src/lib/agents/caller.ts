@@ -41,7 +41,7 @@ export async function resolveCaller(req: NextRequest): Promise<{ caller: Caller 
     console.error("[agents] member lookup failed:", err);
     return { response: fail(503, "Account service unavailable. Please try again.") };
   }
-  if (!user || user.account_status !== "active") return { response: fail(403, "Only active Studio members can run agents.") };
+  if (!user || user.account_status !== "active") return { response: fail(403, "Only active Studio members can use the agents.") };
   return { caller: { email: claimed, role: user.role, verified: false } };
 }
 
