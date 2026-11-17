@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { LIMITS, limitsFor, verifyToken, type ManifestFile, type ProjectRow, type PushTable } from "@/lib/projects-db";
+import { getSessionUser } from "@/lib/session";
+import { ssoEnabled } from "@/lib/sso/config";
 
 export const ARTIFACT_KINDS = [
   "decision-sheet", "data", "figure", "structure", "manuscript", "report", "app", "harness", "log",
@@ -28,21 +30,39 @@ export function bearer(header: string | null): string | null {
 /** The project key a reader sends: `X-SDD-Project-Key: sdd_pt_…` (or a Bearer token). */
 export const projectKey = (req: Request) => req.headers.get("x-sdd-project-key") ?? bearer(req.headers.get("authorization"));
 
+/** Platform roles that may read every campaign when signed in with single sign-on. */
+export const CAMPAIGN_READER_ROLES = ["Owner", "Admin"] as const;
+
 /**
- * Reads: the sandbox is open; a campaign needs a read or push key for that project, checked on the
- * server on every request (single sign-on is not on yet, so a signed-in email is not enough).
+ * True for a signed-in, active Owner or Admin. Only with single sign-on on: the session is a signed
+ * cookie checked on the server, and the role and status come from the database on every request.
  */
-export async function readGate(project: ProjectRow | null, req: Request): Promise<NextResponse | null> {
+export async function isCampaignReader(req: NextRequest): Promise<boolean> {
+  if (!ssoEnabled()) return false;
+  const user = await getSessionUser(req);
+  return !!user && user.account_status === "active" && (CAMPAIGN_READER_ROLES as readonly string[]).includes(user.role);
+}
+
+/**
+ * Reads: the sandbox is open. A campaign needs a read or push key for that project, or a signed-in
+ * Owner or Admin (single sign-on). Both are checked on the server on every request. Writes (pushes)
+ * always need a push key.
+ */
+export async function readGate(project: ProjectRow | null, req: NextRequest): Promise<NextResponse | null> {
   return (await readAccess(project, req)).denied;
 }
 
-/** Like readGate, and also says which kind of key opened a campaign ("read" or "push"). */
-export async function readAccess(project: ProjectRow | null, req: Request): Promise<{ denied: NextResponse | null; scope: string | null }> {
+/**
+ * Like readGate, and also says what opened a campaign: "read" or "push" for a key, "admin" for a
+ * signed-in Owner or Admin.
+ */
+export async function readAccess(project: ProjectRow | null, req: NextRequest): Promise<{ denied: NextResponse | null; scope: string | null }> {
   if (!project) return { denied: fail(404, "Project not found."), scope: null };
   if (project.kind === "sandbox") return { denied: null, scope: null };
   const key = projectKey(req);
   const tok = key ? await verifyToken(project.slug, key, "read") : null;
   if (tok) return { denied: null, scope: tok.scope ?? "push" };
+  if (await isCampaignReader(req)) return { denied: null, scope: "admin" };
   return { denied: json({ ok: false, needsKey: true, error: "This project needs a project key. Ask the platform owner for one." }, 401), scope: null };
 }
 

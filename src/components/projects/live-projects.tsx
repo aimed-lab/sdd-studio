@@ -21,6 +21,8 @@ interface LiveProject {
   iterations: LiveIteration[];
   artifacts: LiveArtifact[];
   tables: LiveTable[];
+  /** What opened a campaign: "read" or "push" for a key, "admin" for a signed-in Owner or Admin. */
+  access?: string | null;
 }
 
 
@@ -175,7 +177,7 @@ export function LiveProjectWorkspace({ slug, view, table }: { slug: string; view
           {view === "tables" && !data.tables.length && <p className="vx-faint">No tables pushed yet.</p>}
           {view === "iterations" && <LiveIterations data={data} />}
           {view === "artifacts" && <LiveArtifacts data={data} />}
-          {view === "tokens" && (p.kind === "sandbox" ? <PushTokens slug={slug} /> : <CampaignAccess slug={slug} />)}
+          {view === "tokens" && (p.kind === "sandbox" ? <PushTokens slug={slug} /> : <CampaignAccess slug={slug} signedIn={data.access === "admin"} />)}
         </div>
       </div>
     </div>
@@ -416,6 +418,8 @@ function KeyGate({ slug, hadKey, onSaved }: { slug: string; hadKey: boolean; onS
     const d = r ? await r.json().catch(() => ({})) : {};
     setChecking(false);
     if (!d.ok) { setError(d.error || "That key was not accepted."); return; }
+    // Opened by the signed-in session, not by this key: keep nothing and just show the project.
+    if (d.access === "admin") { onSaved(); return; }
     // A push key can write; it belongs in a script's environment, not in a browser.
     if (d.access !== "read") { setError("That is a push key. In the browser, use a read key; keep push keys for scripts."); return; }
     setProjectKey(slug, key);
@@ -427,8 +431,9 @@ function KeyGate({ slug, hadKey, onSaved }: { slug: string; hadKey: boolean; onS
       <h1 className="vx-h1">This project needs a key</h1>
       <p className="vx-lede">
         {hadKey ? "The key saved in this browser is no longer accepted (revoked or expired). " : ""}
-        Campaigns hold unpublished data, so Studio asks for a project key from the platform owner. It is checked on the
-        server for every request and is kept only in this browser.
+        Campaigns hold unpublished data, so Studio asks for a project key from the platform owner. The Owner and Admins
+        open campaigns without a key when signed in. A key is checked on the server for every request and is kept only in
+        this browser.
       </p>
       <label className="block" style={{ fontSize: 12.5 }}>
         <span className="vx-faint">Project key</span>
@@ -452,20 +457,24 @@ function KeyGate({ slug, hadKey, onSaved }: { slug: string; hadKey: boolean; onS
   );
 }
 
-function CampaignAccess({ slug }: { slug: string }) {
+function CampaignAccess({ slug, signedIn }: { slug: string; signedIn: boolean }) {
   return (
     <>
       <h1 className="vx-h1">Keys and pushing</h1>
       <p className="vx-lede">
-        This campaign is opened with a project key issued by the platform owner. A <strong>read</strong> key opens it in
+        {signedIn
+          ? "You opened this campaign as a signed-in Owner or Admin, so this browser needs no key. Everyone else opens it with a project key issued by the platform owner. "
+          : "This campaign is opened with a project key issued by the platform owner. "}
+        A <strong>read</strong> key opens it in
         Studio; a <strong>push</strong> key also lets a script or agent write iterations with{" "}
         <span className="vx-mono">sdd.mjs push --token-file …</span>. Keys are checked on the server, expire, and can be
         revoked at any time.
       </p>
       <Panel title="On this browser">
         <p style={{ fontSize: 12.5 }}>
-          The key for this project is saved in this browser only. Use <strong>Forget key</strong> at the top on shared
-          computers.
+          {signedIn
+            ? "Access comes from your sign-in, which lasts 8 hours. Sign out on shared computers."
+            : <>The key for this project is saved in this browser only. Use <strong>Forget key</strong> at the top on shared computers.</>}
         </p>
       </Panel>
       <p className="vx-faint" style={{ fontSize: 11.5, marginTop: 10 }}>

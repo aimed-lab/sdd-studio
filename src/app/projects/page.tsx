@@ -21,7 +21,8 @@ export default function ProjectsPage() {
           <p className="vx-lede">
             Each project keeps its files in its Box folder. Developers and their agents push each iteration here; the team
             reviews decision sheets, rounds and property reports, and releases chosen artifacts to smartdrugdiscovery.org.
-            Real campaigns move in once single sign-on is on; until then developers try the workflow in the sandbox.
+            Campaigns open with a project key, or for the Owner and Admins when signed in; developers try the workflow in
+            the sandbox.
           </p>
         </div>
 

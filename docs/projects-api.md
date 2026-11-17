@@ -4,12 +4,13 @@ Stages 2–3 of [redesign-plan.md](redesign-plan.md), delivered first for a **de
 
 ## What is open today
 - **Sandbox only.** The `sandbox` project accepts pushes and is readable by any signed-in member. It accepts files marked `test` only, keeps the latest 20 iterations, and holds at most 100,000 table rows in total.
-- **Campaigns** (kind `campaign`) hold the lab's own unpublished data. They are opened only with a **project key**: Studio checks it on the server for every request, so knowing a member's email address is not enough. The platform owner creates campaigns and issues keys with the admin key (below).
+- **Campaigns** (kind `campaign`) hold the lab's own unpublished data. They are opened with a **project key**, or by the **Owner or an Admin signed in with single sign-on**. Studio checks either on the server for every request, so knowing a member's email address is not enough. Writing (pushing) always needs a push key. The platform owner creates campaigns and issues keys with the admin key (below).
 - **No file bytes.** Studio stores each file's path, SHA-256, size, kind and sensitivity, plus summary tables (up to 10 per push in the sandbox, 30 in a campaign). The files themselves stay in the project's Box folder; Box upload sessions arrive in Stage 4.
 
 ## Campaign keys
 - **Admin key:** the platform owner sets `ADMIN_API_TOKEN` (a long random value) in the Vercel project. Admin requests send it as `X-Admin-Token`; without the variable the admin endpoints answer 404.
 - **Read key:** opens the campaign in Studio (pasted once per browser, kept in that browser's storage) and its read API.
+- **Signed in as Owner or Admin:** campaigns open in Studio without a key. The session is a signed cookie, and the role and account status are read from the database on every request. Scripts and agents still use keys.
 - **Push key:** writes iterations (and can read). Use it from a script, a cluster job or an agent with `--token-file`.
 - **Lifetime:** keys expire after 1–365 days (default 90), can be revoked at any time, and up to 50 can be active per campaign. Only their SHA-256 hash is stored. Creating and revoking keys is written to `project_audit`.
 
@@ -41,11 +42,11 @@ All endpoints live under `/api/v1/projects`. They are JSON, `Cache-Control: no-s
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/api/v1/projects` | none | List projects (title, kind, iteration count) |
-| GET | `/api/v1/projects/{slug}` | none (sandbox); read key (campaign) | Iterations, file index, tables |
-| GET | `/api/v1/projects/{slug}/iterations` | none (sandbox); read key (campaign) | Iterations, newest first |
+| GET | `/api/v1/projects/{slug}` | none (sandbox); read key or signed-in Owner/Admin (campaign) | Iterations, file index, tables |
+| GET | `/api/v1/projects/{slug}/iterations` | none (sandbox); read key or signed-in Owner/Admin (campaign) | Iterations, newest first |
 | POST | `/api/v1/projects/{slug}/iterations` | push key | Push one iteration |
 | POST | `/api/v1/projects/{slug}/iterations/{n}/rows` | the push key of iteration n | Append one chunk of a large table |
-| GET | `/api/v1/projects/{slug}/records?table=&iteration=&limit=&offset=&q=&sort=&dir=` | none (sandbox); read key (campaign) | Rows of one table: latest iteration by default, up to 1,000 per page, text search `q`, sort by a column `sort` with `dir=asc|desc` |
+| GET | `/api/v1/projects/{slug}/records?table=&iteration=&limit=&offset=&q=&sort=&dir=` | none (sandbox); read key or signed-in Owner/Admin (campaign) | Rows of one table: latest iteration by default, up to 1,000 per page, text search `q`, sort by a column `sort` with `dir=asc|desc` |
 | GET / POST / DELETE | `/api/v1/projects/{slug}/tokens` | active member email | Sandbox only: list, create or revoke your push tokens |
 | POST | `/api/v1/admin/projects` | admin key | Create a campaign |
 | GET / POST / DELETE | `/api/v1/admin/projects/{slug}/keys` | admin key | List, issue or revoke a campaign's keys |

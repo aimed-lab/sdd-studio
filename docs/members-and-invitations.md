@@ -46,6 +46,6 @@ Any active member can create push tokens for the developer sandbox.
 Studio signs people in through the lab's single sign-on at auth.smartdrugdiscovery.org, the same SDD account used by the other lab apps.
 - Studio checks the signed-in account on its server for every members-only request, and keeps each person's role in its own database.
 - A session lasts 8 hours. **Sign out** also ends the SDD sign-in.
-- Campaign data still needs that campaign's project key.
+- Campaign data opens for the signed-in Owner and Admins. Everyone else needs that campaign's project key.
 
 The shared code `SPARC2026` was retired on 2026-11-15. Ask the platform owner for a personal invitation instead.
