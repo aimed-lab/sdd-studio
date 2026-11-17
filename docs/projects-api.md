@@ -20,7 +20,10 @@ node sdd.mjs admin key --project phgdh-npa --scope read --label "Jake, browser"
 node sdd.mjs admin key --project phgdh-npa --scope push --label "import"
 node sdd.mjs admin keys --project phgdh-npa
 node sdd.mjs admin revoke --project phgdh-npa --id <key id>
+node sdd.mjs admin move-account --from old@example.org --to new@example.org --dry-run
 ```
+
+`admin move-account` is for someone whose SDD sign-in uses a different email from their Studio account: run it with `--dry-run` first, then without.
 
 `admin key` writes the new key to `~/.sdd/keys/<project>.<scope>.<id>.key` (readable only by you) and prints only its file name and prefix. Share a read key privately (for example in a password manager), never in email or chat.
 
@@ -44,6 +47,7 @@ All endpoints live under `/api/v1/projects`. They are JSON, `Cache-Control: no-s
 | GET / POST / DELETE | `/api/v1/projects/{slug}/tokens` | active member email | Sandbox only: list, create or revoke your push tokens |
 | POST | `/api/v1/admin/projects` | admin key | Create a campaign |
 | GET / POST / DELETE | `/api/v1/admin/projects/{slug}/keys` | admin key | List, issue or revoke a campaign's keys |
+| POST | `/api/v1/admin/accounts/email` | admin key | Move a Studio account to a new email (keeps role and history); `dryRun` reports without writing |
 
 A read key is sent as `X-SDD-Project-Key: sdd_pt_…` (or `Authorization: Bearer sdd_pt_…`).
 

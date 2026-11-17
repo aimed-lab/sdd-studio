@@ -24,6 +24,8 @@ You can invite people to your own role or a lower one. Nobody can be invited as 
 
 A code is refused if your SDD account's email address is not the one the invitation was sent to.
 
+If you already have a Studio account but your SDD account uses a different email address, Studio will ask you for a code. Don't create a new account: ask the platform owner to move your Studio account to your SDD email.
+
 ## Removing access
 - **An unused invitation:** choose **Revoke** in the invitation list. The email address can no longer sign in.
 - **Someone who has joined:** use **Suspend** or **Revoke access** in the member list. An admin can reactivate the account later from the same list.

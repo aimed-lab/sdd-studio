@@ -9,6 +9,7 @@
 //   sdd admin key --project phgdh-npa --scope read|push [--label "…"] [--days 90] [--studio URL]
 //   sdd admin keys --project phgdh-npa [--studio URL]
 //   sdd admin revoke --project phgdh-npa --id <key id> [--studio URL]
+//   sdd admin move-account --from old@example.org --to new@example.org [--dry-run] [--studio URL]
 //
 // Reads sdd.project.json in the current folder (or a parent). The push key comes from the
 // SDD_PROJECT_TOKEN environment variable, or from a file given with --token-file; it is never printed.
@@ -364,12 +365,20 @@ async function admin(args) {
     const d = await call("GET", `/projects/${project}/keys`);
     for (const k of d.keys) console.log(`  ${k.id}  ${k.prefix}…  ${k.scope.padEnd(4)}  ${(k.label ?? "").padEnd(24)}  ${k.revokedAt ? "revoked " + k.revokedAt.slice(0, 10) : "expires " + k.expiresAt.slice(0, 10)}  last used ${k.lastUsedAt ? k.lastUsedAt.slice(0, 10) : "never"}`);
     if (!d.keys.length) console.log("  no keys");
+  } else if (sub === "move-account") {
+    // For someone whose SDD sign-in uses a different email from their Studio account.
+    if (typeof args.from !== "string" || typeof args.to !== "string") die("usage: sdd admin move-account --from <current email> --to <SDD sign-in email> [--dry-run]");
+    const dryRun = args["dry-run"] === true;
+    const d = await call("POST", "/accounts/email", { from: args.from, to: args.to, dryRun });
+    const c = d.changes;
+    console.log(`${dryRun ? "Dry run, nothing written: would move" : "Moved"} the ${d.role} account (${d.status}) from ${d.from} to ${d.to}.`);
+    console.log(`  also updated: ${c.invitedBy} invited-by, ${c.approvedBy} approved-by, ${c.invitationsCreated} invitations created, ${c.invitationsAccepted} accepted, ${c.pushTokens} sandbox tokens.`);
   } else if (sub === "revoke") {
     if (!project || typeof args.id !== "string") die("usage: sdd admin revoke --project <slug> --id <key id>");
     await call("DELETE", `/projects/${project}/keys`, { id: args.id });
     console.log(`Revoked key ${args.id}.`);
   } else {
-    die("usage: sdd admin create-project | key | keys | revoke (see the top of sdd.mjs)");
+    die("usage: sdd admin create-project | key | keys | revoke | move-account (see the top of sdd.mjs)");
   }
 }
 
