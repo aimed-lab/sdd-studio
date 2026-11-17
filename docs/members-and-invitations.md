@@ -15,14 +15,14 @@ Each person gets their own 8-character code that:
 
 Studio can email each person their link. If it can't, or you prefer to send it yourself, **Copy all** gives a list of email, code and link.
 
-Owner, Admin and TechSupport cannot be granted from Studio until single sign-on is enabled. Developer and User can.
+You can invite people to your own role or a lower one. Nobody can be invited as Owner.
 
 ## Joining
 1. Open the invitation link, or go to [studio.smartdrugdiscovery.org/login](https://studio.smartdrugdiscovery.org/login).
-2. Enter the email address the invitation was sent to, and the code.
-3. From then on, sign in with that email address alone.
+2. Choose **Sign in with your SDD account** and sign in at auth.smartdrugdiscovery.org with the email address the invitation was sent to.
+3. The first time, enter your invitation code. After that, sign in with your SDD account alone.
 
-A code entered with a different email address is refused.
+A code is refused if your SDD account's email address is not the one the invitation was sent to.
 
 ## Removing access
 - **An unused invitation:** choose **Revoke** in the invitation list. The email address can no longer sign in.
@@ -40,11 +40,10 @@ A code entered with a different email address is refused.
 
 Any active member can create push tokens for the developer sandbox.
 
-## Before single sign-on
-Until the lab's single sign-on is connected (issue #32), sign-in checks only the email address after the first sign-in:
-- **The code** controls who can create an account.
-- **It does not control** who uses the account afterwards: anyone who knows a member's email address can sign in as them.
-
-This is why real project data stays out of Studio, and only the developer sandbox (test data) accepts pushes, until single sign-on is on.
+## Single sign-on
+Studio signs people in through the lab's single sign-on at auth.smartdrugdiscovery.org, the same SDD account used by the other lab apps.
+- Studio checks the signed-in account on its server for every members-only request, and keeps each person's role in its own database.
+- A session lasts 8 hours. **Sign out** also ends the SDD sign-in.
+- Campaign data still needs that campaign's project key.
 
 The shared code `SPARC2026` was retired on 2026-11-15. Ask the platform owner for a personal invitation instead.

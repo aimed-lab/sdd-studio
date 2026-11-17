@@ -28,7 +28,7 @@ node sdd.mjs admin revoke --project phgdh-npa --id <key id>
 - **Creating:** a signed-in member creates a token under **Projects → Developer sandbox → Push tokens**. It is shown once. Store it in the `SDD_PROJECT_TOKEN` environment variable, never in the project folder or a repository.
 - **Storage:** tokens look like `sdd_pt_…`. Studio stores only their SHA-256 hash.
 - **Limits:** a token expires after 7–180 days in the UI (the API allows 1–365), can be revoked, and each person can hold at most 5 active tokens.
-- **Interim weakness:** until single sign-on, the server cannot verify who is calling. Token management is tied to the email of an active member, and every create and revoke is written to `project_audit`. This is acceptable only because the sandbox holds test data.
+- **Who manages tokens:** with single sign-on on, token management uses the signed-in account and ignores any email in the request. With it off, the server cannot verify who is calling, so it takes the email of an active member; this is acceptable only because the sandbox holds test data. Every create and revoke is written to `project_audit`.
 
 ## Endpoints
 All endpoints live under `/api/v1/projects`. They are JSON, `Cache-Control: no-store`, and rate-limited per IP: GET at 60 per minute, writes at 10 per minute.

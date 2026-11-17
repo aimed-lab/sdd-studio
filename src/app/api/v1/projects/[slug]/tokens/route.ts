@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { fail, json, sandboxOnly, SLUG_RE } from "@/lib/projects-api";
 import { getUserByEmail } from "@/lib/db";
+import { authorize } from "@/lib/session";
 import { LIMITS, LimitError, audit, createToken, getProject, listTokens, revokeToken } from "@/lib/projects-db";
 
 export const dynamic = "force-dynamic";
@@ -9,9 +10,10 @@ export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
 /*
- * Push tokens for the sandbox. Until single sign-on (#32) the server cannot verify who is calling,
- * so tokens are limited to the sandbox (test data only), are tied to an active member's email,
- * capped per person, and every create and revoke is written to the project audit log.
+ * Push tokens for the sandbox. Tokens are limited to the sandbox (test data only), tied to an active
+ * member's email, capped per person, and every create and revoke is written to the project audit log.
+ * With single sign-on on, the member is the signed-in account and any email in the request is ignored;
+ * with it off, the server cannot verify who is calling and takes the email the client sends.
  */
 
 const EMAIL_RE = /^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$/;
@@ -26,6 +28,13 @@ async function readBody(req: NextRequest): Promise<Record<string, unknown> | nul
   }
 }
 
+/** The member making the request: the signed-in account with SSO on, else the email the client sent. */
+async function callerEmail(req: NextRequest, claimed: string): Promise<{ email: string } | { response: NextResponse }> {
+  const auth = await authorize(req);
+  if (!auth.ok) return { response: auth.response };
+  return { email: auth.user ? auth.user.email.trim().toLowerCase() : claimed };
+}
+
 async function activeMember(email: string): Promise<boolean> {
   if (!EMAIL_RE.test(email)) return false;
   const user = await getUserByEmail(email);
@@ -35,7 +44,9 @@ async function activeMember(email: string): Promise<boolean> {
 /** GET ?email= — that member's tokens (never the token itself). */
 export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
   if (!SLUG_RE.test(params.slug)) return fail(404, "Project not found.");
-  const email = (req.nextUrl.searchParams.get("email") ?? "").trim().toLowerCase();
+  const caller = await callerEmail(req, (req.nextUrl.searchParams.get("email") ?? "").trim().toLowerCase());
+  if ("response" in caller) return caller.response;
+  const email = caller.email;
   try {
     const denied = sandboxOnly(await getProject(params.slug));
     if (denied) return denied;
@@ -59,7 +70,9 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
   if (!SLUG_RE.test(params.slug)) return fail(404, "Project not found.");
   const body = await readBody(req);
   if (!body) return fail(400, "Body must be a JSON object.");
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const caller = await callerEmail(req, typeof body.email === "string" ? body.email.trim().toLowerCase() : "");
+  if ("response" in caller) return caller.response;
+  const email = caller.email;
   const label = typeof body.label === "string" && body.label.trim() ? body.label.trim().slice(0, 60) : null;
   const days = body.days == null ? 90 : Number(body.days);
   if (!Number.isInteger(days) || days < 1 || days > LIMITS.maxTokenDays) return fail(400, `days must be 1–${LIMITS.maxTokenDays}.`);
@@ -81,7 +94,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { slug: str
   if (!SLUG_RE.test(params.slug)) return fail(404, "Project not found.");
   const body = await readBody(req);
   if (!body) return fail(400, "Body must be a JSON object.");
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const caller = await callerEmail(req, typeof body.email === "string" ? body.email.trim().toLowerCase() : "");
+  if ("response" in caller) return caller.response;
+  const email = caller.email;
   const id = typeof body.id === "string" ? body.id : "";
   if (!id || id.length > 30) return fail(400, "id is required.");
   try {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/db";
+import { authorize } from "@/lib/session";
 
 /**
  * /api/settings — Platform-wide settings backed by Vercel Postgres.
@@ -16,6 +17,8 @@ function sanitize(str: unknown, maxLen = 200): string {
 const ALLOWED_KEYS = ["maxActiveUsers"];
 
 export async function GET(req: NextRequest) {
+  const auth = await authorize(req);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(req.url);
   const key = sanitize(searchParams.get("key"), 50);
   if (!key || !ALLOWED_KEYS.includes(key)) {
@@ -32,6 +35,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const auth = await authorize(req, "Owner");
+  if (!auth.ok) return auth.response;
   let body: Record<string, unknown>;
   try {
     body = await req.json();

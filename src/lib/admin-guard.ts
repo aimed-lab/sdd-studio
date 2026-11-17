@@ -1,12 +1,26 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { authorize } from "@/lib/session";
+import { ssoEnabled } from "@/lib/sso/config";
 
 export const ADMIN_TOKEN_HEADER = "x-admin-token";
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
 
-// Login is client-side only, so the server cannot trust a claimed role.
-// Admin routes are disabled unless ADMIN_API_TOKEN is set, and then require it.
+// With SSO on, admin routes require a signed-in Admin. Without it the server cannot
+// verify a role, so they are disabled unless ADMIN_API_TOKEN is set, and then require it.
+export async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
+  if (ssoEnabled()) {
+    const auth = await authorize(req, "Admin");
+    return auth.ok ? null : auth.response;
+  }
+  return requireAdminToken(req);
+}
+
+/**
+ * The admin key alone. Campaign administration (/api/v1/admin, used by `sdd.mjs admin` from a terminal)
+ * always uses it, with or without SSO, because a script cannot hold a browser session.
+ */
 export function requireAdminToken(req: NextRequest): NextResponse | null {
   const expected = process.env.ADMIN_API_TOKEN;
   if (!expected) {
