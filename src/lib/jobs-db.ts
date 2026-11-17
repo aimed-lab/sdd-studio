@@ -248,10 +248,16 @@ async function addEvent(
   actorType: string,
   note: string | null,
 ) {
-  const q = c ? c.sql : sql;
-  await q`
-    INSERT INTO sparc_job_events (job_id, status, actor, actor_type, note)
-    VALUES (${jobId}, ${status}, ${actor}, ${actorType}, ${note})`;
+  // `client.sql` is a method on the client: calling it detached (const q = c.sql) loses `this`.
+  if (c) {
+    await c.sql`
+      INSERT INTO sparc_job_events (job_id, status, actor, actor_type, note)
+      VALUES (${jobId}, ${status}, ${actor}, ${actorType}, ${note})`;
+  } else {
+    await sql`
+      INSERT INTO sparc_job_events (job_id, status, actor, actor_type, note)
+      VALUES (${jobId}, ${status}, ${actor}, ${actorType}, ${note})`;
+  }
 }
 
 export async function jobEvents(jobId: string, limit = 100): Promise<JobEventRow[]> {
