@@ -56,7 +56,7 @@ export const pageClasses: Record<string, PageClass> = {
     kind: "mixed",
     sections: [
       { label: "Example campaigns and the developer sandbox (test data)", kind: "demo" },
-      { label: "Campaigns: the lab's own unpublished results, shown to holders of the project key", kind: "project" },
+      { label: "Campaigns: the lab's own unpublished results, shown to key holders and the signed-in Owner and Admins", kind: "project" },
     ],
   },
   "/projects/demo": { kind: "demo" },

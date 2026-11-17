@@ -89,7 +89,7 @@ const CLASS_STYLE: Record<Exclude<DataClass, "app">, { label: string; long: stri
   },
   project: {
     label: "Project",
-    long: "The lab's own project data, shown to holders of the project key",
+    long: "The lab's own project data, shown to holders of the project key and to the signed-in Owner and Admins",
     icon: FlaskConical,
     className: "border-indigo-300 bg-indigo-50 text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200",
   },
