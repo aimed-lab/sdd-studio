@@ -17,7 +17,11 @@ export async function requireAdmin(req: NextRequest): Promise<NextResponse | nul
   return requireAdminToken(req);
 }
 
-function requireAdminToken(req: NextRequest): NextResponse | null {
+/**
+ * The admin key alone. Campaign administration (/api/v1/admin, used by `sdd.mjs admin` from a terminal)
+ * always uses it, with or without SSO, because a script cannot hold a browser session.
+ */
+export function requireAdminToken(req: NextRequest): NextResponse | null {
   const expected = process.env.ADMIN_API_TOKEN;
   if (!expected) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
