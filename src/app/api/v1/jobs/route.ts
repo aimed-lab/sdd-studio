@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { canSeeJob, isJobAdmin, jobRequester, jobView, parseJobRequest } from "@/lib/jobs-api";
+import { canSeeJob, isJobAdmin, jobActor, jobView, parseJobRequest } from "@/lib/jobs-api";
 import { JOB_STATUSES, createJob, listJobs } from "@/lib/jobs-db";
 import { fail, json, SLUG_RE } from "@/lib/projects-api";
 import { LimitError, getProject } from "@/lib/projects-db";
@@ -21,28 +21,29 @@ export const revalidate = 0;
 
 /** GET /api/v1/jobs?project=&status=&mine=1 — jobs this account may see, newest first. */
 export async function GET(req: NextRequest) {
-  const caller = await jobRequester(req);
-  if ("response" in caller) return caller.response;
-  const { user } = caller;
-
   const sp = req.nextUrl.searchParams;
+  // `email` is used only where single sign-on is off and the server cannot read a session.
+  const caller = await jobActor(req, "Developer", sp.get("email"));
+  if ("response" in caller) return caller.response;
+  const { actor } = caller;
+
   const project = sp.get("project");
   if (project && !SLUG_RE.test(project)) return fail(400, "project must be a project slug.");
   const status = sp.getAll("status").filter((s) => (JOB_STATUSES as readonly string[]).includes(s));
-  const admin = isJobAdmin(user.role);
+  const admin = isJobAdmin(actor.role);
   const mine = sp.get("mine") === "1" || !admin;
 
   try {
     const jobs = await listJobs({
       project,
-      requestedBy: mine ? user.email.trim().toLowerCase() : null,
+      requestedBy: mine ? actor.email : null,
       statuses: status.length ? status : null,
       limit: Number(sp.get("limit") ?? 50),
     });
     return json({
       ok: true,
       scope: mine ? "mine" : "all",
-      jobs: jobs.map((j) => jobView(j, { withRequester: canSeeJob(user, j) })),
+      jobs: jobs.map((j) => jobView(j, { withRequester: canSeeJob(actor, j) })),
     });
   } catch (err) {
     console.error("[/api/v1/jobs] GET", err);
@@ -52,16 +53,16 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/v1/jobs — request one job. Body: { project, kind, title, params, estGpuHours, cluster?, noPhi }. */
 export async function POST(req: NextRequest) {
-  const caller = await jobRequester(req, "Developer");
-  if ("response" in caller) return caller.response;
-  const { user } = caller;
-
   let body: unknown;
   try {
     body = await req.json();
   } catch {
     return fail(400, "Body must be JSON.");
   }
+  const caller = await jobActor(req, "Developer", (body as { email?: string })?.email ?? null);
+  if ("response" in caller) return caller.response;
+  const { actor } = caller;
+
   const slug = typeof (body as { project?: unknown })?.project === "string" ? (body as { project: string }).project : "";
   if (!SLUG_RE.test(slug)) return fail(400, "project is required: the slug of the campaign, or sandbox.");
 
@@ -71,9 +72,13 @@ export async function POST(req: NextRequest) {
   try {
     const project = await getProject(slug);
     if (!project) return fail(404, "Project not found.");
-    const admin = isJobAdmin(user.role);
+    const admin = isJobAdmin(actor.role);
     if (project.kind !== "sandbox" && !admin) {
       return fail(403, "Only an Owner or Admin can request a run for a campaign. Use the sandbox for a test run.");
+    }
+    // Without a verified session the server cannot be sure who is asking, so real cluster time is off limits.
+    if (project.kind !== "sandbox" && !actor.verified) {
+      return fail(403, "A run for a campaign needs Studio sign-in, which is not configured on this deployment. The sandbox (dry runs) is available.");
     }
     // The sandbox holds test data only, so a sandbox job is always completed as a labelled dry run.
     const dryRun = project.kind === "sandbox";
@@ -87,8 +92,8 @@ export async function POST(req: NextRequest) {
       clusterPreference: parsed.clusterPreference,
       noPhi: true,
       dryRun,
-      requestedBy: user.email.trim().toLowerCase(),
-      requestedRole: user.role,
+      requestedBy: actor.email,
+      requestedRole: actor.role,
       autoApprove: admin,
     });
 

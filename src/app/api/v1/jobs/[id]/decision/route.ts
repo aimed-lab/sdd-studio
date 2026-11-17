@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { JOB_ID_RE, canSeeJob, isJobAdmin, jobRequester, jobView } from "@/lib/jobs-api";
+import { JOB_ID_RE, canSeeJob, isJobAdmin, jobActor, jobView } from "@/lib/jobs-api";
 import { decideJob, getJob, type Decision } from "@/lib/jobs-db";
 import { fail, json } from "@/lib/projects-api";
 
@@ -17,9 +17,6 @@ const DECISIONS: Decision[] = ["approve", "reject", "cancel", "requeue"];
  *   requeue          — an Owner or Admin, on a job whose runner stopped reporting; another runner takes it.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const caller = await jobRequester(req);
-  if ("response" in caller) return caller.response;
-  const { user } = caller;
   if (!JOB_ID_RE.test(params.id)) return fail(404, "Job not found.");
 
   let body: unknown;
@@ -28,6 +25,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   } catch {
     return fail(400, "Body must be JSON.");
   }
+  const caller = await jobActor(req, "Developer", (body as { email?: string })?.email ?? null);
+  if ("response" in caller) return caller.response;
+  const { actor } = caller;
   const decision = (body as { decision?: unknown })?.decision;
   if (typeof decision !== "string" || !(DECISIONS as readonly string[]).includes(decision)) {
     return fail(400, `decision must be one of ${DECISIONS.join(", ")}.`);
@@ -40,14 +40,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   try {
     const job = await getJob(params.id);
-    if (!job || !canSeeJob(user, job)) return fail(404, "Job not found.");
-    const admin = isJobAdmin(user.role);
+    if (!job || !canSeeJob(actor, job)) return fail(404, "Job not found.");
+    const admin = isJobAdmin(actor.role);
     if (decision !== "cancel" && !admin) return fail(403, "Only an Owner or Admin can approve, reject or requeue a job.");
 
     const moved = await decideJob({
       id: job.id,
       decision: decision as Decision,
-      actor: user.email.trim().toLowerCase(),
+      actor: actor.email,
       note,
     });
     if (!moved) return fail(409, `This job is ${job.status}; "${decision}" does not apply to it.`);

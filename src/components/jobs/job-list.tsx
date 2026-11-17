@@ -25,6 +25,9 @@ const FILTERS: { key: Filter; label: string; statuses: string[] }[] = [
 export function JobList() {
   const { user } = useAuth();
   const isAdmin = hasRole(user?.role, "Admin");
+  // Where single sign-on is off (preview deployments, local development) the server cannot read a
+  // session, so it takes this email and checks that account in the database. With sign-on on it is ignored.
+  const email = user?.email ?? "";
   const [filter, setFilter] = useState<Filter>("open");
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +36,7 @@ export function JobList() {
     const statuses = FILTERS.find((f) => f.key === filter)?.statuses ?? [];
     const qs = new URLSearchParams();
     for (const s of statuses) qs.append("status", s);
+    if (email) qs.set("email", email);
     try {
       const res = await fetch(`/api/v1/jobs?${qs.toString()}`, { cache: "no-store" });
       const data = (await res.json()) as { ok?: boolean; jobs?: Job[]; error?: string };
@@ -45,7 +49,7 @@ export function JobList() {
     } catch {
       setError("Network error while loading jobs.");
     }
-  }, [filter]);
+  }, [filter, email]);
 
   useEffect(() => {
     setJobs(null);
@@ -128,7 +132,7 @@ export function JobList() {
 
       <InSilicoNote />
 
-      {isAdmin && <RunnerPanel />}
+      {isAdmin && <RunnerPanel email={email} />}
     </div>
   );
 }
@@ -146,7 +150,7 @@ interface Runner {
 }
 
 /** Owner and Admin only: the sandbox runner tokens, so a lab machine can poll this queue. */
-function RunnerPanel() {
+function RunnerPanel({ email }: { email: string }) {
   const [runners, setRunners] = useState<Runner[] | null>(null);
   const [fresh, setFresh] = useState<{ token: string; prefix: string; expiresAt: string } | null>(null);
   const [label, setLabel] = useState("");
@@ -155,7 +159,7 @@ function RunnerPanel() {
 
   const load = async () => {
     try {
-      const res = await fetch("/api/v1/jobs/runners", { cache: "no-store" });
+      const res = await fetch(`/api/v1/jobs/runners${email ? `?email=${encodeURIComponent(email)}` : ""}`, { cache: "no-store" });
       const data = (await res.json()) as { ok?: boolean; runners?: Runner[]; error?: string };
       if (!res.ok || !data.ok) {
         setError(data.error ?? `Could not load runner tokens (HTTP ${res.status}).`);
@@ -170,7 +174,8 @@ function RunnerPanel() {
 
   useEffect(() => {
     void load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
 
   const mint = async () => {
     setBusy(true);
@@ -179,7 +184,7 @@ function RunnerPanel() {
       const res = await fetch("/api/v1/jobs/runners", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim() || null, days: 30 }),
+        body: JSON.stringify({ label: label.trim() || null, days: 30, email }),
       });
       const data = (await res.json()) as { ok?: boolean; token?: string; prefix?: string; expiresAt?: string; error?: string };
       if (!res.ok || !data.ok || !data.token) {
@@ -202,7 +207,7 @@ function RunnerPanel() {
       await fetch("/api/v1/jobs/runners", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, email }),
       });
       await load();
     } finally {

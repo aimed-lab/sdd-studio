@@ -29,6 +29,11 @@ Who may do what:
 | approve, reject or requeue | Owner, Admin |
 | cancel before it runs | the requester, Owner, Admin |
 
+On a deployment without Studio sign-on (preview deployments and local development) the server cannot
+read a session. There, a request names an active member's email instead, the server checks that
+account's status and role in the database, and **only the sandbox is available** — a campaign run is
+refused. Production has sign-on, so it always uses the signed-in account.
+
 A request from an Owner or Admin starts **queued**. Anyone else's starts **pending** and an Owner or
 Admin approves it. A request for the **developer sandbox** is always completed as a labelled **dry
 run**: the runner writes synthetic test data and no cluster time is used, which is how to try the

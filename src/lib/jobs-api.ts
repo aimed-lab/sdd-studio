@@ -10,11 +10,11 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import type { DBUser } from "@/lib/db";
+import { getUserByEmail, type DBUser } from "@/lib/db";
 import { JOB_KINDS, JOB_LIMITS, type JobKind, type JobRow, type RunnerRow, verifyRunner } from "@/lib/jobs-db";
 import { bearer, fail } from "@/lib/projects-api";
-import { type AppRole, hasRole } from "@/lib/roles";
-import { authorize } from "@/lib/session";
+import { type AppRole, hasRole, roleRank } from "@/lib/roles";
+import { authorize, rankOf } from "@/lib/session";
 import { ssoEnabled } from "@/lib/sso/config";
 
 /** Roles that may approve a job, requeue a stale one, and see every project's jobs. */
@@ -28,21 +28,50 @@ export const isJobAdmin = (role: string | null | undefined) =>
 
 // ── Who is calling ──────────────────────────────────────────────────────────
 
+const EMAIL_RE = /^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$/;
+
+/** The person asking, and whether the server could verify that it is them. */
+export interface JobActor {
+  email: string;
+  role: string;
+  /** True when a signed-in session proved who this is. False on a deployment without single sign-on. */
+  verified: boolean;
+}
+
 /**
- * The signed-in account, at or above `minRole`. Compute jobs spend real GPU time and are attributed
- * to a person, so — unlike the project-key routes — they are unavailable with single sign-on off.
+ * The person making the request, at or above `minRole`.
+ *
+ * With single sign-on on (production), that is the signed-in account, checked against the database
+ * on every request. With it off (preview deployments and local development) the server cannot verify
+ * a session, so — exactly as the sandbox push-token routes already do — it takes the email the client
+ * sends and checks that account's status and role in the database. An unverified caller may only
+ * work with the sandbox, where every job is a dry run; the campaign routes refuse them.
  */
-export async function jobRequester(
+export async function jobActor(
   req: NextRequest,
   minRole: AppRole = "Developer",
-): Promise<{ user: DBUser } | { response: NextResponse }> {
-  if (!ssoEnabled()) {
-    return { response: fail(503, "Compute jobs need Studio sign-in, which is not configured on this deployment.") };
+  claimedEmail?: string | null,
+): Promise<{ actor: JobActor } | { response: NextResponse }> {
+  if (ssoEnabled()) {
+    const auth = await authorize(req, minRole);
+    if (!auth.ok) return { response: auth.response };
+    if (!auth.user) return { response: fail(401, "Sign in required") };
+    return { actor: { email: auth.user.email.trim().toLowerCase(), role: auth.user.role, verified: true } };
   }
-  const auth = await authorize(req, minRole);
-  if (!auth.ok) return { response: auth.response };
-  if (!auth.user) return { response: fail(401, "Sign in required") };
-  return { user: auth.user };
+  const email = (claimedEmail ?? "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) {
+    return { response: fail(401, "Studio sign-in is not configured on this deployment, so the request must name an active member's email.") };
+  }
+  let user: DBUser | null;
+  try {
+    user = await getUserByEmail(email);
+  } catch (err) {
+    console.error("[jobActor] user lookup failed:", err);
+    return { response: fail(503, "Account service unavailable. Please try again.") };
+  }
+  if (!user || user.account_status !== "active") return { response: fail(403, "Only active Studio members can work with compute jobs.") };
+  if (rankOf(user.role) > roleRank(minRole)) return { response: fail(403, "You do not have permission for this action") };
+  return { actor: { email: user.email.trim().toLowerCase(), role: user.role, verified: false } };
 }
 
 /** The runner token on the request (`Authorization: Bearer sdd_rt_…`), or a refusal. */
@@ -55,8 +84,8 @@ export async function jobRunner(req: NextRequest): Promise<{ runner: RunnerRow }
 }
 
 /** A person may see a job if they requested it, or if they can see every project's jobs. */
-export const canSeeJob = (user: DBUser, job: JobRow) =>
-  isJobAdmin(user.role) || job.requested_by === user.email.trim().toLowerCase();
+export const canSeeJob = (actor: JobActor, job: JobRow) =>
+  isJobAdmin(actor.role) || job.requested_by === actor.email;
 
 // ── Request validation ──────────────────────────────────────────────────────
 

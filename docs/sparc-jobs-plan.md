@@ -116,9 +116,17 @@ died. An Owner or Admin can send it back to `queued` so another runner picks it 
 | mint a runner token for a campaign | the platform owner, with the admin key |
 | claim jobs, report status, complete | a runner token, for its own projects only |
 
-Every one of these is checked on the server, on each request, against the signed-in account in the
-database (`authorize(req, minRole)`), not against anything the browser sends. Middleware does not
-gate `/api/*`, so each job route checks for itself.
+Every one of these is checked on the server, on each request, against the account in the database,
+not against anything the browser claims about its role. Middleware does not gate `/api/*`, so each
+job route checks for itself.
+
+**Deployments without single sign-on.** Production has sign-on, so there the account is the signed-in
+session. Preview deployments and local development do not have the sign-on secrets, and the server
+cannot verify a session there. Rather than disable the feature, those deployments fall back to what
+the sandbox push-token routes already do: the request names an email, and the server checks that
+account's status and role in the database. An unverified caller may work only with the **sandbox**,
+where every job is a dry run and no cluster time can be spent; a campaign run is refused outright.
+Preview deployments are behind Vercel Authentication as well.
 
 Approval exists because a GPU hour costs money or allocation, and because a request names a receptor
 and a ligand set that a reviewer should see before a cluster runs it. It is deliberately a human

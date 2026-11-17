@@ -18,6 +18,8 @@ const OPEN = ["pending", "queued", "claimed", "submitted", "running"];
 export function JobDetail({ id }: { id: string }) {
   const { user } = useAuth();
   const isAdmin = hasRole(user?.role, "Admin");
+  // Only read where single sign-on is off; the server then checks this account in the database.
+  const email = user?.email ?? "";
   const [job, setJob] = useState<Job | null>(null);
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [stale, setStale] = useState(false);
@@ -27,7 +29,7 @@ export function JobDetail({ id }: { id: string }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/jobs/${id}`, { cache: "no-store" });
+      const res = await fetch(`/api/v1/jobs/${id}${email ? `?email=${encodeURIComponent(email)}` : ""}`, { cache: "no-store" });
       const data = (await res.json()) as { ok?: boolean; job?: Job; events?: JobEvent[]; stale?: boolean; error?: string };
       if (res.status === 404) {
         setNotFound(true);
@@ -44,7 +46,7 @@ export function JobDetail({ id }: { id: string }) {
     } catch {
       setError("Network error while loading this job.");
     }
-  }, [id]);
+  }, [id, email]);
 
   useEffect(() => {
     void load();
@@ -59,7 +61,7 @@ export function JobDetail({ id }: { id: string }) {
       const res = await fetch(`/api/v1/jobs/${id}/decision`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify({ decision, email }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) setError(data.error ?? `That did not work (HTTP ${res.status}).`);

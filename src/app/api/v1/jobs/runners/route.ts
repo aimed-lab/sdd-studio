@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { jobRequester } from "@/lib/jobs-api";
+import { jobActor } from "@/lib/jobs-api";
 import { JOB_LIMITS, createRunner, listRunners, revokeRunner } from "@/lib/jobs-db";
 import { fail, json } from "@/lib/projects-api";
 import { LimitError, audit } from "@/lib/projects-db";
@@ -30,7 +30,7 @@ async function body(req: NextRequest): Promise<Record<string, unknown> | null> {
 
 /** GET — the sandbox's runner tokens (prefix, label, dates; never the token). */
 export async function GET(req: NextRequest) {
-  const caller = await jobRequester(req, "Admin");
+  const caller = await jobActor(req, "Admin", req.nextUrl.searchParams.get("email"));
   if ("response" in caller) return caller.response;
   try {
     const runners = await listRunners(SANDBOX);
@@ -49,15 +49,15 @@ export async function GET(req: NextRequest) {
 
 /** POST { label?, days? } — mints a sandbox runner token and returns it once. */
 export async function POST(req: NextRequest) {
-  const caller = await jobRequester(req, "Admin");
-  if ("response" in caller) return caller.response;
   const b = (await body(req)) ?? {};
+  const caller = await jobActor(req, "Admin", typeof b.email === "string" ? b.email : null);
+  if ("response" in caller) return caller.response;
   const label = typeof b.label === "string" && b.label.trim() ? b.label.trim().slice(0, 60) : null;
   const days = b.days == null ? 30 : Number(b.days);
   if (!Number.isInteger(days) || days < 1 || days > JOB_LIMITS.maxRunnerDays) {
     return fail(400, `days must be 1–${JOB_LIMITS.maxRunnerDays}.`);
   }
-  const email = caller.user.email.trim().toLowerCase();
+  const email = caller.actor.email;
   try {
     const r = await createRunner({ createdBy: email, label, projects: SANDBOX, days });
     await audit("sandbox", email, "human", "create_runner_token", r.prefix, { label, days, projects: SANDBOX });
@@ -71,15 +71,15 @@ export async function POST(req: NextRequest) {
 
 /** DELETE { id } — revokes a sandbox runner token. */
 export async function DELETE(req: NextRequest) {
-  const caller = await jobRequester(req, "Admin");
-  if ("response" in caller) return caller.response;
   const b = await body(req);
+  const caller = await jobActor(req, "Admin", typeof b?.email === "string" ? b.email : null);
+  if ("response" in caller) return caller.response;
   const id = typeof b?.id === "string" ? b.id : "";
   if (!id || id.length > 30) return fail(400, "id is required.");
   try {
     const revoked = await revokeRunner(id, SANDBOX);
     if (!revoked) return fail(404, "Runner token not found or already revoked.");
-    await audit("sandbox", caller.user.email.trim().toLowerCase(), "human", "revoke_runner_token", revoked.prefix, null);
+    await audit("sandbox", caller.actor.email, "human", "revoke_runner_token", revoked.prefix, null);
     return json({ ok: true });
   } catch (err) {
     console.error("[/api/v1/jobs/runners] DELETE", err);

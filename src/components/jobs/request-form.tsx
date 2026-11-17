@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { KIND_LABEL } from "@/components/jobs/job-ui";
 
 /*
@@ -35,6 +36,7 @@ interface ProjectOption {
 
 export function RequestRunForm({ initialKind }: { initialKind?: string }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [kind, setKind] = useState<Kind>(initialKind === "generative-design" ? "generative-design" : "docking");
   const [projects, setProjects] = useState<ProjectOption[] | null>(null);
   const [project, setProject] = useState("sandbox");
@@ -144,6 +146,8 @@ export function RequestRunForm({ initialKind }: { initialKind?: string }) {
         body: JSON.stringify({
           project,
           kind,
+          // Read only where single sign-on is off; the server checks this account in the database.
+          email: user?.email ?? "",
           title: title.trim(),
           estGpuHours: Number(hours),
           cluster: cluster.trim() || null,
