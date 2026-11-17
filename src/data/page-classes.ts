@@ -68,7 +68,14 @@ export const pageClasses: Record<string, PageClass> = {
   "/design": { kind: "planned" },
   "/models": { kind: "planned" },
   "/services": { kind: "planned" },
-  "/plugins": { kind: "planned" },
+  "/plugins": {
+    kind: "mixed",
+    sections: [
+      { label: "Studio's MCP endpoint, data API, sdd tool and agent skill (setup checked against production)", kind: "live" },
+      { label: "Third-party services, labelled, with links to their source", kind: "curated" },
+      { label: "One planned item from the Projects plan", kind: "planned" },
+    ],
+  },
   "/targets/[gene]": {
     kind: "mixed",
     sections: [

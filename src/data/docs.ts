@@ -37,6 +37,13 @@ export const DOC_PAGES: DocPage[] = [
     file: "skills/sdd-studio-push/SKILL.md",
   },
   {
+    slug: "mcp-endpoint",
+    title: "MCP endpoint",
+    description: "Connect Claude Code or another MCP client to Studio's read-only data tools: setup, tools, limits, and third-party servers.",
+    section: "Developers",
+    file: "docs/mcp-endpoint.md",
+  },
+  {
     slug: "projects-api",
     title: "Projects API and sdd tool",
     description: "Endpoints, push format, limits and tables behind the developer sandbox.",
