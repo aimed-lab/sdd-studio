@@ -3,6 +3,13 @@ import { getInvitationByToken, type DBInvitation } from "@/lib/db";
 import { hasRole } from "@/lib/roles";
 import { authorize } from "@/lib/session";
 
+// Account lookups must never come from Next.js's data cache: a cached "no such account" kept the
+// Owner out after the account was created. The database client can query over fetch.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
+
 /**
  * /api/send-invite — Send an invitation email via Resend.
  *

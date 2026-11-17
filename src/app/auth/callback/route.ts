@@ -14,6 +14,10 @@ import {
 } from "@/lib/sso/signed-cookie";
 
 export const dynamic = "force-dynamic";
+// Account lookups must never come from Next.js's data cache: a cached "no such account" kept the
+// Owner out after the account was created. The database client can query over fetch.
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 const toLogin = (reason: string) => {
   const res = NextResponse.redirect(`${baseUrl()}/login?sso_error=${encodeURIComponent(reason)}`);
