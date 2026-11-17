@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MoleculeViewer } from "@/components/molecule-viewer";
 import { keyHeaders } from "@/components/projects/project-key";
+import { ADMET_PATH, putAdmetHandoff } from "@/lib/admet/handoff";
 
 type Cell = string | number | boolean | null;
 type Row = Record<string, Cell>;
@@ -30,6 +32,7 @@ function csvEscape(v: Cell) {
 
 /** A pushed table explored on the server: search, sort, pages of 100, row details with the structure drawn. */
 export function LiveTable({ slug, table, note }: { slug: string; table: string; note?: string }) {
+  const router = useRouter();
   const [page, setPage] = useState(0);
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
@@ -126,6 +129,19 @@ export function LiveTable({ slug, table, note }: { slug: string; table: string; 
     setExporting(null);
   }
 
+  /** Sends this page of structures to the browser-side ADMET screener. */
+  function openInAdmetScreener() {
+    if (!data || !smilesCol) return;
+    const rows = data.rows
+      .map((r) => ({ smiles: typeof r[smilesCol] === "string" ? (r[smilesCol] as string) : "", name: fmt(r[idCol] ?? null) }))
+      .filter((r) => r.smiles);
+    if (!putAdmetHandoff({ source: `${table} (${slug}), page ${page + 1}`, rows })) {
+      setError("Could not open the screener: this browser would not keep the structures for the next page.");
+      return;
+    }
+    router.push(ADMET_PATH);
+  }
+
   const pages = data ? Math.max(1, Math.ceil(data.matched / PAGE)) : 1;
   const incomplete = data?.expected != null && data.total < data.expected;
 
@@ -163,6 +179,17 @@ export function LiveTable({ slug, table, note }: { slug: string; table: string; 
         <button type="button" className="vx-btn" disabled={!data || !!exporting} onClick={exportAll}>
           {exporting ? `Exporting ${exporting}` : `↓ CSV (${(data?.matched ?? 0).toLocaleString()} rows)`}
         </button>
+        {smilesCol && (
+          <button
+            type="button"
+            className="vx-btn"
+            disabled={!data || data.rows.length === 0 || loading}
+            onClick={openInAdmetScreener}
+            title="Screen this page of structures for computed properties and rule checks, in your browser"
+          >
+            Open in ADMET screener
+          </button>
+        )}
       </div>
 
       {error && <p style={{ color: "var(--vx-error)", fontSize: 12.5 }}>{error}</p>}
